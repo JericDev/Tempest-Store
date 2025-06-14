@@ -116,56 +116,55 @@
 
   <main id="product-list"></main>
 
-  <script>
-    const products = [
-      { name: "Queen Bee", category: "pets", price: "₱3500", new: true, stock: true },
-      { name: "Petal Bee", category: "pets", price: "₱4300", new: true, stock: true },
-      { name: "Bear Bee", category: "pets", price: "₱2900", new: false, stock: false },
-      { name: "Laser Blade", category: "gears", price: "₱8000", new: false, stock: true },
-      { name: "Gold Sheckle", category: "sheckles", price: "₱1200", new: false, stock: true }
-    ];
+<script>
+  const products = [
+    { name: "Queen Bee", category: "pets", price: "₱500", new: true, stock: true, image: "queenbee.png" },
+    { name: "Petal Bee", category: "pets", price: "₱4300", new: true, stock: true, image: "petalbee.png" },
+    { name: "Bear Bee", category: "pets", price: "₱2900", new: false, stock: false, image: "bearbee.png" },
+    { name: "Laser Blade", category: "gears", price: "₱8000", new: false, stock: true, image: "laserblade.png" },
+    { name: "1T Sheckle", category: "sheckles", price: "₱15", new: true, stock: true, image: "sheckles.png" }
+  ];
 
-    const productList = document.getElementById("product-list");
+  const productList = document.getElementById("product-list");
 
-    function renderProducts(items) {
-      productList.innerHTML = "";
-      items.forEach(product => {
-        const card = document.createElement("div");
-        card.className = "card";
-        if (!product.stock) card.classList.add("out-of-stock");
+  function renderProducts(items) {
+    productList.innerHTML = "";
+    items.forEach(product => {
+      const card = document.createElement("div");
+      card.className = "card";
+      if (!product.stock) card.classList.add("out-of-stock");
 
-        const imageName = product.name.toLowerCase().replaceAll(" ", "") + ".png";
+      const imageName = product.image || product.name.toLowerCase().replaceAll(" ", "") + ".png";
 
-        card.innerHTML = `
-          ${product.new ? `<span class="badge">NEW</span>` : ""}
-          <img src="images/${imageName}" alt="${product.name}">
-          <h4>${product.name}</h4>
-          <div class="price">${product.price}</div>
-          <div style="color:${product.stock ? 'green' : 'red'}; font-weight:bold;">
-            ${product.stock ? 'In Stock' : 'Out of Stock'}
-          </div>
-        `;
-        productList.appendChild(card);
-      });
-    }
+      card.innerHTML = `
+        ${product.new ? `<span class="badge">NEW</span>` : ""}
+        <img src="images/${imageName}" alt="${product.name}">
+        <h4>${product.name}</h4>
+        <div class="price">${product.price}</div>
+        <div style="color:${product.stock ? 'green' : 'red'}; font-weight:bold;">
+          ${product.stock ? 'In Stock' : 'Out of Stock'}
+        </div>
+      `;
+      productList.appendChild(card);
+    });
+  }
 
-    function filterItems(category) {
-      if (category === 'all') {
-        renderProducts(products);
-      } else {
-        const filtered = products.filter(p => p.category === category);
-        renderProducts(filtered);
-      }
-    }
-
-    function searchItems() {
-      const query = document.getElementById("searchBox").value.toLowerCase();
-      const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+  function filterItems(category) {
+    if (category === 'all') {
+      renderProducts(products);
+    } else {
+      const filtered = products.filter(p => p.category === category);
       renderProducts(filtered);
     }
+  }
 
-    // Initial render
-    renderProducts(products);
-  </script>
-</body>
-</html>
+  function searchItems() {
+    const query = document.getElementById("searchBox").value.toLowerCase();
+    const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+    renderProducts(filtered);
+  }
+
+  // Initial render
+  renderProducts(products);
+</script>
+
