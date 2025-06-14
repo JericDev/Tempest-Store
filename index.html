@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tempest Store</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -55,6 +54,11 @@
       width: 200px;
       text-align: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      opacity: 1;
+      transition: transform 0.2s;
+    }
+    .card.out-of-stock {
+      opacity: 0.5;
     }
     .card img {
       width: 100%;
@@ -100,16 +104,37 @@
       {
         name: "Queen Bee",
         category: "pets",
-        price: 3500,
-        image: "images/queenbee.png",
-        badge: "new"
+        price: "₱3500",
+        new: true,
+        stock: true
+      },
+      {
+        name: "Petal Bee",
+        category: "pets",
+        price: "₱4300",
+        new: true,
+        stock: true
+      },
+      {
+        name: "Bear Bee",
+        category: "pets",
+        price: "₱2900",
+        new: false,
+        stock: false
       },
       {
         name: "Laser Blade",
         category: "gears",
-        price: 8000,
-        image: "images/laserblade.png",
-        badge: ""
+        price: "₱8000",
+        new: false,
+        stock: true
+      },
+      {
+        name: "Gold Sheckle",
+        category: "sheckles",
+        price: "₱1200",
+        new: false,
+        stock: true
       }
     ];
 
@@ -120,12 +145,18 @@
       items.forEach(product => {
         const card = document.createElement("div");
         card.className = "card";
-        card.setAttribute("data-category", product.category);
+        if (!product.stock) card.classList.add("out-of-stock");
+
+        const imageName = product.name.toLowerCase().replaceAll(" ", "") + ".png";
+
         card.innerHTML = `
-          ${product.badge ? `<span class="badge">${product.badge.toUpperCase()}</span>` : ""}
-          <img src="${product.image}" alt="${product.name}">
+          ${product.new ? `<span class="badge">NEW</span>` : ""}
+          <img src="images/${imageName}" alt="${product.name}">
           <h4>${product.name}</h4>
-          <div class="price">₱${product.price}</div>
+          <div class="price">${product.price}</div>
+          <div style="color:${product.stock ? 'green' : 'red'}; font-weight:bold;">
+            ${product.stock ? 'In Stock' : 'Out of Stock'}
+          </div>
         `;
         productList.appendChild(card);
       });
