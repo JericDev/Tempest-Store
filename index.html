@@ -5,6 +5,75 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tempest Store</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: #333;
+      color: white;
+    }
+    .logo {
+      font-size: 20px;
+    }
+    .status span.offline {
+      color: red;
+    }
+    .contact-buttons a {
+      color: white;
+      text-decoration: none;
+      margin-left: 10px;
+    }
+    .filters {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .filters button,
+    .filters input {
+      margin: 5px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    main#product-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 10px;
+      width: 200px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .card img {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+    .badge {
+      display: inline-block;
+      background: gold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    .price {
+      font-weight: bold;
+      margin-top: 8px;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -26,6 +95,59 @@
 
   <main id="product-list"></main>
 
-  <script src="script.js"></script>
+  <script>
+    const products = [
+      {
+        name: "Queen Bee",
+        category: "pets",
+        price: 3500,
+        image: "images/queenbee.png",
+        badge: "new"
+      },
+      {
+        name: "Laser Blade",
+        category: "gears",
+        price: 8000,
+        image: "images/laserblade.png",
+        badge: ""
+      }
+    ];
+
+    const productList = document.getElementById("product-list");
+
+    function renderProducts(items) {
+      productList.innerHTML = "";
+      items.forEach(product => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.setAttribute("data-category", product.category);
+        card.innerHTML = `
+          ${product.badge ? `<span class="badge">${product.badge.toUpperCase()}</span>` : ""}
+          <img src="${product.image}" alt="${product.name}">
+          <h4>${product.name}</h4>
+          <div class="price">₱${product.price}</div>
+        `;
+        productList.appendChild(card);
+      });
+    }
+
+    function filterItems(category) {
+      if (category === 'all') {
+        renderProducts(products);
+      } else {
+        const filtered = products.filter(p => p.category === category);
+        renderProducts(filtered);
+      }
+    }
+
+    function searchItems() {
+      const query = document.getElementById("searchBox").value.toLowerCase();
+      const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+      renderProducts(filtered);
+    }
+
+    // Initial render
+    renderProducts(products);
+  </script>
 </body>
 </html>
