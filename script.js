@@ -1,40 +1,30 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { app } from './firebase-config.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
-  authDomain: "store-7b9bd.firebaseapp.com",
-  projectId: "store-7b9bd",
-  storageBucket: "store-7b9bd.appspot.com",
-  messagingSenderId: "1015427798898",
-  appId: "1:1015427798898:web:a15c71636506fac128afeb"
-};
-
-const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-
+let user = null;
 let selectedProduct = null;
 let cart = [];
 
 const products = [
-  { name: "Queen Bee", category: "pets", price: "₱100", new: true, stock: true, image: "queenbee.png" },
-  { name: "Petal Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Petalbee.webp" },
-  { name: "Bear Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Bearbeee1.webp" },
-  { name: "Dragon Fly", category: "pets", price: "₱150", new: true, stock: true, image: "DragonflyIcon.webp" },
-  { name: "1T Sheckle", category: "sheckles", price: "₱5", new: true, stock: true, image: "sheckles.png" },
-  { name: "Raccoon", category: "pets", price: "₱250", new: true, stock: true, image: "Raccon_Better_Quality.webp" },
-  { name: "Butterfly", category: "pets", price: "₱180", new: true, stock: true, image: "Thy_Butterfly_V2.webp" },
-  { name: "Red Fox", category: "pets", price: "₱25", new: true, stock: true, image: "RedFox.webp" },
-  { name: "Chicken Zombie", category: "pets", price: "₱25", new: true, stock: true, image: "Chicken_Zombie_Icon.webp" },
-  { name: "Disco Bee", category: "pets", price: "₱200", new: true, stock: true, image: "DiscoBeeIcon.webp" },
-  { name: "Chocolate Sprinkler", category: "gears", price: "₱25", new: true, stock: true, image: "ChocolateSprinkler.webp" },
-  { name: "Master Sprinkler", category: "gears", price: "₱10", new: true, stock: true, image: "MasterSprinkler.webp" },
-  { name: "Lightning Rod", category: "gears", price: "₱10", new: true, stock: true, image: "Lightning_Rod.webp" },
-  { name: "Turtle", category: "pets", price: "₱10", new: true, stock: true, image: "Turtle_icon.webp" },
-  { name: "Honey Sprinkler", category: "gears", price: "₱15", new: true, stock: true, image: "HoneySprinklerRender.webp" },
-  { name: "Godly Sprinkler", category: "gears", price: "₱5", new: true, stock: true, image: "Godly_Sprinkler.webp" },
-  { name: "Sprinkler Method", category: "gears", price: "₱15", new: true, stock: true, image: "sprinklermethod.png" },
-  { name: "Polar Bear", category: "pets", price: "₱10", new: true, stock: true, image: "Polarbear.webp" }
+  { name: "Queen Bee", category: "pets", price: "₱100", image: "queenbee.png" },
+  { name: "Petal Bee", category: "pets", price: "₱10", image: "Petalbee.webp" },
+  { name: "Bear Bee", category: "pets", price: "₱10", image: "Bearbeee1.webp" },
+  { name: "Dragon Fly", category: "pets", price: "₱150", image: "DragonflyIcon.webp" },
+  { name: "1T Sheckle", category: "sheckles", price: "₱5", image: "sheckles.png" },
+  { name: "Raccoon", category: "pets", price: "₱250", image: "Raccon_Better_Quality.webp" },
+  { name: "Butterfly", category: "pets", price: "₱180", image: "Thy_Butterfly_V2.webp" },
+  { name: "Red Fox", category: "pets", price: "₱25", image: "RedFox.webp" },
+  { name: "Chicken Zombie", category: "pets", price: "₱25", image: "Chicken_Zombie_Icon.webp" },
+  { name: "Disco Bee", category: "pets", price: "₱200", image: "DiscoBeeIcon.webp" },
+  { name: "Chocolate Sprinkler", category: "gears", price: "₱25", image: "ChocolateSprinkler.webp" },
+  { name: "Master Sprinkler", category: "gears", price: "₱10", image: "MasterSprinkler.webp" },
+  { name: "Lightning Rod", category: "gears", price: "₱10", image: "Lightning_Rod.webp" },
+  { name: "Turtle", category: "pets", price: "₱10", image: "Turtle_icon.webp" },
+  { name: "Honey Sprinkler", category: "gears", price: "₱15", image: "HoneySprinklerRender.webp" },
+  { name: "Godly Sprinkler", category: "gears", price: "₱5", image: "Godly_Sprinkler.webp" },
+  { name: "Sprinkler Method", category: "gears", price: "₱15", image: "sprinklermethod.png" },
+  { name: "Polar Bear", category: "pets", price: "₱10", image: "Polarbear.webp" }
 ];
 
 function displayProducts(list = products) {
@@ -47,40 +37,46 @@ function displayProducts(list = products) {
       <img src="${product.image}" alt="${product.name}">
       <h4>${product.name}</h4>
       <p>${product.price}</p>
-      <button onclick="${auth.currentUser ? `showProductModal('${product.name}')` : `openAuthModal()`}">Add to Cart / Buy</button>
+      <button onclick="showProductModal('${product.name}')">Add to Cart</button>
+      <button onclick="buyNow('${product.name}')">Buy Now</button>
     `;
     container.appendChild(card);
   });
 }
 
-function showProductModal(name) {
+window.showProductModal = function(name) {
   selectedProduct = products.find(p => p.name === name);
   document.getElementById("modalTitle").textContent = selectedProduct.name;
   document.getElementById("modalPrice").textContent = selectedProduct.price;
   document.getElementById("modalQuantity").value = 1;
   document.getElementById("productModal").classList.remove("hidden");
-}
+};
+
+window.confirmAddToCart = function() {
+  const qty = parseInt(document.getElementById("modalQuantity").value);
+  cart.push({ ...selectedProduct, quantity: qty });
+  closeModal();
+  alert("Added to cart!");
+};
+
+window.buyNow = function(name) {
+  selectedProduct = products.find(p => p.name === name);
+  showProductModal(name);
+};
+
+window.confirmBuyNow = function() {
+  if (!user) return alert("You must be logged in to checkout!");
+  const qty = parseInt(document.getElementById("modalQuantity").value);
+  cart = [{ ...selectedProduct, quantity: qty }];
+  closeModal();
+  showCheckout();
+};
+
 function closeModal() {
   document.getElementById("productModal").classList.add("hidden");
 }
-function confirmAddToCart() {
-  const quantity = parseInt(document.getElementById("modalQuantity").value);
-  cart.push({ ...selectedProduct, quantity });
-  closeModal();
-  alert("Added to cart!");
-}
-function confirmBuyNow() {
-  const quantity = parseInt(document.getElementById("modalQuantity").value);
-  if (!auth.currentUser) {
-    alert("Please log in to buy.");
-    closeModal();
-    openAuthModal();
-    return;
-  }
-  cart = [{ ...selectedProduct, quantity }];
-  closeModal();
-  showCheckout();
-}
+window.closeModal = closeModal;
+
 function showCheckout() {
   const checkout = document.getElementById("checkoutSummary");
   const items = document.getElementById("checkoutItems");
@@ -90,74 +86,69 @@ function showCheckout() {
   let totalPrice = 0;
   cart.forEach(item => {
     const priceNum = parseFloat(item.price.replace(/[₱,]/g, ''));
-    const line = document.createElement("p");
-    line.textContent = `${item.name} x${item.quantity} = ₱${(priceNum * item.quantity).toFixed(2)}`;
-    items.appendChild(line);
+    items.innerHTML += `<p>${item.name} x${item.quantity} = ₱${(priceNum * item.quantity).toFixed(2)}</p>`;
     totalPrice += priceNum * item.quantity;
   });
 
   total.textContent = `Total: ₱${totalPrice.toFixed(2)}`;
   checkout.classList.remove("hidden");
 }
-function closeCheckout() {
-  document.getElementById("checkoutSummary").classList.add("hidden");
-}
-function placeOrder() {
-  if (!auth.currentUser) {
-    alert("Please log in to place your order.");
-    return;
-  }
+window.closeCheckout = () => document.getElementById("checkoutSummary").classList.add("hidden");
+
+window.placeOrder = function() {
   alert("Order placed successfully!");
   cart = [];
   closeCheckout();
-}
-function filterItems(category) {
+};
+
+window.filterItems = function(category) {
   const filtered = category === 'all' ? products : products.filter(p => p.category === category);
   displayProducts(filtered);
-}
-function searchItems() {
+};
+
+window.searchItems = function() {
   const keyword = document.getElementById("searchBox").value.toLowerCase();
   const filtered = products.filter(p => p.name.toLowerCase().includes(keyword));
   displayProducts(filtered);
-}
+};
 
-// Firebase Auth Functions
-function openAuthModal() {
-  document.getElementById("authModal").classList.remove("hidden");
-}
-function closeAuthModal() {
-  document.getElementById("authModal").classList.add("hidden");
-}
-function login() {
-  const email = document.getElementById("authEmail").value;
-  const pass = document.getElementById("authPassword").value;
-  signInWithEmailAndPassword(auth, email, pass)
-    .then(() => {
-      closeAuthModal();
-      alert("Logged in!");
-    })
-    .catch(e => alert("Login failed: " + e.message));
-}
-function register() {
-  const email = document.getElementById("authEmail").value;
-  const pass = document.getElementById("authPassword").value;
-  createUserWithEmailAndPassword(auth, email, pass)
-    .then(() => {
-      closeAuthModal();
-      alert("Registered and logged in!");
-    })
-    .catch(e => alert("Register failed: " + e.message));
-}
-function logout() {
-  signOut(auth);
-}
+// Auth functions
+window.showLogin = () => document.getElementById("loginModal").classList.remove("hidden");
+window.showRegister = () => document.getElementById("registerModal").classList.remove("hidden");
+window.closeLogin = () => document.getElementById("loginModal").classList.add("hidden");
+window.closeRegister = () => document.getElementById("registerModal").classList.add("hidden");
 
-// Auth state changes
-onAuthStateChanged(auth, user => {
-  document.getElementById("userEmail").textContent = user ? user.email : "";
+window.login = function() {
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+  signInWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      alert("Login successful!");
+      closeLogin();
+    }).catch(e => alert(e.message));
+};
+
+window.register = function() {
+  const email = document.getElementById("registerEmail").value;
+  const password = document.getElementById("registerPassword").value;
+  createUserWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      alert("Registered successfully!");
+      closeRegister();
+    }).catch(e => alert(e.message));
+};
+
+window.logout = function() {
+  signOut(auth).then(() => {
+    alert("Logged out!");
+  });
+};
+
+// Detect auth state
+onAuthStateChanged(auth, u => {
+  user = u;
+  document.getElementById("userDisplay").textContent = user ? `Logged in as: ${user.email}` : "";
   document.getElementById("logoutBtn").classList.toggle("hidden", !user);
-  document.getElementById("loginBtn").classList.toggle("hidden", !!user);
-  displayProducts();
 });
 
-window.onload = () => displayProducts();
+displayProducts();
