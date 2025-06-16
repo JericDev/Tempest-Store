@@ -4,19 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tempest Store</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
   <header>
     <h1>Tempest Store</h1>
-    <div class="contact-center">
-      <a href="https://facebook.com">Facebook</a> |
-      <a href="https://discord.com">Discord</a>
-    </div>
-    <div id="userStatus">
-      <span id="userEmail"></span>
-      <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
-      <button id="loginBtn" onclick="openAuthModal()">Login</button>
+    <div class="auth-buttons">
+      <button onclick="showLogin()">Login</button>
+      <button onclick="showRegister()">Register</button>
+      <span id="userDisplay"></span>
+      <button onclick="logout()" id="logoutBtn" class="hidden">Logout</button>
     </div>
   </header>
 
@@ -58,18 +56,28 @@
   </div>
 
   <!-- Login Modal -->
-  <div id="authModal" class="modal hidden">
+  <div id="loginModal" class="modal hidden">
     <div class="modal-content">
       <h3>Login</h3>
-      <input type="email" id="authEmail" placeholder="Email" /><br><br>
-      <input type="password" id="authPassword" placeholder="Password" /><br><br>
+      <input type="email" id="loginEmail" placeholder="Email"><br><br>
+      <input type="password" id="loginPassword" placeholder="Password"><br><br>
       <button onclick="login()">Login</button>
-      <button onclick="register()">Register</button><br><br>
-      <button onclick="closeAuthModal()">Cancel</button>
+      <button onclick="closeLogin()">Cancel</button>
     </div>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script type="module" src="script.js"></script>
+  <!-- Register Modal -->
+  <div id="registerModal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Register</h3>
+      <input type="email" id="registerEmail" placeholder="Email"><br><br>
+      <input type="password" id="registerPassword" placeholder="Password"><br><br>
+      <button onclick="register()">Register</button>
+      <button onclick="closeRegister()">Cancel</button>
+    </div>
+  </div>
+
+  <script src="script.js" type="module"></script>
 </body>
 </html>
+
