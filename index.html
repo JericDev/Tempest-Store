@@ -1,126 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tempest Store</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f5f5f5;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: #333;
-      color: white;
-    }
-    .logo {
-      font-size: 20px;
-    }
-    .status span.offline {
-      color: red;
-    }
-    .contact-center {
-      text-align: center;
-      margin-top: 15px;
-    }
-    .contact-center a {
-      display: inline-block;
-      color: #333;
-      background: #e0e0e0;
-      text-decoration: none;
-      padding: 6px 12px;
-      margin: 5px;
-      border-radius: 6px;
-      font-weight: bold;
-    }
-    .filters {
-      text-align: center;
-      margin: 20px 0;
-    }
-    .filters button,
-    .filters input {
-      margin: 5px;
-      padding: 8px 12px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    .filters button.active {
-      background-color: #333;
-      color: white;
-    }
-    main#product-list {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 20px;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 10px;
-      padding: 10px;
-      width: 200px;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      position: relative;
-      opacity: 1;
-      transition: transform 0.2s;
-    }
-    .card.out-of-stock {
-      opacity: 0.5;
-    }
-    .card img {
-      width: 120px;
-      height: 120px;
-      object-fit: contain;
-      margin: 0 auto;
-      display: block;
-      border-radius: 8px;
-    }
-    .badge {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      background: gold;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: bold;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .price {
-      font-weight: bold;
-      margin-top: 8px;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Tempest Store</title>
+    <!-- Link to external stylesheet -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <div class="logo">🌪️ <strong>Tempest Store</strong></div>
-    <div class="status">Seller Status: <span class="offline">Offline</span></div>
-  </header>
+    <header>
+        <div class="logo">🌪️ <strong>Tempest Store</strong></div>
+        <div class="auth-section">
+            <span id="user-display"></span>
+            <button id="login-register-button">Login / Register</button>
+            <button id="logout-button" style="display: none;">Logout</button>
+            <button id="my-orders-button" style="display: none;">My Orders</button>
+            <button id="admin-panel-button" style="display: none;">Admin Panel</button>
+            <div class="cart-icon-container" id="cart-icon-btn">
+                🛒 <span class="cart-count-badge" id="cart-count">0</span>
+            </div>
+        </div>
+    </header>
 
-  <div class="contact-center">
-    <a href="https://www.facebook.com/jerictt" target="_blank">Facebook</a>
-    <a href="https://discord.com/users/938483476670337195" target="_blank">Discord</a>
-  </div>
+    <div class="contact-center">
+        <a href="https://www.facebook.com/jerictt" target="_blank">Facebook</a>
+        <a href="https://discord.com/users/938483476670337195" target="_blank">Discord</a>
+    </div>
 
-  <div class="filters">
-    <button onclick="setFilter('all')" data-cat="all" class="active">All</button>
-    <button onclick="setFilter('pets')" data-cat="pets">Pets</button>
-    <button onclick="setFilter('gears')" data-cat="gears">Gears</button>
-    <button onclick="setFilter('sheckles')" data-cat="sheckles">Sheckles</button>
-    <input type="text" id="searchBox" placeholder="Search..." oninput="applyFilters()" />
-  </div>
+    <!-- Login/Register Modal -->
+    <div class="modal" id="auth-modal">
+        <div class="modal-box">
+            <button class="modal-close-btn" id="close-auth-modal">&times;</button>
+            <h3>Register or Login</h3>
+            <input type="email" id="auth-email" placeholder="Email" />
+            <input type="password" id="auth-password" placeholder="Password" />
+            <button id="register-button">Register</button>
+            <button id="login-button">Login</button>
+            <p id="auth-message" style="color: red;"></p>
+        </div>
+    </div>
 
-  <main id="product-list"></main>
+    <div class="filters">
+        <button onclick="setFilter('all')" data-cat="all" class="active">All</button>
+        <button onclick="setFilter('pets')" data-cat="pets">Pets</button>
+        <button onclick="setFilter('gears')" data-cat="gears">Gears</button>
+        <button onclick="setFilter('sheckles')" data-cat="sheckles">Sheckles</button>
+        <input type="text" id="searchBox" placeholder="Search..." oninput="applyFilters()" />
+    </div>
 
-  <script src="script.js"></script>
+    <main id="product-list"></main>
+
+    <!-- Cart/Checkout Modal -->
+    <div class="modal" id="cart-modal">
+        <div class="modal-box">
+            <button class="modal-close-btn" id="close-cart-modal">&times;</button>
+            <h2>Your Cart</h2>
+            <div id="cart-items-container">
+                <!-- Cart items will be rendered here by JavaScript -->
+                <p class="empty-message">Your cart is empty.</p>
+            </div>
+
+            <div class="cart-summary">
+                <div><span>Subtotal:</span> <span id="cart-subtotal">₱0.00</span></div>
+                <div><span>Shipping:</span> <span id="cart-shipping">₱0.00</span></div>
+                <div class="total"><span>Total:</span> <span id="cart-total">₱0.00</span></div>
+            </div>
+
+            <div class="payment-methods">
+                <h3>Payment Method</h3>
+                <label class="payment-option">
+                    <input type="radio" name="payment-method" value="GCash" checked>
+                    <img src="https://placehold.co/30x30/007bff/fff?text=G" alt="GCash">
+                    <span>GCash</span>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="payment-method" value="Maya">
+                    <img src="https://placehold.co/30x30/00BCD4/fff?text=M" alt="Maya">
+                    <span>Maya</span>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="payment-method" value="Paypal">
+                    <img src="https://placehold.co/30x30/003087/fff?text=P" alt="Paypal">
+                    <span>Paypal</span>
+                </label>
+            </div>
+
+            <!-- New Roblox Username Input -->
+            <input type="text" id="roblox-username-input" class="roblox-username-input" placeholder="Enter Roblox Username (Required)" style="display: none;" />
+
+            <button class="place-order-btn" id="place-order-btn">Place Order (0 items) ₱0.00</button>
+            <p style="font-size: 0.8em; color: #666; text-align: center; margin-top: 10px;">
+                By placing an order, you agree to the TikTok Shop Terms of Use and Privacy Policy.
+            </p>
+        </div>
+    </div>
+
+    <!-- Order History Modal -->
+    <div class="modal" id="order-history-modal">
+        <div class="modal-box">
+            <button class="modal-close-btn" id="close-order-history-modal">&times;</button>
+            <div id="order-history-content">
+                <h2 id="order-history-title">My Orders</h2>
+                <div id="order-history-list">
+                    <!-- Order items will be rendered here -->
+                    <p class="empty-message">No orders found.</p>
+                </div>
+
+                <!-- Order Details View (Initially hidden) -->
+                <div id="order-details-view">
+                    <h3>Order Details</h3>
+                    <div id="order-details-info">
+                        <p><strong>Order ID:</strong> <span id="detail-order-id"></span></p>
+                        <p><strong>Date:</strong> <span id="detail-order-date"></span></p>
+                        <p><strong>Status:</strong> <span id="detail-order-status"></span></p>
+                        <p><strong>Total Price:</strong> <span id="detail-order-price"></span></p>
+                        <p><strong>Payment Method:</strong> <span id="detail-payment-method"></span></p>
+                        <p><strong>Roblox Username:</strong> <span id="detail-roblox-username"></span></p>
+                    </div>
+                    <div id="order-details-items">
+                        <h4>Items:</h4>
+                        <div id="detail-items-list">
+                            <!-- Detailed ordered items will be rendered here -->
+                        </div>
+                    </div>
+                    <button class="back-to-orders-btn" id="back-to-order-list">Back to Orders</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div class="modal" id="admin-panel-modal">
+        <div class="modal-box">
+            <button class="modal-close-btn" id="close-admin-panel-modal">&times;</button>
+            <h2>Admin Panel</h2>
+
+            <div class="admin-tabs">
+                <button class="admin-tab-btn active" data-tab="products">Product Management</button>
+                <button class="admin-tab-btn" data-tab="orders">Order Management</button>
+            </div>
+
+            <div id="admin-product-management" class="admin-tab-content">
+                <div id="product-form-container">
+                    <h3><span id="product-form-title">Add New Product</span></h3>
+                    <input type="hidden" id="product-id-input" />
+                    <label for="product-name">Name:</label>
+                    <input type="text" id="product-name" placeholder="Product Name" required />
+                    <label for="product-category">Category:</label>
+                    <select id="product-category">
+                        <option value="pets">Pets</option>
+                        <option value="gears">Gears</option>
+                        <option value="sheckles">Sheckles</option>
+                    </select>
+                    <label for="product-price">Price (₱):</label>
+                    <input type="number" id="product-price" placeholder="e.g., 100" min="0" required />
+                    <!-- New Sale Price input -->
+                    <label for="product-sale-price">Sale Price (₱):</label>
+                    <input type="number" id="product-sale-price" placeholder="e.g., 80 (optional)" min="0" />
+                    <label for="product-stock">Stock:</label>
+                    <input type="number" id="product-stock" placeholder="e.g., 100" min="0" required />
+                    <label for="product-image">Image Filename:</label>
+                    <input type="text" id="product-image" placeholder="e.g., queenbee.png" required />
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="product-new" />
+                        <label for="product-new">New Product</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="product-sale" />
+                        <label for="product-sale">On Sale</label>
+                    </div>
+                    <button id="save-product-btn">Add Product</button>
+                    <button id="cancel-edit-product" style="display: none;">Cancel Edit</button>
+                </div>
+
+                <h3>Existing Products</h3>
+                <table class="admin-product-table">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>New/Sale</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-products-list">
+                        <!-- Products will be rendered here -->
+                        <tr><td colspan="7" class="empty-message">No products found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="admin-order-management" class="admin-tab-content" style="display: none;">
+                <h3>All Orders</h3>
+                <table class="admin-order-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>User ID</th>
+                            <th>Date</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-orders-list">
+                        <!-- Orders will be rendered here -->
+                        <tr><td colspan="6" class="empty-message">No orders found.</td></tr>
+                    </tbody>
+                </table>
+
+                <!-- Admin Order Details View (Initially hidden) -->
+                <div id="admin-order-details-view">
+                    <h3>Order Details</h3>
+                    <div id="admin-order-details-info">
+                        <p><strong>Order ID:</strong> <span id="admin-detail-order-id"></span></p>
+                        <p><strong>User ID:</strong> <span id="admin-detail-user-id"></span></p>
+                        <p><strong>Roblox Username:</strong> <span id="admin-detail-roblox-username"></span></p>
+                        <p><strong>Date:</strong> <span id="admin-detail-order-date"></span></p>
+                        <p><strong>Total Price:</strong> <span id="admin-detail-order-price"></span></p>
+                        <p><strong>Payment Method:</strong> <span id="admin-detail-payment-method"></span></p>
+                        <p><strong>Current Status:</strong> <span id="admin-detail-order-status"></span></p>
+                    </div>
+                    <div id="admin-order-details-items">
+                        <h4>Items:</h4>
+                        <div id="admin-detail-items-list">
+                            <!-- Detailed ordered items will be rendered here -->
+                        </div>
+                    </div>
+                    <div class="order-status-update-section">
+                        <label for="order-status-select">Change Status:</label>
+                        <select id="order-status-select">
+                            <option value="Pending">Pending</option>
+                            <option value="In Process">In Process</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                        <button id="update-order-status-btn">Update Order Status</button>
+                    </div>
+                    <button class="admin-back-to-orders-btn" id="admin-back-to-order-list">Back to All Orders</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link to external JavaScript file -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
