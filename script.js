@@ -17,11 +17,24 @@ let selectedProduct = null;
 let cart = [];
 
 const products = [
-  { name: "Queen Bee", category: "pets", price: "₱100", image: "queenbee.png" },
-  { name: "Petal Bee", category: "pets", price: "₱10", image: "Petalbee.webp" },
-  { name: "Godly Sprinkler", category: "gears", price: "₱5", image: "Godly_Sprinkler.webp" },
-  { name: "1T Sheckle", category: "sheckles", price: "₱5", image: "sheckles.png" },
-  // Add more as needed...
+  { name: "Queen Bee", category: "pets", price: "₱100", new: true, stock: true, image: "queenbee.png" },
+  { name: "Petal Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Petalbee.webp" },
+  { name: "Bear Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Bearbeee1.webp" },
+  { name: "Dragon Fly", category: "pets", price: "₱150", new: true, stock: true, image: "DragonflyIcon.webp" },
+  { name: "1T Sheckle", category: "sheckles", price: "₱5", new: true, stock: true, image: "sheckles.png" },
+  { name: "Raccoon", category: "pets", price: "₱250", new: true, stock: true, image: "Raccon_Better_Quality.webp" },
+  { name: "Butterfly", category: "pets", price: "₱180", new: true, stock: true, image: "Thy_Butterfly_V2.webp" },
+  { name: "Red Fox", category: "pets", price: "₱25", new: true, stock: true, image: "RedFox.webp" },
+  { name: "Chicken Zombie", category: "pets", price: "₱25", new: true, stock: true, image: "Chicken_Zombie_Icon.webp" },
+  { name: "Disco Bee", category: "pets", price: "₱200", new: true, stock: true, image: "DiscoBeeIcon.webp" },
+  { name: "Chocolate Sprinkler", category: "gears", price: "₱25", new: true, stock: true, image: "ChocolateSprinkler.webp" },
+  { name: "Master Sprinkler", category: "gears", price: "₱10", new: true, stock: true, image: "MasterSprinkler.webp" },
+  { name: "Lightning Rod", category: "gears", price: "₱10", new: true, stock: true, image: "Lightning_Rod.webp" },
+  { name: "Turtle", category: "pets", price: "₱10", new: true, stock: true, image: "Turtle_icon.webp" },
+  { name: "Honey Sprinkler", category: "gears", price: "₱15", new: true, stock: true, image: "HoneySprinklerRender.webp" },
+  { name: "Godly Sprinkler", category: "gears", price: "₱5", new: true, stock: true, image: "Godly_Sprinkler.webp" },
+  { name: "Sprinkler Method", category: "gears", price: "₱15", new: true, stock: true, image: "sprinklermethod.png" },
+  { name: "Polar Bear", category: "pets", price: "₱10", new: true, stock: true, image: "Polarbear.webp" }
 ];
 
 function displayProducts(list = products) {
