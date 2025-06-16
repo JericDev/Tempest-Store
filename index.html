@@ -4,101 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tempest Store</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f5f5f5;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: #333;
-      color: white;
-    }
-    .logo {
-      font-size: 20px;
-    }
-    .status span.offline {
-      color: red;
-    }
-    .contact-center {
-      text-align: center;
-      margin-top: 15px;
-    }
-    .contact-center a {
-      display: inline-block;
-      color: #333;
-      background: #e0e0e0;
-      text-decoration: none;
-      padding: 6px 12px;
-      margin: 5px;
-      border-radius: 6px;
-      font-weight: bold;
-    }
-    .filters {
-      text-align: center;
-      margin: 20px 0;
-    }
-    .filters button,
-    .filters input {
-      margin: 5px;
-      padding: 8px 12px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    .filters button.active {
-      background-color: #333;
-      color: white;
-    }
-    main#product-list {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 20px;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 10px;
-      padding: 10px;
-      width: 200px;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      position: relative;
-      opacity: 1;
-      transition: transform 0.2s;
-    }
-    .card.out-of-stock {
-      opacity: 0.5;
-    }
-    .card img {
-      width: 120px;
-      height: 120px;
-      object-fit: contain;
-      margin: 0 auto;
-      display: block;
-      border-radius: 8px;
-    }
-    .badge {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      background: gold;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: bold;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .price {
-      font-weight: bold;
-      margin-top: 8px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
@@ -106,22 +12,36 @@
     <div class="status">Seller Status: <span class="offline">Offline</span></div>
   </header>
 
+  <div class="auth-buttons">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="register()">Register</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
   <div class="contact-center">
     <a href="https://www.facebook.com/jerictt" target="_blank">Facebook</a>
     <a href="https://discord.com/users/938483476670337195" target="_blank">Discord</a>
   </div>
 
   <div class="filters">
-    <button onclick="setFilter('all')" data-cat="all" class="active">All</button>
-    <button onclick="setFilter('pets')" data-cat="pets">Pets</button>
-    <button onclick="setFilter('gears')" data-cat="gears">Gears</button>
-    <button onclick="setFilter('sheckles')" data-cat="sheckles">Sheckles</button>
-    <input type="text" id="searchBox" placeholder="Search..." oninput="applyFilters()" />
+    <button onclick="filterItems('all')">All</button>
+    <button onclick="filterItems('pets')">Pets</button>
+    <button onclick="filterItems('gears')">Gears</button>
+    <button onclick="filterItems('sheckles')">Sheckles</button>
+    <input type="text" id="searchBox" placeholder="Search..." oninput="searchItems()" />
   </div>
 
   <main id="product-list"></main>
 
-  <script src="script.js"></script>
+  <div class="cart">
+    <h3>🛒 Cart</h3>
+    <ul id="cart-list"></ul>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module" src="script.js"></script>
 </body>
 </html>
 
