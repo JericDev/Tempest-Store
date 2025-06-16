@@ -4,106 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tempest Store</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f5f5f5;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: #333;
-      color: white;
-    }
-    .logo {
-      font-size: 20px;
-    }
-    .status span.offline {
-      color: red;
-    }
-    .contact-center {
-      text-align: center;
-      margin-top: 15px;
-    }
-    .contact-center a {
-      display: inline-block;
-      color: #333;
-      background: #e0e0e0;
-      text-decoration: none;
-      padding: 6px 12px;
-      margin: 5px;
-      border-radius: 6px;
-      font-weight: bold;
-    }
-    .filters {
-      text-align: center;
-      margin: 20px 0;
-    }
-    .filters button,
-    .filters input {
-      margin: 5px;
-      padding: 8px 12px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    .filters button.active {
-      background-color: #333;
-      color: white;
-    }
-    main#product-list {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 20px;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 10px;
-      padding: 10px;
-      width: 200px;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      position: relative;
-      opacity: 1;
-      transition: transform 0.2s;
-    }
-    .card.out-of-stock {
-      opacity: 0.5;
-    }
-    .card img {
-      width: 120px;
-      height: 120px;
-      object-fit: contain;
-      margin: 0 auto;
-      display: block;
-      border-radius: 8px;
-    }
-    .badge {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      background: gold;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: bold;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .price {
-      font-weight: bold;
-      margin-top: 8px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
 </head>
 <body>
   <header>
     <div class="logo">🌪️ <strong>Tempest Store</strong></div>
-    <div class="status">Seller Status: <span class="offline">Offline</span></div>
+    <div>
+      <button id="loginBtn">Login with Google</button>
+      <button id="logoutBtn" style="display:none;">Logout</button>
+      <span id="userDisplay"></span>
+    </div>
+    <div class="cart-icon">
+      🛒 <span id="cartCount">0</span>
+    </div>
   </header>
 
   <div class="contact-center">
@@ -121,7 +36,14 @@
 
   <main id="product-list"></main>
 
-  <script src="script.js"></script>
+  <div class="cart" id="cartPanel" style="display:none;">
+    <h3>Your Cart</h3>
+    <ul id="cartItems"></ul>
+    <strong>Total: ₱<span id="cartTotal">0</span></strong>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js" type="module"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js" type="module"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
-
