@@ -18,7 +18,6 @@ const products = [
   { name: "Sprinkler Method", category: "gears", price: "₱15", new: true, stock: 7, image: "sprinklermethod.png" },
   { name: "Polar Bear", category: "pets", price: "₱10", new: true, stock: 1, image: "Polarbear.webp" },
 ];
-
 let currentCategory = "all";
 let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
@@ -35,7 +34,7 @@ function renderProducts(items) {
       ${product.new ? `<span class="badge">NEW</span>` : ""}
       <img src="images/${product.image}" alt="${product.name}" />
       <h4>${product.name}</h4>
-      <div class="price">${product.price}</div>
+      <div class="price">₱${product.price}</div>
       <div style="color:${product.stock > 0 ? 'green' : 'red'}; font-weight:bold;">
         ${product.stock > 0 ? `Stock: ${product.stock}` : 'Out of Stock'}
       </div>
@@ -82,10 +81,37 @@ function buyNow(index) {
   const product = products[index];
   if (product.stock <= 0) return;
 
-  alert(`You bought: ${product.name} for ${product.price}`);
+  // Decrease stock
   product.stock--;
+
+  // Show order summary
+  showOrderSummary(product);
+
   saveCart();
   applyFilters();
+}
+
+function showOrderSummary(product) {
+  const modal = document.createElement("div");
+  modal.className = "order-modal";
+  modal.innerHTML = `
+    <div class="order-box">
+      <h2>Order Summary</h2>
+      <p><strong>Item:</strong> ${product.name}</p>
+      <p><strong>Quantity:</strong> 1</p>
+      <p><strong>Price:</strong> ₱${product.price}</p>
+      <p><strong>Payment Method:</strong> Cash on Delivery</p>
+      <hr>
+      <p><strong>Total (1 item):</strong> ₱${product.price}</p>
+      <button onclick="placeOrder(this)">Place Order</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function placeOrder(btn) {
+  alert("✅ Order placed successfully!");
+  btn.closest(".order-modal").remove();
 }
 
 function saveCart() {
@@ -95,3 +121,4 @@ function saveCart() {
 window.addEventListener("DOMContentLoaded", () => {
   renderProducts(products);
 });
+
