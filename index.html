@@ -1,23 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tempest Store</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
+      authDomain: "store-7b9bd.firebaseapp.com",
+      projectId: "store-7b9bd",
+      storageBucket: "store-7b9bd.appspot.com",
+      messagingSenderId: "1015427798898",
+      appId: "1:1015427798898:web:a15c71636506fac128afeb",
+      measurementId: "G-NR4JS3FLWG"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
 </head>
 <body>
   <header>
     <div class="logo">🌪️ <strong>Tempest Store</strong></div>
-    <div class="status">Seller Status: <span class="offline">Offline</span></div>
-    <div class="cart-icon" onclick="toggleCart()">🛒 <span id="cartCount">0</span></div>
-  </header>
-
-  <div class="auth-buttons">
     <button id="loginBtn">Login with Google</button>
-    <button id="logoutBtn" style="display:none;">Logout</button>
-    <span id="userDisplay"></span>
-  </div>
+    <div class="cart-icon">🛒 <span id="cartCount">0</span></div>
+  </header>
 
   <div class="contact-center">
     <a href="https://www.facebook.com/jerictt" target="_blank">Facebook</a>
@@ -34,13 +42,24 @@
 
   <main id="product-list"></main>
 
-  <div class="cart" id="cartPanel" style="display:none;">
+  <div class="cart" id="cart">
     <h3>Your Cart</h3>
     <ul id="cartItems"></ul>
-    <strong>Total: ₱<span id="cartTotal">0</span></strong>
+    <p>Total: <span id="cartTotal">₱0</span></p>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script type="module" src="script.js"></script>
+  <script src="script.js"></script>
+  <script>
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      auth.signInWithPopup(provider).then(result => {
+        const user = result.user;
+        document.getElementById("loginBtn").textContent = `👤 ${user.displayName}`;
+        document.getElementById("loginBtn").disabled = true;
+      }).catch(console.error);
+    });
+  </script>
 </body>
 </html>
