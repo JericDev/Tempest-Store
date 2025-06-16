@@ -48,6 +48,11 @@
       margin: 5px;
       padding: 8px 12px;
       font-size: 14px;
+      cursor: pointer;
+    }
+    .filters button.active {
+      background-color: #333;
+      color: white;
     }
     main#product-list {
       display: flex;
@@ -107,77 +112,16 @@
   </div>
 
   <div class="filters">
-    <button onclick="filterItems('all')">All</button>
-    <button onclick="filterItems('pets')">Pets</button>
-    <button onclick="filterItems('gears')">Gears</button>
-    <button onclick="filterItems('sheckles')">Sheckles</button>
-    <input type="text" id="searchBox" placeholder="Search..." oninput="searchItems()" />
+    <button onclick="setFilter('all')" data-cat="all" class="active">All</button>
+    <button onclick="setFilter('pets')" data-cat="pets">Pets</button>
+    <button onclick="setFilter('gears')" data-cat="gears">Gears</button>
+    <button onclick="setFilter('sheckles')" data-cat="sheckles">Sheckles</button>
+    <input type="text" id="searchBox" placeholder="Search..." oninput="applyFilters()" />
   </div>
 
   <main id="product-list"></main>
 
-<script>
-  const products = [
-    { name: "Queen Bee", category: "pets", price: "₱100", new: true, stock: true, image: "queenbee.png" },
-    { name: "Petal Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Petalbee.webp" },
-    { name: "Bear Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Bearbeee1.webp" },
-    { name: "Dragon Fly", category: "pets", price: "₱150", new: true, stock: true, image: "DragonflyIcon.webp" },
-    { name: "1T Sheckle", category: "sheckles", price: "₱5", new: true, stock: true, image: "sheckles.png" },
-    { name: "Raccoon", category: "pets", price: "₱250", new: true, stock: true, image: "Raccon_Better_Quality.webp" },
-    { name: "Butterfly", category: "pets", price: "₱180", new: true, stock: true, image: "Thy_Butterfly_V2.webp" },
-    { name: "Red Fox", category: "pets", price: "₱25", new: true, stock: true, image: "RedFox.webp" },
-    { name: "Chicken Zombie", category: "pets", price: "₱25", new: true, stock: true, image: "Chicken_Zombie_Icon.webp" },
-    { name: "Disco Bee", category: "pets", price: "₱200", new: true, stock: true, image: "DiscoBeeIcon.webp" },
-    { name: "Chocolate Sprinkler", category: "gears", price: "₱25", new: true, stock: true, image: "ChocolateSprinkler.webp" },
-    { name: "Master Sprinkler", category: "gears", price: "₱10", new: true, stock: true, image: "MasterSprinkler.webp" },
-    { name: "Lightning Rod", category: "gears", price: "₱10", new: true, stock: true, image: "Lightning_Rod.webp" },
-    { name: "Turtle", category: "pets", price: "₱10", new: true, stock: true, image: "Turtle_icon.webp" },
-    { name: "Honey Sprinkler", category: "gears", price: "₱15", new: true, stock: true, image: "HoneySprinklerRender.webp" },
-    { name: "Godly Sprinkler", category: "gears", price: "₱5", new: true, stock: true, image: "Godly_Sprinkler.webp" },
-    { name: "Sprinkler Method", category: "gears", price: "₱15", new: true, stock: true, image: "sprinklermethod.png" },
-    { name: "Polar Bear", category: "pets", price: "₱10", new: true, stock: true, image: "Polarbear.webp" },
-  ];
-
-  const productList = document.getElementById("product-list");
-
-  function renderProducts(items) {
-    productList.innerHTML = "";
-    items.forEach(product => {
-      const card = document.createElement("div");
-      card.className = "card";
-      if (!product.stock) card.classList.add("out-of-stock");
-
-      const imageName = product.image || product.name.toLowerCase().replaceAll(" ", "") + ".png";
-
-      card.innerHTML = `
-        ${product.new ? `<span class="badge">NEW</span>` : ""}
-        <img src="images/${imageName}" alt="${product.name}">
-        <h4>${product.name}</h4>
-        <div class="price">${product.price}</div>
-        <div style="color:${product.stock ? 'green' : 'red'}; font-weight:bold;">
-          ${product.stock ? 'On Stock' : 'Out of Stock'}
-        </div>
-      `;
-      productList.appendChild(card);
-    });
-  }
-
-  function filterItems(category) {
-    if (category === 'all') {
-      renderProducts(products);
-    } else {
-      const filtered = products.filter(p => p.category === category);
-      renderProducts(filtered);
-    }
-  }
-
-  function searchItems() {
-    const query = document.getElementById("searchBox").value.toLowerCase();
-    const filtered = products.filter(p => p.name.toLowerCase().includes(query));
-    renderProducts(filtered);
-  }
-
-  // Initial render
-  renderProducts(products);
-</script>
+  <script src="script.js"></script>
+</body>
+</html>
 
