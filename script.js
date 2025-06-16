@@ -1,22 +1,22 @@
 const products = [
-  { name: "Queen Bee", category: "pets", price: "₱100", new: true, stock: true, image: "queenbee.png" },
-  { name: "Petal Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Petalbee.webp" },
-  { name: "Bear Bee", category: "pets", price: "₱10", new: true, stock: true, image: "Bearbeee1.webp" },
-  { name: "Dragon Fly", category: "pets", price: "₱150", new: true, stock: true, image: "DragonflyIcon.webp" },
-  { name: "1T Sheckle", category: "sheckles", price: "₱5", new: true, stock: true, image: "sheckles.png" },
-  { name: "Raccoon", category: "pets", price: "₱250", new: true, stock: true, image: "Raccon_Better_Quality.webp" },
-  { name: "Butterfly", category: "pets", price: "₱180", new: true, stock: true, image: "Thy_Butterfly_V2.webp" },
-  { name: "Red Fox", category: "pets", price: "₱25", new: true, stock: true, image: "RedFox.webp" },
-  { name: "Chicken Zombie", category: "pets", price: "₱25", new: true, stock: true, image: "Chicken_Zombie_Icon.webp" },
-  { name: "Disco Bee", category: "pets", price: "₱200", new: true, stock: true, image: "DiscoBeeIcon.webp" },
-  { name: "Chocolate Sprinkler", category: "gears", price: "₱25", new: true, stock: true, image: "ChocolateSprinkler.webp" },
-  { name: "Master Sprinkler", category: "gears", price: "₱10", new: true, stock: true, image: "MasterSprinkler.webp" },
-  { name: "Lightning Rod", category: "gears", price: "₱10", new: true, stock: true, image: "Lightning_Rod.webp" },
-  { name: "Turtle", category: "pets", price: "₱10", new: true, stock: true, image: "Turtle_icon.webp" },
-  { name: "Honey Sprinkler", category: "gears", price: "₱15", new: true, stock: true, image: "HoneySprinklerRender.webp" },
-  { name: "Godly Sprinkler", category: "gears", price: "₱5", new: true, stock: true, image: "Godly_Sprinkler.webp" },
-  { name: "Sprinkler Method", category: "gears", price: "₱15", new: true, stock: true, image: "sprinklermethod.png" },
-  { name: "Polar Bear", category: "pets", price: "₱10", new: true, stock: true, image: "Polarbear.webp" },
+  { name: "Queen Bee", category: "pets", price: "₱100", new: true, stock: 999, image: "queenbee.png" },
+  { name: "Petal Bee", category: "pets", price: "₱10", new: true, stock: 999, image: "Petalbee.webp" },
+  { name: "Bear Bee", category: "pets", price: "₱10", new: true, stock: 999, image: "Bearbeee1.webp" },
+  { name: "Dragon Fly", category: "pets", price: "₱150", new: true, stock: 999, image: "DragonflyIcon.webp" },
+  { name: "1T Sheckle", category: "sheckles", price: "₱5", new: true, stock: 999, image: "sheckles.png" },
+  { name: "Raccoon", category: "pets", price: "₱250", new: true, stock: 999, image: "Raccon_Better_Quality.webp" },
+  { name: "Butterfly", category: "pets", price: "₱180", new: true, sstock: 999, image: "Thy_Butterfly_V2.webp" },
+  { name: "Red Fox", category: "pets", price: "₱25", new: true, stock: 999, image: "RedFox.webp" },
+  { name: "Chicken Zombie", category: "pets", price: "₱25", new: true, stock: 999, image: "Chicken_Zombie_Icon.webp" },
+  { name: "Disco Bee", category: "pets", price: "₱200", new: true, stock: 999, image: "DiscoBeeIcon.webp" },
+  { name: "Chocolate Sprinkler", category: "gears", price: "₱25", new: true, stock: 999, image: "ChocolateSprinkler.webp" },
+  { name: "Master Sprinkler", category: "gears", price: "₱10", new: true, stock: 999, image: "MasterSprinkler.webp" },
+  { name: "Lightning Rod", category: "gears", price: "₱10", new: true, stock: 999, image: "Lightning_Rod.webp" },
+  { name: "Turtle", category: "pets", price: "₱10", new: true, stock: 999, image: "Turtle_icon.webp" },
+  { name: "Honey Sprinkler", category: "gears", price: "₱15", new: true, stock: 999, image: "HoneySprinklerRender.webp" },
+  { name: "Godly Sprinkler", category: "gears", price: "₱5", new: true, stock: 999, image: "Godly_Sprinkler.webp" },
+  { name: "Sprinkler Method", category: "gears", price: "₱15", new: true, stock: 999, image: "sprinklermethod.png" },
+  { name: "Polar Bear", category: "pets", price: "₱10", new: true, stock: 999, image: "Polarbear.webp" },
 ];
 
 let currentCategory = "all";
@@ -35,8 +35,8 @@ function renderProducts(items) {
       <img src="images/${product.image}" alt="${product.name}" />
       <h4>${product.name}</h4>
       <div class="price">${product.price}</div>
-      <div style="color:${product.stock ? 'green' : 'red'}; font-weight:bold;">
-        ${product.stock ? 'On Stock' : 'Out of Stock'}
+      <div style="color:${product.stock > 0 ? 'green' : 'red'}; font-weight:bold;">
+      ${product.stock > 0 ? `Stock: ${product.stock}` : 'Out of Stock'}
       </div>
     `;
     list.appendChild(card);
