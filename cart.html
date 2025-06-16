@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Your Cart</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="firebase-config.js"></script>
+  <script defer>
+    window.onload = () => {
+      firebase.auth().onAuthStateChanged(user => {
+        if (!user) return (window.location.href = "login.html");
+        const cart = JSON.parse(localStorage.getItem("cart_" + user.email)) || [];
+        const container = document.getElementById("cart-container");
+
+        if (cart.length === 0) {
+          container.innerHTML = "<p>Your cart is empty.</p>";
+        } else {
+          let html = "";
+          let total = 0;
+          cart.forEach(item => {
+            html += `<div class="cart-item">
+              <img src="${item.image}" />
+              <div>
+                <h3>${item.name}</h3>
+                <p>${item.price}</p>
+                <p>Qty: ${item.quantity}</p>
+              </div>
+            </div>`;
+            total += item.quantity * parseFloat(item.price.replace("₱", ""));
+          });
+          html += `<h2>Total: ₱${total}</h2>`;
+          container.innerHTML = html;
+        }
+      });
+    };
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Your Cart</h1>
+  </header>
+  <main id="cart-container"></main>
+</body>
+</html>
