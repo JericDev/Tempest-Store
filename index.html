@@ -5,21 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tempest Store</title>
   <link rel="stylesheet" href="style.css">
-  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
 </head>
 <body>
   <header>
     <div class="logo">🌪️ <strong>Tempest Store</strong></div>
-    <div>
-      <button id="loginBtn">Login with Google</button>
-      <button id="logoutBtn" style="display:none;">Logout</button>
-      <span id="userDisplay"></span>
-    </div>
-    <div class="cart-icon">
-      🛒 <span id="cartCount">0</span>
-    </div>
+    <div class="status">Seller Status: <span class="offline">Offline</span></div>
+    <div class="cart-icon" onclick="toggleCart()">🛒 <span id="cartCount">0</span></div>
   </header>
+
+  <div class="auth-buttons">
+    <button id="loginBtn">Login with Google</button>
+    <button id="logoutBtn" style="display:none;">Logout</button>
+    <span id="userDisplay"></span>
+  </div>
 
   <div class="contact-center">
     <a href="https://www.facebook.com/jerictt" target="_blank">Facebook</a>
@@ -42,8 +40,7 @@
     <strong>Total: ₱<span id="cartTotal">0</span></strong>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js" type="module"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js" type="module"></script>
+  <!-- Firebase SDKs -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
