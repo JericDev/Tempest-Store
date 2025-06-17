@@ -1,6 +1,8 @@
 // admin.js
 // This file contains all logic and DOM manipulations specific to the admin panel.
 
+import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+
 // Global variables for admin-specific data and listeners
 let allOrders = []; // Global array to store all orders for admin view
 let unsubscribeAllOrders = null; // Unsubscribe function for allOrders listener
@@ -66,7 +68,11 @@ function initAdminPanel(db, auth, userId, adminFlag) {
     // This button is controlled by script.js's onAuthStateChanged for visibility
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton) {
-        adminPanelButton.onclick = () => { // Use onclick to ensure it's attached only once, or remove previous listener first
+        // Remove existing listener to prevent duplicates on re-init
+        if (adminPanelButton._adminListener) {
+            adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
+        }
+        const listener = () => {
              if (!isAdminUser) {
                 alert("You are not authorized to access the Admin Panel.");
                 return;
@@ -75,6 +81,8 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             // Default to product management tab when opening
             showAdminTab('products');
         };
+        adminPanelButton.addEventListener('click', listener);
+        adminPanelButton._adminListener = listener; // Store reference to listener for removal
     }
 
     closeAdminPanelModalBtn.addEventListener('click', () => {
@@ -88,13 +96,26 @@ function initAdminPanel(db, auth, userId, adminFlag) {
     });
 
     adminTabButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
+        // Remove existing listeners to prevent duplicates on re-init
+        if (button._tabListener) {
+            button.removeEventListener('click', button._tabListener);
+        }
+        const listener = (e) => {
             const tab = e.target.dataset.tab;
             showAdminTab(tab);
-        });
+        };
+        button.addEventListener('click', listener);
+        button._tabListener = listener; // Store reference to listener
     });
 
-    saveProductBtn.addEventListener('click', async () => { 
+    // Remove existing listeners for product form buttons to prevent duplicates
+    if (saveProductBtn._saveListener) saveProductBtn.removeEventListener('click', saveProductBtn._saveListener);
+    if (cancelEditProductBtn._cancelListener) cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener);
+    if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
+    if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
+
+
+    saveProductBtn._saveListener = async () => { 
         const productId = productIdInput.value;
         const isNew = productNewCheckbox.checked;
         const isSale = productSaleCheckbox.checked;
@@ -131,17 +152,20 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             newProduct.id = productId; 
         }
         saveProductToFirestore(newProduct); 
-    });
+    };
+    saveProductBtn.addEventListener('click', saveProductBtn._saveListener);
 
-    cancelEditProductBtn.addEventListener('click', resetProductForm);
+    cancelEditProductBtn._cancelListener = resetProductForm;
+    cancelEditProductBtn.addEventListener('click', cancelEditProductBtn._cancelListener);
 
-    adminBackToOrderListBtn.addEventListener('click', () => {
+    adminBackToOrderListBtn._backListener = () => {
         adminOrdersList.parentElement.style.display = 'table'; 
         adminOrderDetailsView.style.display = 'none'; 
         currentEditingOrderId = null; 
-    });
+    };
+    adminBackToOrderListBtn.addEventListener('click', adminBackToOrderListBtn._backListener);
 
-    updateOrderStatusBtn.addEventListener('click', async () => {
+    updateOrderStatusBtn._updateListener = async () => {
         if (!currentEditingOrderId) {
             alert("No order selected for status update.");
             return;
@@ -152,6 +176,7 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             const orderRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
             await updateDoc(orderRef, { status: newStatus });
 
+            // Also update the status in the user's personal order history to keep them synchronized
             const orderToUpdate = allOrders.find(o => o.id === currentEditingOrderId);
             if (orderToUpdate && orderToUpdate.userId) {
                 const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(orderToUpdate.userId), currentEditingOrderId);
@@ -164,7 +189,9 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             console.error("Error updating order status:", e);
             alert("Error updating order status: " + e.message);
         }
-    });
+    };
+    updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
+
 
     // Initialize admin listeners if an admin is already logged in
     setupAllOrdersListener();
@@ -176,13 +203,26 @@ function cleanupAdminPanel() {
         unsubscribeAllOrders();
         unsubscribeAllOrders = null;
     }
+    // Remove specific event listeners to prevent memory leaks/duplicate calls
+    const adminPanelButton = document.getElementById("admin-panel-button");
+    if (adminPanelButton && adminPanelButton._adminListener) {
+        adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
+        adminPanelButton._adminListener = null;
+    }
+    adminTabButtons.forEach(button => {
+        if (button._tabListener) {
+            button.removeEventListener('click', button._tabListener);
+            button._tabListener = null;
+        }
+    });
+    if (saveProductBtn._saveListener) { saveProductBtn.removeEventListener('click', saveProductBtn._saveListener); saveProductBtn._saveListener = null; }
+    if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
+    if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
+    if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
+
+
     // Any other cleanup for admin UI goes here
     adminPanelModal.classList.remove('show'); // Ensure admin modal is closed
-    // Re-set onclick to null to avoid multiple attachments on re-login
-    const adminPanelButton = document.getElementById("admin-panel-button");
-    if (adminPanelButton) {
-        adminPanelButton.onclick = null; 
-    }
 }
 
 
@@ -225,13 +265,8 @@ async function deleteProductFromFirestore(productId) {
 }
 
 // Renders the list of products in the admin panel's product management table.
-// Note: This relies on `allProducts` being updated by the listener in `script.js`
-// or a specific admin-only products listener could be added here if needed for independent data.
 function renderAdminProducts() {
     adminProductsList.innerHTML = ''; 
-    // Access allProducts from the main scope or pass it. For now, assume it's globally available 
-    // or setup a separate listener in admin.js if truly decoupled.
-    // To ensure admin.js has the latest products, we will fetch them again for the admin view.
     const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
     getDocs(productsColRef).then((snapshot) => {
         const fetchedProducts = [];
@@ -267,20 +302,28 @@ function renderAdminProducts() {
         });
 
         adminProductsList.querySelectorAll('.edit').forEach(button => {
-            button.addEventListener('click', (e) => {
+            // Remove existing listeners to prevent duplicates
+            if (button._editListener) button.removeEventListener('click', button._editListener);
+            const listener = (e) => {
                 const productId = e.target.dataset.id;
-                const productToEdit = fetchedProducts.find(p => p.id === productId); // Find from fetched data
+                const productToEdit = fetchedProducts.find(p => p.id === productId); 
                 if (productToEdit) {
                     editProduct(productToEdit); 
                 }
-            });
+            };
+            button.addEventListener('click', listener);
+            button._editListener = listener;
         });
 
         adminProductsList.querySelectorAll('.delete').forEach(button => {
-            button.addEventListener('click', (e) => {
+            // Remove existing listeners to prevent duplicates
+            if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
+            const listener = (e) => {
                 const productId = e.target.dataset.id;
                 deleteProductFromFirestore(productId); 
-            });
+            };
+            button.addEventListener('click', listener);
+            button._deleteListener = listener;
         });
     }).catch(error => {
         console.error("Error rendering admin products:", error);
@@ -340,7 +383,6 @@ function showAdminTab(tabName) {
 
 // Sets up a real-time listener for all orders in Firestore (for admin view).
 function setupAllOrdersListener() {
-    // Unsubscribe from previous listener if exists
     if (unsubscribeAllOrders) {
         unsubscribeAllOrders();
     }
@@ -351,8 +393,8 @@ function setupAllOrdersListener() {
         snapshot.forEach(doc => {
             fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
-        allOrders = fetchedOrders; // Update the local admin allOrders array
-        renderAdminOrders(); // Re-render the admin orders table (if admin panel is open)
+        allOrders = fetchedOrders; 
+        renderAdminOrders(); 
     }, (error) => {
         console.error("Error listening to all orders (admin):", error);
     });
@@ -381,13 +423,17 @@ function renderAdminOrders() {
     });
 
     adminOrdersList.querySelectorAll('.view').forEach(button => {
-        button.addEventListener('click', (e) => {
+        // Remove existing listeners to prevent duplicates
+        if (button._viewListener) button.removeEventListener('click', button._viewListener);
+        const listener = (e) => {
             const orderId = e.target.dataset.id;
             const selectedOrder = allOrders.find(order => order.id === orderId);
             if (selectedOrder) {
                 showAdminOrderDetails(selectedOrder); 
             }
-        });
+        };
+        button.addEventListener('click', listener);
+        button._viewListener = listener;
     });
 }
 
