@@ -1,6 +1,6 @@
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
         // Your web app's Firebase configuration
@@ -24,7 +24,7 @@
         let isAdmin = false; // Flag to check if the current user is an admin
         // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
         // You can find your UID in the Firebase Console -> Authentication -> Users tab.
-        const ADMIN_UID = "YOUR_ADMIN_UID_HERE"; 
+        const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
 
         let cart = []; // Global cart array
         let userOrders = []; // Global array to store user's orders (for user history)
@@ -45,6 +45,7 @@
         const userDisplay = document.getElementById("user-display");
         const authModal = document.getElementById("auth-modal"); 
         const closeAuthModalBtn = document.getElementById("close-auth-modal"); 
+        const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
 
 
         // --- DOM elements for Cart/Checkout ---
@@ -54,8 +55,7 @@
         const closeCartModalBtn = document.getElementById("close-cart-modal");
         const cartItemsContainer = document.getElementById("cart-items-container");
         const cartSubtotalSpan = document.getElementById("cart-subtotal");
-        const cartShippingSpan = document.getElementById("cart-shipping");
-        const cartTotalSpan = document.getElementById("cart-total");
+        const cartTotalSpan = document.getElementById("cart-total"); // Removed cartShippingSpan
         const placeOrderBtn = document.getElementById("place-order-btn");
         const robloxUsernameInput = document.getElementById("roblox-username-input");
 
@@ -87,7 +87,7 @@
         const productNameInput = document.getElementById("product-name");
         const productCategorySelect = document.getElementById("product-category");
         const productPriceInput = document.getElementById("product-price");
-        const productSalePriceInput = document.getElementById("product-sale-price"); // New: Sale Price input
+        const productSalePriceInput = document.getElementById("product-sale-price"); 
         const productStockInput = document.getElementById("product-stock");
         const productImageInput = document.getElementById("product-image");
         const productNewCheckbox = document.getElementById("product-new");
@@ -121,10 +121,19 @@
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     authMessage.textContent = `Registered and logged in as: ${userCredential.user.email}`;
+                    authMessage.style.color = 'green'; // Success message color
                     console.log("User registered:", userCredential.user.email);
                     authModal.classList.remove('show'); // Close modal on success
                 })
-                .catch((error) => { authMessage.textContent = `Registration failed: ${error.message}`; console.error("Registration error:", error); });
+                .catch((error) => { 
+                    if (error.code === 'auth/email-already-in-use') {
+                        authMessage.textContent = "Registration failed: This email is already in use. Try logging in.";
+                    } else {
+                        authMessage.textContent = `Registration failed: ${error.message}`; 
+                    }
+                    authMessage.style.color = 'red'; // Error message color
+                    console.error("Registration error:", error); 
+                });
         });
 
         loginButton.addEventListener("click", () => {
@@ -134,24 +143,49 @@
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     authMessage.textContent = `Logged in as: ${userCredential.user.email}`;
+                    authMessage.style.color = 'green'; // Success message color
                     console.log("User logged in:", userCredential.user.email);
                     authModal.classList.remove('show'); // Close modal on success
                 })
-                .catch((error) => { authMessage.textContent = `Login failed: ${error.message}`; console.error("Login error:", error); });
+                .catch((error) => { 
+                    switch (error.code) {
+                        case 'auth/user-not-found':
+                        case 'auth/wrong-password':
+                        case 'auth/invalid-credential': // Newer Firebase versions might use this
+                            authMessage.textContent = "Login failed: Invalid email or password.";
+                            break;
+                        case 'auth/invalid-email':
+                            authMessage.textContent = "Login failed: The email address is not valid.";
+                            break;
+                        case 'auth/user-disabled':
+                            authMessage.textContent = "Login failed: This account has been disabled.";
+                            break;
+                        default:
+                            authMessage.textContent = `Login failed: ${error.message}`;
+                    }
+                    authMessage.style.color = 'red'; // Error message color
+                    console.error("Login error:", error); 
+                });
         });
 
         logoutButton.addEventListener("click", () => {
             signOut(auth)
                 .then(() => {
                     authMessage.textContent = "Logged out successfully.";
+                    authMessage.style.color = 'green'; // Success message color
                     console.log("User logged out.");
                 })
-                .catch((error) => { authMessage.textContent = `Logout failed: ${error.message}`; console.error("Logout error:", error); });
+                .catch((error) => { 
+                    authMessage.textContent = `Logout failed: ${error.message}`; 
+                    authMessage.style.color = 'red'; // Error message color
+                    console.error("Logout error:", error); 
+                });
         });
 
         loginRegisterButton.addEventListener('click', () => {
             authModal.classList.add('show');
             authMessage.textContent = ""; // Clear previous messages
+            authMessage.style.color = 'red'; // Reset to default error color for new interactions
             authEmailInput.value = "";
             authPasswordInput.value = "";
         });
@@ -164,6 +198,38 @@
             if (event.target === authModal) {
                 authModal.classList.remove('show');
             }
+        });
+
+        // --- Forgot Password Functionality ---
+        forgotPasswordButton.addEventListener('click', () => {
+            const email = authEmailInput.value.trim();
+            if (!email) {
+                authMessage.textContent = "Please enter your email to reset your password.";
+                authMessage.style.color = 'red';
+                return;
+            }
+
+            sendPasswordResetEmail(auth, email)
+                .then(() => {
+                    authMessage.textContent = `Password reset email sent to ${email}. Check your inbox!`;
+                    authMessage.style.color = 'green';
+                    authEmailInput.value = ""; // Clear email input
+                    authPasswordInput.value = ""; // Clear password input
+                })
+                .catch((error) => {
+                    switch (error.code) {
+                        case 'auth/invalid-email':
+                            authMessage.textContent = "Password reset failed: The email address is not valid.";
+                            break;
+                        case 'auth/user-not-found':
+                            authMessage.textContent = "Password reset failed: No user found with that email address.";
+                            break;
+                        default:
+                            authMessage.textContent = `Password reset failed: ${error.message}`;
+                    }
+                    authMessage.style.color = 'red';
+                    console.error("Password reset error:", error);
+                });
         });
 
 
@@ -225,6 +291,7 @@
             authEmailInput.value = "";
             authPasswordInput.value = "";
             authMessage.textContent = "";
+            authMessage.style.color = 'red'; // Reset to default error color
             renderCart(); // Re-render cart based on loaded data (local storage if logged out, Firestore if logged in)
             renderProducts(allProducts); // Render products (will be empty if not fetched or if no products exist)
         });
@@ -486,7 +553,10 @@
                     if (existingItemIndex > -1) {
                         firestoreCart[existingItemIndex].quantity += localItem.quantity;
                     } else {
-                        firestoreCart.push(localItem);
+                        // When syncing, ensure effectivePrice is correctly set for existing local items too.
+                        const productDetails = allProducts.find(p => p.id === localItem.id);
+                        const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : localItem.price;
+                        firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
                     }
                 });
                 cart = firestoreCart; // Update the global cart with the merged data
@@ -523,7 +593,7 @@
             } else {
                 // Use salePrice if available and product is on sale, otherwise use regular price
                 const priceToUse = product.sale && product.salePrice ? product.salePrice : product.price;
-                cart.push({ ...product, quantity: 1, effectivePrice: priceToUse });
+                cart.push({ ...product, quantity: 1, effectivePrice: priceToUse }); // Store the actual price charged
             }
             saveCart(); // Persist changes to Firestore/Local Storage
             renderCart(); // Update cart UI
@@ -578,7 +648,9 @@
                 cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
             } else {
                 cart.forEach(item => {
-                    const priceToDisplay = item.effectivePrice || item.price; // Use effectivePrice if available
+                    // Use effectivePrice if available (meaning it was added as a sale item), otherwise use regular price
+                    const priceToDisplay = item.effectivePrice || item.price; 
+                    const cartItemDiv = document.createElement('div'); // Define cartItemDiv here
                     cartItemDiv.className = 'cart-item';
                     cartItemDiv.innerHTML = `
                         <img src="images/${item.image}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
@@ -637,15 +709,13 @@
                 totalItemsInCart += item.quantity;
             });
 
-            // Apply a fixed shipping fee if there are items in the cart
-            const shipping = totalItemsInCart > 0 ? 35.00 : 0.00;
-            const total = subtotal + shipping;
+            // Shipping calculation is removed, total is now just subtotal
+            const total = subtotal; 
 
             cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
-            cartShippingSpan.textContent = `₱${shipping.toFixed(2)}`;
             cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
 
-            return { subtotal, shipping, total, totalItemsInCart };
+            return { subtotal, total, totalItemsInCart }; 
         }
 
         // --- Cart Modal Event Listeners ---
@@ -693,13 +763,12 @@
                 return;
             }
 
-            const { subtotal, shipping, total } = calculateCartTotals();
+            const { subtotal, total } = calculateCartTotals(); 
             const orderDetails = {
                 userId: currentUserId,
                 // Deep copy cart items to ensure order details are immutable if cart changes later
                 items: JSON.parse(JSON.stringify(cart)), 
                 subtotal: subtotal,
-                shipping: shipping,
                 total: total,
                 orderDate: new Date().toISOString(), // Store order date as ISO string for consistent sorting
                 status: 'Pending', // Initial status of the order
@@ -899,7 +968,7 @@
                 snapshot.forEach(doc => {
                     fetchedOrders.push({ id: doc.id, ...doc.data() });
                 });
-                allOrders = fetchedOrders; // Update the global allOrders array
+                allOrders = fetchedProducts; // Update the global allOrders array
                 renderAdminOrders(); // Re-render the admin orders table (if admin panel is open)
             }, (error) => {
                 console.error("Error listening to all orders:", error);
@@ -1054,7 +1123,7 @@
                 const isOutOfStock = !product.stock || product.stock <= 0;
                 if (isOutOfStock) card.classList.add("out-of-stock"); // Add class for styling out-of-stock items
 
-                // Determine which price to display
+                // Determine which price to display: sale price if applicable, otherwise regular price
                 const displayPrice = product.sale && product.salePrice ? 
                                      `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` : 
                                      product.price;
