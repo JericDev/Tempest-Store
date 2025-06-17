@@ -32,6 +32,12 @@
         let allOrders = []; // Global array to store all orders for admin view
 
 
+        // Global variables to store unsubscribe functions for real-time listeners
+        let unsubscribeUserOrders = null;
+        let unsubscribeProducts = null;
+        let unsubscribeAllOrders = null;
+
+
         // --- DOM elements for Authentication ---
         const authEmailInput = document.getElementById("auth-email");
         const authPasswordInput = document.getElementById("auth-password");
@@ -235,6 +241,20 @@
 
         // --- Authentication State Observer (Crucial for loading user data) ---
         onAuthStateChanged(auth, async (user) => {
+            // Unsubscribe from any existing listeners before setting up new ones
+            if (unsubscribeUserOrders) {
+                unsubscribeUserOrders();
+                unsubscribeUserOrders = null;
+            }
+            if (unsubscribeProducts) {
+                unsubscribeProducts();
+                unsubscribeProducts = null;
+            }
+            if (unsubscribeAllOrders) {
+                unsubscribeAllOrders();
+                unsubscribeAllOrders = null;
+            }
+
             if (user) {
                 currentUserId = user.uid; // Set current user ID
                 isAdmin = (currentUserId === ADMIN_UID); // Check if current user is admin
@@ -258,13 +278,11 @@
                 // Synchronize local storage cart with Firestore cart upon login
                 await syncCartOnLogin(currentUserId); 
 
-                // Set up real-time listener for user's own orders from Firestore
-                setupUserOrderHistoryListener(currentUserId);
-                // Set up real-time listener for all products from Firestore
-                setupProductsListener();
-                // If the user is an an admin, set up a real-time listener for all orders
+                // Set up real-time listeners and store their unsubscribe functions
+                unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
+                unsubscribeProducts = setupProductsListener();
                 if (isAdmin) {
-                    setupAllOrdersListener();
+                    unsubscribeAllOrders = setupAllOrdersListener();
                 }
 
             } else {
@@ -314,7 +332,8 @@
         // Any changes to products in the database will automatically update the UI.
         function setupProductsListener() {
             const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-            onSnapshot(productsColRef, (snapshot) => {
+            // Return the unsubscribe function
+            return onSnapshot(productsColRef, (snapshot) => { 
                 const fetchedProducts = [];
                 snapshot.forEach(doc => {
                     fetchedProducts.push({ id: doc.id, ...doc.data() });
@@ -459,12 +478,15 @@
         // Handles saving a new product or updating an existing one when the save button is clicked.
         saveProductBtn.addEventListener('click', async () => { 
             const productId = productIdInput.value;
+            const isNew = productNewCheckbox.checked;
             const isSale = productSaleCheckbox.checked;
             let salePrice = null;
             let productImage = productImageInput.value.trim(); // Get filename directly
 
             if (isSale && productSalePriceInput.value.trim() !== '') {
                 salePrice = `₱${parseFloat(productSalePriceInput.value).toFixed(2)}`;
+            } else {
+                salePrice = null; // Ensure salePrice is null if not on sale or empty
             }
 
             const newProduct = {
@@ -474,7 +496,7 @@
                 salePrice: salePrice, // Include sale price
                 stock: parseInt(productStockInput.value),
                 image: productImage, // Use filename
-                new: productNewCheckbox.checked,
+                new: isNew, // Use the checked status of the 'New Product' checkbox
                 sale: isSale // Use the checked status of the 'On Sale' checkbox
             };
 
@@ -580,7 +602,8 @@
             const ordersCollectionRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
             // Query orders, ordered by date in descending order (newest first)
             const q = query(ordersCollectionRef, orderBy("orderDate", "desc"));
-            onSnapshot(q, (snapshot) => {
+            // Return the unsubscribe function
+            return onSnapshot(q, (snapshot) => { 
                 const fetchedOrders = [];
                 snapshot.forEach(doc => {
                     fetchedOrders.push({ id: doc.id, ...doc.data() });
@@ -762,33 +785,36 @@
 
             const robloxUsername = robloxUsernameInput.value.trim();
 
-            // Require Roblox username if logged in
-            if (currentUserId && robloxUsername === '') {
-                alert("Please enter your Roblox Username to proceed with the order.");
-                return;
-            } else if (!currentUserId) {
-                // If user is not logged in, prompt for login/register and stop checkout
-                authModal.classList.add('show');
-                alert("Please login or register to place your order!");
-                return;
-            }
-
-            const { subtotal, total } = calculateCartTotals(); 
-            const orderDetails = {
-                userId: currentUserId,
-                // Deep copy cart items to ensure order details are immutable if cart changes later
-                items: JSON.parse(JSON.stringify(cart)), 
-                subtotal: subtotal,
-                total: total,
-                orderDate: new Date().toISOString(), // Store order date as ISO string for consistent sorting
-                status: 'Pending', // Initial status of the order
-                paymentMethod: document.querySelector('input[name="payment-method"]:checked').value, // Get selected payment method
-                robloxUsername: robloxUsername 
-            };
-
-            console.log("Placing Order:", orderDetails);
+            // Disable the button to prevent multiple clicks
+            placeOrderBtn.disabled = true;
 
             try {
+                // Require Roblox username if logged in
+                if (currentUserId && robloxUsername === '') {
+                    alert("Please enter your Roblox Username to proceed with the order.");
+                    return; // Exit if validation fails
+                } else if (!currentUserId) {
+                    // If user is not logged in, prompt for login/register and stop checkout
+                    authModal.classList.add('show');
+                    alert("Please login or register to place your order!");
+                    return; // Exit if not logged in
+                }
+
+                const { subtotal, total } = calculateCartTotals(); 
+                const orderDetails = {
+                    userId: currentUserId,
+                    // Deep copy cart items to ensure order details are immutable if cart changes later
+                    items: JSON.parse(JSON.stringify(cart)), 
+                    subtotal: subtotal,
+                    total: total,
+                    orderDate: new Date().toISOString(), // Store order date as ISO string for consistent sorting
+                    status: 'Pending', // Initial status of the order
+                    paymentMethod: document.querySelector('input[name="payment-method"]:checked').value, // Get selected payment method
+                    robloxUsername: robloxUsername 
+                };
+
+                console.log("Placing Order:", orderDetails);
+
                 // Save the order to the user's personal orders collection
                 const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
                 const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
@@ -798,19 +824,22 @@
                 const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
                 await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails); 
 
-                alert("Order placed successfully! Check your console and 'My Orders' for details.");
+                alert("Successfully Placed Order!"); // Success message
                 console.log("Order saved to Firestore!");
+                
+                // Clear the cart, update UI, and close modal after successful order placement
+                cart = [];
+                saveCart();
+                renderCart();
+                cartModal.classList.remove('show');
+                robloxUsernameInput.value = ''; // Clear Roblox username input field
+
             } catch (e) {
                 console.error("Error placing order to Firestore:", e);
                 alert("There was an error placing your order. Please try again.");
+            } finally {
+                placeOrderBtn.disabled = false; // Re-enable the button
             }
-            
-            // Clear the cart, update UI, and close modal after successful order placement
-            cart = [];
-            saveCart();
-            renderCart();
-            cartModal.classList.remove('show');
-            robloxUsernameInput.value = ''; // Clear Roblox username input field
         });
 
 
@@ -974,7 +1003,8 @@
             const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
             // Query all orders, ordered by date in descending order (newest first)
             const q = query(allOrdersColRef, orderBy("orderDate", "desc"));
-            onSnapshot(q, (snapshot) => {
+            // Return the unsubscribe function
+            return onSnapshot(q, (snapshot) => { 
                 const fetchedOrders = [];
                 snapshot.forEach(doc => {
                     fetchedOrders.push({ id: doc.id, ...doc.data() });
