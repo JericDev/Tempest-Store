@@ -233,7 +233,8 @@
                     // Dynamically import and initialize admin module
                     if (!initAdminPanelModule) {
                         try {
-                            const adminModule = await import('./admin.js');
+                            // Ensure the path is correct relative to script.js
+                            const adminModule = await import('./admin.js'); 
                             initAdminPanelModule = adminModule.initAdminPanel;
                             adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
                         } catch (error) {
@@ -243,6 +244,7 @@
                         }
                     }
                     if (initAdminPanelModule) {
+                        // Pass Firestore and Auth instances, plus user info to admin module
                         initAdminPanelModule(db, auth, currentUserId, isAdmin);
                     }
                 } else {
@@ -284,7 +286,7 @@
         const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`; 
         const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
         const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
-        const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`; // Still needed for customer order placement
+        const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`; 
 
         // --- Product Display (Accessible to all) ---
         function setupProductsListener() {
@@ -296,7 +298,8 @@
                 });
                 allProducts = fetchedProducts; 
                 renderProducts(allProducts); 
-                // Admin panel rendering will be triggered by admin.js
+                // Re-render cart on product changes to update prices
+                renderCart();
             }, (error) => {
                 console.error("Error listening to products:", error);
             });
@@ -358,9 +361,15 @@
                     if (existingItemIndex > -1) {
                         firestoreCart[existingItemIndex].quantity += localItem.quantity;
                     } else {
+                        // When syncing, ensure effectivePrice is correctly set based on current product data.
                         const productDetails = allProducts.find(p => p.id === localItem.id);
-                        const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : localItem.price;
-                        firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
+                        if (productDetails) {
+                            const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+                            firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
+                        } else {
+                            // Fallback if product not found (e.g., deleted by admin)
+                            firestoreCart.push(localItem);
+                        }
                     }
                 });
                 cart = firestoreCart; 
@@ -392,7 +401,9 @@
             if (existingItem) {
                 existingItem.quantity++;
             } else {
-                const priceToUse = product.sale && product.salePrice ? product.salePrice : product.price;
+                // Ensure effectivePrice is based on product's current sale status/price
+                const productDetails = allProducts.find(p => p.id === product.id);
+                const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : product.price;
                 cart.push({ ...product, quantity: 1, effectivePrice: priceToUse }); 
             }
             saveCart(); 
@@ -442,7 +453,18 @@
                 cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
             } else {
                 cart.forEach(item => {
-                    const priceToDisplay = item.effectivePrice || item.price; 
+                    // Find the latest product details from allProducts
+                    const productDetails = allProducts.find(p => p.id === item.id);
+                    let priceToDisplay;
+                    if (productDetails) {
+                        priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+                        // Update item's effectivePrice in cart to match latest
+                        item.effectivePrice = priceToDisplay; 
+                    } else {
+                        // Fallback if product is no longer found (e.g., deleted by admin)
+                        priceToDisplay = item.effectivePrice || item.price;
+                    }
+
                     const imageUrl = `images/${item.image}`;
                     const cartItemDiv = document.createElement('div'); 
                     cartItemDiv.className = 'cart-item';
@@ -494,6 +516,8 @@
             let subtotal = 0;
             let totalItemsInCart = 0;
             cart.forEach(item => {
+                // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
+                // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
                 const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', '')); 
                 subtotal += priceValue * item.quantity;
                 totalItemsInCart += item.quantity;
@@ -554,9 +578,12 @@
                     return; 
                 }
 
+                // Recalculate totals right before placing order with latest effective prices
                 const { subtotal, total } = calculateCartTotals(); 
                 const orderDetails = {
                     userId: currentUserId,
+                    // Deep copy cart items to ensure order details are immutable if cart changes later
+                    // Items in cart will have updated effectivePrice from renderCart()
                     items: JSON.parse(JSON.stringify(cart)), 
                     subtotal: subtotal,
                     total: total,
@@ -572,6 +599,7 @@
                 const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
 
                 const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
+                // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
                 await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails); 
 
                 alert("Successfully Placed Order!"); 
