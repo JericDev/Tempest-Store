@@ -1,1010 +1,1163 @@
-/* Your style.css content goes here, updated with new elements */
+/* General Body and Container Styles */
 body {
-    font-family: 'Inter', sans-serif; /* Using Inter font for modern look */
-    background: #f5f5f5;
+    font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 0;
-    line-height: 1.6;
-}
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    background: #333;
-    color: white;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.logo {
-    font-size: 24px;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.logo strong {
-    color: #FFD700; /* Gold accent */
-}
-/* Removed .status and its children styles as the seller status display is removed */
-.contact-center {
-    text-align: center;
-    margin-top: 20px;
-}
-.contact-center a {
-    display: inline-block;
+    background-color: #f4f4f4;
     color: #333;
-    background: #e0e0e0;
-    text-decoration: none;
-    padding: 8px 15px;
-    margin: 5px;
-    border-radius: 8px;
-    font-weight: bold;
-    transition: background 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-.contact-center a:hover {
-    background: #d0d0d0;
-    transform: translateY(-2px);
-}
-.filters {
-    text-align: center;
-    margin: 30px 0 20px;
-    padding: 10px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    max-width: 700px;
-    margin-left: auto;
-    margin-right: auto;
-}
-.filters button,
-.filters input {
-    margin: 5px;
-    padding: 10px 15px;
-    font-size: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-.filters button {
-    background-color: #f0f0f0;
-    color: #333;
-    font-weight: 500;
-}
-.filters button.active {
-    background-color: #333;
-    color: white;
-    border-color: #333;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-.filters button:hover:not(.active) {
-    background-color: #e0e0e0;
-    transform: translateY(-1px);
-}
-.filters input[type="text"] {
-    width: 200px;
-    padding-left: 35px; /* Space for search icon */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
-    background-repeat: no-repeat;
-    background-position: 8px center;
-    background-size: 20px;
-}
-main#product-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 25px;
-    padding: 20px;
-}
-.card {
-    background: white;
-    border-radius: 15px;
-    padding: 15px;
-    width: 220px; /* Slightly larger cards */
-    text-align: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    position: relative;
-    opacity: 1;
-    transition: transform 0.3s ease, opacity 0.3s ease;
     display: flex;
     flex-direction: column;
+    min-height: 100vh;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 15px 20px;
+    display: flex;
     justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
-.card:hover {
-    transform: translateY(-5px);
-}
-.card.out-of-stock {
-    opacity: 0.6;
-    pointer-events: none; /* Disable interaction */
-    filter: grayscale(80%);
-}
-.card img {
-    width: 150px; /* Larger images */
-    height: 150px;
-    object-fit: contain;
-    margin: 0 auto 10px;
-    display: block;
-    border-radius: 10px;
-    border: 1px solid #eee;
-    transition: transform 0.3s ease;
-}
-.card:hover img {
-    transform: scale(1.03);
-}
-.badge {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    background: #FFD700; /* Gold */
-    color: #333;
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-size: 13px;
+
+.logo {
+    font-size: 1.8em;
     font-weight: bold;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px; /* Space for wrapped items */
 }
-.badge.sale {
-    background: #dc3545; /* Red for Sale */
-    color: white;
-}
-.price {
+
+/* Seller Status Indicator */
+.status-indicator {
+    font-size: 1em;
     font-weight: bold;
-    font-size: 1.2em;
-    margin-top: 10px;
-    color: #28a745; /* Green for price */
-}
-.stock-info {
-    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
     margin-bottom: 10px;
 }
-.stock-info.in-stock {
-    color: #28a745;
-}
-.stock-info.out-of-stock-text { /* Renamed for clarity */
-    color: #dc3545;
-}
 
-/* Add to Cart Button */
-.add-to-cart-btn {
-    background-color: #007bff; /* Blue */
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 15px;
+#seller-status-display, #admin-seller-status-display {
+    padding: 3px 8px;
+    border-radius: 5px;
     font-weight: bold;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    margin-top: 10px;
-    width: 100%;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-.add-to-cart-btn:hover {
-    background-color: #0056b3;
-    transform: translateY(-2px);
-}
-.add-to-cart-btn:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+    text-transform: uppercase;
 }
 
-/* Authentication Section in Header */
+#seller-status-display.online, #admin-seller-status-display.online {
+    background-color: #28a745; /* Green */
+    color: white;
+}
+
+#seller-status-display.offline, #admin-seller-status-display.offline {
+    background-color: #dc3545; /* Red */
+    color: white;
+}
+
+
 .auth-section {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px; /* Space for wrapped items */
 }
 
-#user-display {
-    font-weight: bold;
-    color: #add8e6; /* Light blue */
+.auth-section span {
+    color: #e0e0e0;
+    font-size: 0.95em;
 }
 
-#logout-button, #my-orders-button, #admin-panel-button, #login-register-button {
-    background-color: #f44336; /* Red for logout */
-    padding: 8px 12px;
+.header-btn {
+    background-color: #555;
+    color: #fff;
     border: none;
-    border-radius: 8px;
-    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 14px;
     transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    font-size: 0.9em;
 }
-#logout-button:hover, #my-orders-button:hover, #admin-panel-button:hover, #login-register-button:hover {
-    background-color: #da190b;
+
+.header-btn:hover {
+    background-color: #777;
     transform: translateY(-2px);
 }
-#my-orders-button {
-    background-color: #6c757d; /* Grey for orders */
+
+.header-btn.cart-icon {
+    background-color: #28a745;
+    position: relative;
+    padding-right: 25px; /* Make space for the badge */
 }
-#my-orders-button:hover {
-    background-color: #5a6268;
+
+.header-btn.cart-icon:hover {
+    background-color: #218838;
 }
-#admin-panel-button {
-    background-color: #ff9800; /* Orange for Admin */
+
+#cart-count {
+    background-color: #dc3545;
+    color: white;
+    border-radius: 50%;
+    padding: 3px 7px;
+    font-size: 0.75em;
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 20px;
+    text-align: center;
 }
-#admin-panel-button:hover {
-    background-color: #e68900;
+
+.contact-center {
+    text-align: center;
+    padding: 10px 0;
+    background-color: #e2e2e2;
+    border-bottom: 1px solid #ccc;
 }
-#login-register-button {
-    background-color: #007bff; /* Blue for Login/Register */
-    margin-right: 10px; /* Space from cart icon */
+
+.contact-center a {
+    margin: 0 15px;
+    text-decoration: none;
+    color: #007bff;
+    font-weight: bold;
+    transition: color 0.2s ease;
 }
-#login-register-button:hover {
+
+.contact-center a:hover {
+    color: #0056b3;
+}
+
+.filters {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap; /* Allow wrapping */
+    gap: 10px; /* Space between filter items */
+}
+
+.filters button {
+    background-color: #e0e0e0;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-size: 0.9em;
+}
+
+.filters button.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.filters button:hover:not(.active) {
+    background-color: #d0d0d0;
+}
+
+#searchBox {
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    width: 250px;
+    max-width: 100%;
+    font-size: 0.9em;
+}
+
+main {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    flex-grow: 1; /* Allow main content to grow */
+}
+
+.card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card .badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: #007bff;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    font-weight: bold;
+    z-index: 10; /* Ensure badge is above image */
+}
+
+.card .badge.sale {
+    background-color: #dc3545;
+}
+
+
+.card img {
+    max-width: 100%;
+    height: 150px;
+    object-fit: contain; /* Adjust as needed */
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9; /* Light background for transparent images */
+}
+
+.card h4 {
+    margin: 10px 0;
+    font-size: 1.1em;
+}
+
+.card .price {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #28a745;
+    margin-bottom: 10px;
+}
+
+.card .price span {
+    color: #888;
+}
+
+.card .stock-info {
+    font-size: 0.9em;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.card .stock-info.in-stock {
+    color: green;
+}
+
+.card .stock-info.out-of-stock-text {
+    color: red;
+}
+
+.card .add-to-cart-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: calc(100% - 20px); /* Adjust for padding */
+    font-size: 1em;
+    font-weight: bold;
+}
+
+.card .add-to-cart-btn:hover:not(:disabled) {
     background-color: #0056b3;
 }
 
+.card .add-to-cart-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
 
-/* Modals (Auth, Cart, Order History, Order Details, Admin Product/Order Management) */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+.card.out-of-stock {
+    opacity: 0.7;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
-.modal.show {
-    opacity: 1;
-    visibility: visible;
-}
-.modal-box {
-    background: white;
-    padding: 30px;
-    border-radius: 15px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-    animation: fadeInScale 0.3s ease-out;
-    position: relative;
-    max-height: 90vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-@keyframes fadeInScale {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
-.modal-box h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 28px;
-    color: #333;
+
+.empty-message {
     text-align: center;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 10px;
+    width: 100%; /* Ensure it spans the full width of the grid */
+    font-size: 1.2em;
+    color: #666;
+    padding: 50px 0;
 }
-.modal-close-btn {
+
+/* --- Modals General Styling --- */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+}
+
+.modal.show {
+    display: flex; /* Use flex to center */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Center modal */
+    padding: 30px;
+    border: 1px solid #888;
+    border-radius: 10px;
+    width: 90%; /* Responsive width */
+    max-width: 500px; /* Max width for larger screens */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    position: relative;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
     position: absolute;
     top: 10px;
     right: 15px;
-    background: none;
-    border: none;
-    font-size: 30px;
     cursor: pointer;
-    color: #999;
-    transition: color 0.3s ease;
-}
-.modal-close-btn:hover {
-    color: #333;
 }
 
-/* Auth Modal Specific Styles */
-#auth-modal .modal-box {
-    max-width: 400px;
-    gap: 10px;
-}
-#auth-modal h3 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 22px;
+.close-button:hover,
+.close-button:focus {
     color: #333;
-    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
 }
-#auth-modal input {
-    display: block;
-    width: calc(100% - 24px); /* Account for padding */
-    padding: 12px;
+
+/* --- Auth Modal Specific Styles --- */
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+    width: calc(100% - 22px); /* Account for padding and border */
+    padding: 10px;
     margin-bottom: 15px;
     border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 16px;
-}
-#auth-modal button {
-    background-color: #28a745; /* Green for auth buttons */
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin: 5px;
-    font-size: 16px;
-    font-weight: bold;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-#auth-modal button:hover {
-    background-color: #218838;
-    transform: translateY(-2px);
-}
-#auth-modal #auth-message {
-    margin-top: 15px;
-    font-size: 14px;
-    color: #dc3545; /* Red for error messages */
-    font-weight: 500;
+    border-radius: 5px;
 }
 
-/* Cart Icon in Header */
-.cart-icon-container {
-    position: relative;
+.auth-form button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
+    margin-right: 10px;
     transition: background-color 0.3s ease;
 }
-.cart-icon-container:hover {
-    background-color: rgba(255,255,255,0.1);
-}
-.cart-icon {
-    font-size: 28px;
-    color: white;
-}
-.cart-count-badge {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    background-color: #FF6B6B; /* Red badge */
-    color: white;
-    border-radius: 50%;
-    padding: 4px 8px;
-    font-size: 12px;
-    font-weight: bold;
-    min-width: 20px;
-    text-align: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    line-height: 1; /* For better vertical alignment of numbers */
+
+.auth-form button:hover {
+    background-color: #0056b3;
 }
 
-/* Cart Specific Styles */
+.auth-form #forgot-password-button {
+    background-color: #6c757d;
+}
+
+.auth-form #forgot-password-button:hover {
+    background-color: #5a6268;
+}
+
+#auth-message {
+    margin-top: 15px;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* --- Cart Modal Specific Styles --- */
+.cart-items-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
 .cart-item {
     display: flex;
     align-items: center;
-    gap: 15px;
-    padding: 10px 0;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
     border-bottom: 1px solid #eee;
 }
+
 .cart-item:last-child {
     border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
+
 .cart-item img {
     width: 70px;
     height: 70px;
     object-fit: contain;
-    border-radius: 8px;
-    border: 1px solid #ddd;
+    margin-right: 15px;
+    border-radius: 5px;
+    background-color: #fff;
 }
+
 .cart-item-details {
     flex-grow: 1;
 }
+
 .cart-item-details h4 {
     margin: 0 0 5px 0;
     font-size: 1.1em;
-    color: #333;
 }
+
 .cart-item-price {
     font-weight: bold;
     color: #28a745;
 }
+
 .cart-item-quantity-control {
     display: flex;
     align-items: center;
-    gap: 5px;
+    margin-right: 15px;
 }
+
 .cart-item-quantity-control button {
     background-color: #007bff;
     color: white;
     border: none;
-    border-radius: 5px;
     padding: 5px 10px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 1.1em;
-    transition: background-color 0.2s ease;
+    font-size: 1em;
+    margin: 0 5px;
 }
-.cart-item-quantity-control button:hover:not(:disabled) {
+
+.cart-item-quantity-control button:hover {
     background-color: #0056b3;
 }
-.cart-item-quantity-control button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
+
 .cart-item-quantity-control input {
     width: 40px;
     text-align: center;
-    border: 1px solid #ddd;
+    border: 1px solid #ccc;
     border-radius: 5px;
-    padding: 5px;
-    font-size: 1em;
+    padding: 5px 0;
 }
+
 .cart-item-remove {
     background: none;
     border: none;
-    color: #dc3545; /* Red for remove */
-    font-size: 24px; /* Larger 'x' */
+    color: #dc3545;
+    font-size: 1.5em;
     cursor: pointer;
     transition: color 0.2s ease;
 }
+
 .cart-item-remove:hover {
-    color: #a71d2a;
+    color: #c82333;
 }
 
 .cart-summary {
-    padding-top: 15px;
-    border-top: 2px solid #eee;
-}
-.cart-summary div {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 1.1em;
-    color: #555;
-}
-.cart-summary .total {
-    font-weight: bold;
-    font-size: 1.4em;
-    color: #333;
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px dashed #ddd;
-}
-
-.payment-methods {
+    text-align: right;
+    margin-bottom: 20px;
     padding-top: 15px;
     border-top: 1px solid #eee;
-    margin-top: 15px;
-}
-.payment-methods h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    font-size: 1.4em;
-    color: #333;
-}
-.payment-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    padding: 10px;
-    border: 1px solid #eee;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-.payment-option:hover {
-    background-color: #f9f9f9;
-}
-.payment-option input[type="radio"] {
-    margin: 0;
-}
-.payment-option img {
-    width: 30px;
-    height: auto;
-}
-.payment-option span {
-    font-weight: 500;
-    color: #333;
 }
 
-.roblox-username-input {
-    width: calc(100% - 24px);
-    padding: 12px;
-    margin-top: 15px;
+.cart-summary p {
+    margin: 5px 0;
+    font-size: 1.1em;
+}
+
+.cart-summary #cart-total {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.checkout-details input[type="text"] {
+    width: calc(100% - 22px);
+    padding: 10px;
     margin-bottom: 15px;
     border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 16px;
-}
-
-.place-order-btn {
-    background-color: #28a745; /* Green */
-    color: white;
-    padding: 15px 25px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 1.3em;
-    font-weight: bold;
-    width: 100%;
-    margin-top: 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    transition: background-color 0.3s ease, transform 0.2s ease;
-}
-.place-order-btn:hover {
-    background-color: #218838;
-    transform: translateY(-2px);
-}
-.place-order-btn:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
-/* Empty Message */
-.empty-message {
-    text-align: center;
-    padding: 30px;
-    font-style: italic;
-    color: #666;
-    font-size: 1.1em;
-}
-
-/* Order History Specific Styles */
-#order-history-modal .modal-box {
-    max-width: 600px; /* Wider for order history */
-}
-#order-history-content {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-#order-history-list {
-    flex-grow: 1;
-    padding: 10px 0;
-}
-.order-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 10px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    border-radius: 8px;
-    margin-bottom: 5px;
-}
-.order-item:hover {
-    background-color: #f9f9f9;
-}
-.order-item-info {
-    flex-grow: 1;
-}
-.order-item-info strong {
-    font-size: 1.1em;
-    color: #333;
-}
-.order-item-info span {
-    font-size: 0.9em;
-    color: #666;
-    display: block;
-}
-.order-item-status {
-    font-weight: bold;
-    padding: 4px 8px;
     border-radius: 5px;
-    font-size: 0.85em;
-}
-.status-pending { background-color: #ffc107; color: #333; } /* Yellow */
-.status-in-process { background-color: #007bff; color: white; } /* Blue */
-.status-delivered { background-color: #28a745; color: white; } /* Green */
-.status-rejected { background-color: #dc3545; color: white; } /* Red */
-
-.view-details-btn {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9em;
-    transition: background-color 0.2s ease;
-    margin-left: 10px;
-}
-.view-details-btn:hover {
-    background-color: #0056b3;
 }
 
-/* Order Details View */
-#order-details-view {
-    display: none; /* Hidden by default */
-    padding-top: 20px;
-    border-top: 1px solid #eee;
+.checkout-details .payment-methods {
+    margin-bottom: 20px;
 }
-#order-details-view h3 {
-    margin-top: 0;
-    color: #333;
-    font-size: 1.6em;
-    margin-bottom: 15px;
-    text-align: center;
+
+.checkout-details .payment-methods label {
+    margin-right: 15px;
+    font-size: 0.95em;
 }
-#order-details-info p {
-    margin: 8px 0;
-    color: #555;
-}
-#order-details-info strong {
-    color: #333;
-    margin-right: 5px;
-}
-#order-details-items {
-    margin-top: 20px;
-    border-top: 1px dashed #eee;
-    padding-top: 15px;
-}
-#order-details-items h4 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    color: #333;
-    font-size: 1.3em;
-}
-.order-detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px dotted #eee;
-}
-.order-detail-item:last-child {
-    border-bottom: none;
-}
-.order-detail-item-name {
-    font-weight: bold;
-    color: #444;
-    flex-basis: 60%;
-}
-.order-detail-item-qty-price {
-    font-size: 0.9em;
-    color: #666;
-    text-align: right;
-    flex-basis: 40%;
-}
-.back-to-orders-btn {
-    background: #6c757d;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: background-color 0.2s ease;
+
+#place-order-btn {
+    display: block;
     width: 100%;
-}
-.back-to-orders-btn:hover {
-    background-color: #5a6268;
+    padding: 15px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-weight: bold;
 }
 
-/* Admin Panel Styles */
-#admin-panel-modal .modal-box {
-    max-width: 800px; /* Wider for admin panel */
+#place-order-btn:hover:not(:disabled) {
+    background-color: #218838;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
+
+#place-order-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+
+/* --- Admin Panel Modal Specific Styles --- */
+.admin-modal-content {
+    max-width: 900px; /* Wider for tables */
+    width: 95%;
+}
+
 .admin-tabs {
     display: flex;
     justify-content: center;
     margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
 }
+
 .admin-tab-btn {
-    background: #f0f0f0;
-    border: 1px solid #ddd;
-    border-bottom: none;
+    background: none;
+    border: none;
     padding: 10px 20px;
     cursor: pointer;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    margin: 0 5px;
     font-size: 1.1em;
     font-weight: bold;
     color: #555;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: color 0.2s ease, border-bottom 0.2s ease;
+    border-bottom: 2px solid transparent;
 }
+
 .admin-tab-btn.active {
-    background: #333;
-    color: white;
-    border-color: #333;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
 }
+
 .admin-tab-btn:hover:not(.active) {
-    background-color: #e9e9e9;
+    color: #0056b3;
 }
+
 .admin-tab-content {
-    padding: 20px 0;
-}
-.admin-section h3 {
-    font-size: 1.8em;
-    margin-bottom: 15px;
-    color: #333;
-    text-align: center;
+    padding-top: 20px;
 }
 
-/* Removed Shop Status Control styles */
-
-/* Product Management Form */
-#product-form-container {
-    background: #f8f8f8;
+.product-form, .order-status-update {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
     padding: 20px;
     border-radius: 10px;
-    margin-bottom: 30px;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    border: 1px solid #eee;
 }
-#product-form-container label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #444;
+
+.product-form h4 {
+    grid-column: 1 / -1; /* Span all columns */
+    text-align: center;
+    margin-top: 0;
+    color: #333;
 }
-#product-form-container input[type="text"],
-#product-form-container input[type="number"],
-#product-form-container select {
+
+.product-form input[type="text"],
+.product-form input[type="number"],
+.product-form select {
     width: calc(100% - 22px);
     padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 0.9em;
 }
-#product-form-container input[type="checkbox"] {
-    margin-right: 10px;
-    transform: scale(1.2);
-}
-#product-form-container .checkbox-group {
+
+.product-form label {
     display: flex;
     align-items: center;
-    margin-bottom: 15px;
-}
-#product-form-container button {
-    background-color: #007bff;
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px;
+    gap: 5px;
+    font-size: 0.9em;
     cursor: pointer;
-    font-size: 1em;
-    font-weight: bold;
+}
+
+.product-form input[type="checkbox"] {
+    transform: scale(1.2); /* Make checkbox slightly larger */
+}
+
+.product-form button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
     transition: background-color 0.3s ease;
-    width: auto;
-    min-width: 120px;
-    margin-right: 10px;
+    font-weight: bold;
 }
-#product-form-container button:hover {
-    background-color: #0056b3;
+
+.product-form button:hover {
+    background-color: #218838;
 }
-#product-form-container button#cancel-edit-product {
+
+.product-form #cancel-edit-product {
     background-color: #6c757d;
 }
-#product-form-container button#cancel-edit-product:hover {
+.product-form #cancel-edit-product:hover {
     background-color: #5a6268;
 }
 
-/* Product List in Admin Panel */
-.admin-product-table, .admin-order-table {
+/* Admin Table Styles */
+.admin-table-container {
+    overflow-x: auto; /* Enable horizontal scrolling on small screens */
+    margin-bottom: 20px;
+}
+
+.admin-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-top: 15px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden; /* Ensures rounded corners apply to content */
 }
-.admin-product-table th, .admin-product-table td,
-.admin-order-table th, .admin-order-table td {
-    border: 1px solid #eee;
-    padding: 10px;
+
+.admin-table th, .admin-table td {
+    padding: 12px 15px;
     text-align: left;
-    vertical-align: middle;
-    font-size: 0.95em;
+    border-bottom: 1px solid #ddd;
 }
-.admin-product-table th, .admin-order-table th {
-    background-color: #f0f0f0;
+
+.admin-table th {
+    background-color: #f2f2f2;
     font-weight: bold;
-    color: #333;
+    color: #555;
+    text-transform: uppercase;
+    font-size: 0.85em;
 }
-.admin-product-table td img {
+
+.admin-table td {
+    font-size: 0.9em;
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.admin-table img {
     width: 50px;
     height: 50px;
     object-fit: contain;
-    border-radius: 5px;
+    border-radius: 3px;
+    background-color: #f0f0f0;
 }
+
 .admin-product-actions button, .admin-order-actions button {
-    background: #007bff;
+    background-color: #007bff;
     color: white;
     border: none;
     padding: 6px 10px;
-    border-radius: 5px;
+    border-radius: 4px;
     cursor: pointer;
     margin-right: 5px;
-    font-size: 0.85em;
     transition: background-color 0.2s ease;
-}
-.admin-product-actions button.edit, .admin-order-actions button.view {
-    background-color: #28a745; /* Green */
-}
-.admin-product-actions button.edit:hover, .admin-order-actions button.view:hover {
-    background-color: #218838;
-}
-.admin-product-actions button.delete {
-    background-color: #dc3545; /* Red */
-}
-.admin-product-actions button.delete:hover {
-    background-color: #a71d2a;
+    font-size: 0.85em;
 }
 
-/* Order Details Admin View */
-#admin-order-details-view {
-    display: none;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
+.admin-product-actions button.edit { background-color: #ffc107; color: #333;}
+.admin-product-actions button.edit:hover { background-color: #e0a800; }
+.admin-product-actions button.delete { background-color: #dc3545; }
+.admin-product-actions button.delete:hover { background-color: #c82333; }
+.admin-order-actions button.view { background-color: #17a2b8; }
+.admin-order-actions button.view:hover { background-color: #138496; }
+
+
+/* Admin Order Details View */
+.admin-order-detail-view {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #eee;
 }
-#admin-order-details-view h3 {
-    margin-top: 0;
+
+.admin-order-detail-view h3, .admin-order-detail-view h4 {
     color: #333;
-    font-size: 1.6em;
-    margin-bottom: 15px;
-    text-align: center;
-}
-#admin-order-details-info p {
-    margin: 8px 0;
-    color: #555;
-}
-#admin-order-details-info strong {
-    color: #333;
-    margin-right: 5px;
-}
-#admin-order-details-items {
-    margin-top: 20px;
-    border-top: 1px dashed #eee;
-    padding-top: 15px;
-}
-#admin-order-details-items h4 {
     margin-top: 0;
     margin-bottom: 10px;
-    color: #333;
-    font-size: 1.3em;
 }
+
+.admin-order-detail-view p {
+    margin: 5px 0;
+    font-size: 0.95em;
+}
+
+.admin-order-detail-view .status-info {
+    display: inline-block;
+    margin-left: 10px;
+}
+
+.admin-order-detail-items {
+    border: 1px solid #eee;
+    padding: 10px;
+    border-radius: 8px;
+    background-color: #fff;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
 .admin-order-detail-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
     padding: 8px 0;
-    border-bottom: 1px dotted #eee;
+    border-bottom: 1px dashed #ddd;
 }
+
 .admin-order-detail-item:last-child {
     border-bottom: none;
 }
-.admin-order-detail-item-name {
+
+.order-status-update {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    grid-template-columns: auto 1fr auto; /* Adjust grid for these elements */
+}
+
+.order-status-update label {
     font-weight: bold;
-    color: #444;
-    flex-basis: 60%;
 }
-.admin-order-detail-item-qty-price {
+
+.order-status-update select {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
     font-size: 0.9em;
-    color: #666;
-    text-align: right;
-    flex-basis: 40%;
 }
-.order-status-update-section {
+
+.order-status-update button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.order-status-update button:hover {
+    background-color: #0056b3;
+}
+
+
+/* --- Chat System Styles (for both customer and admin modals) --- */
+.chat-modal-content {
+    max-width: 700px; /* Adjust max width for chat */
+    display: flex;
+    flex-direction: column;
+    height: 90%; /* Use more vertical space */
+}
+
+#admin-chat-management {
+    flex-direction: row; /* Desktop: side-by-side chat list and messages */
+    height: 100%;
+}
+
+.chat-container {
+    display: flex;
+    flex-grow: 1; /* Allow chat container to fill available space */
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden; /* Contains children with rounded corners */
+    margin-top: 15px;
+}
+
+.chat-list-sidebar {
+    flex: 0 0 250px; /* Fixed width for sidebar */
+    background-color: #f8f8f8;
+    border-right: 1px solid #eee;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.chat-list-sidebar h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+#admin-chat-conversations-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1;
+}
+
+.chat-list-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.9em;
+}
+
+.chat-list-item:last-child {
+    border-bottom: none;
+}
+
+.chat-list-item:hover {
+    background-color: #eef;
+}
+
+.chat-list-item.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.chat-list-item.active strong,
+.chat-list-item.active p,
+.chat-list-item.active span {
+    color: white; /* Ensure text is white when active */
+}
+
+.chat-list-item p {
+    margin: 5px 0 0 0;
+    color: #666;
+    font-size: 0.85em;
+}
+
+.chat-list-item span {
+    display: block;
+    text-align: right;
+    font-size: 0.75em;
+    color: #888;
+}
+
+
+.chat-message-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+}
+
+.chat-header {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    background-color: #f2f2f2;
+    text-align: center;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid #ddd;
 }
-.order-status-update-section select {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 1em;
+
+.chat-message {
+    max-width: 70%; /* Limit message bubble width */
+    padding: 10px 15px;
+    border-radius: 15px;
+    line-height: 1.4;
+    position: relative; /* For meta info positioning */
+    word-wrap: break-word; /* Ensure long words wrap */
 }
-.order-status-update-section button {
+
+.chat-message.sent {
     background-color: #007bff;
     color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1em;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
+    align-self: flex-end; /* Align to right */
+    border-bottom-right-radius: 5px; /* Sharpen bottom right corner */
 }
-.order-status-update-section button:hover {
+
+.chat-message.received {
+    background-color: #e0e0e0;
+    color: #333;
+    align-self: flex-start; /* Align to left */
+    border-bottom-left-radius: 5px; /* Sharpen bottom left corner */
+}
+
+.message-meta {
+    font-size: 0.75em;
+    color: #888;
+    margin-top: 2px;
+    text-align: right;
+    width: 100%; /* Take full width of parent messageDiv */
+}
+
+.chat-message.sent .message-meta {
+    color: #ddd; /* Lighter color for sent messages */
+}
+
+.chat-message.received .message-meta {
+    text-align: left;
+}
+
+.message-image-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-top: 5px;
+    display: block; /* Ensure it takes its own line */
+}
+
+
+.chat-input-area {
+    display: flex;
+    align-items: center; /* Vertically align items */
+    padding: 15px;
+    border-top: 1px solid #eee;
+    background-color: #f2f2f2;
+    gap: 10px;
+    position: relative; /* For absolute positioning of preview */
+}
+
+.chat-input-area input[type="text"] {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 0.95em;
+}
+
+.chat-input-area button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-weight: bold;
+}
+
+.chat-input-area button:hover:not(:disabled) {
     background-color: #0056b3;
 }
-.admin-back-to-orders-btn {
-    background: #6c757d;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: background-color 0.2s ease;
-    width: 100%;
+
+.chat-input-area button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
 }
-.admin-back-to-orders-btn:hover {
+
+.upload-btn {
+    background-color: #6c757d; /* Gray color for upload button */
+    color: white;
+    padding: 10px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+    font-size: 1em; /* Adjust icon size */
+}
+
+.upload-btn:hover {
     background-color: #5a6268;
 }
 
-/* Responsive adjustments */
+.image-preview {
+    max-width: 80px; /* Small preview size */
+    max-height: 80px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    object-fit: cover;
+    margin-right: 10px; /* Space between preview and text input */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Admin Seller Status Tab Specific Styles */
+.seller-status-control {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #eee;
+    text-align: center;
+}
+
+.seller-status-control p {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.seller-status-control button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-weight: bold;
+}
+
+.seller-status-control button:hover {
+    background-color: #0056b3;
+}
+
+
+/* Responsive Adjustments */
 @media (max-width: 768px) {
     header {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 15px;
+        flex-direction: column;
+        align-items: flex-start;
     }
-    .auth-section {
+    .auth-section, .logo, .status-indicator { /* Include status indicator */
         width: 100%;
         justify-content: center;
+        margin-bottom: 10px;
     }
-    .logo {
-        font-size: 20px;
+    .auth-section {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    .header-btn {
+        width: 100%;
+        text-align: center;
     }
     .filters {
         flex-direction: column;
         align-items: center;
-        max-width: 95%;
     }
-    .filters button, .filters input {
-        width: calc(100% - 10px);
-        margin: 5px 0;
+    #searchBox {
+        width: calc(100% - 30px);
     }
-    .auth-container, .modal-box {
+    .filters button {
+        width: calc(100% - 30px);
+        text-align: center;
+    }
+    main {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    .modal-content {
+        padding: 20px;
         width: 95%;
-        padding: 15px;
     }
-    .cart-item {
-        flex-wrap: wrap;
-        justify-content: center;
-        text-align: center;
+    .auth-form input[type="email"],
+    .auth-form input[type="password"] {
+        width: calc(100% - 20px);
     }
-    .cart-item-details {
-        text-align: center;
+    .product-form {
+        grid-template-columns: 1fr; /* Stack elements on small screens */
     }
-    .order-item {
-        flex-direction: column;
-        align-items: flex-start;
+    .product-form button {
+        grid-column: auto;
+    }
+    .admin-table-container {
+        width: 100%; /* Ensure table container fits width */
+    }
+    .admin-table {
+        min-width: 600px; /* Prevent table from becoming too narrow */
+    }
+
+    /* Chat System Responsive */
+    .chat-modal-content, #admin-chat-management {
+        flex-direction: column; /* Stack chat list and messages vertically on small screens */
+        height: 100%; /* Take full height */
+    }
+
+    .chat-list-sidebar {
+        flex: none; /* Remove fixed width */
+        width: 100%; /* Take full width */
+        max-height: 200px; /* Limit height of chat list */
+        border-right: none;
+        border-bottom: 1px solid #eee; /* Add bottom border */
+    }
+
+    .chat-input-area {
+        flex-wrap: wrap; /* Allow input elements to wrap */
+    }
+
+    .chat-input-area input[type="text"] {
+        order: 3; /* Move text input to a new line */
+        width: calc(100% - 20px);
+        margin-top: 10px; /* Space between preview/buttons and text input */
+    }
+
+    .chat-input-area button, .upload-btn {
+        order: 2; /* Keep buttons together */
+        flex: 1 1 auto; /* Allow buttons to grow/shrink */
+    }
+    .image-preview {
+        order: 1; /* Place preview first */
+        margin-bottom: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo {
+        font-size: 1.5em;
+    }
+    .auth-section {
         gap: 5px;
     }
-    .view-details-btn {
-        width: 100%;
-        margin-left: 0;
-        margin-top: 10px;
+    .filters {
+        padding: 15px;
     }
-    .admin-tab-btn {
-        width: 100%;
-        margin: 5px 0;
-        border-radius: 8px;
+    .filters button {
+        padding: 8px 12px;
     }
-    .admin-product-table th, .admin-product-table td,
-    .admin-order-table th, .admin-order-table td {
-        display: block; /* Stack cells on small screens */
-        width: 100%;
-        text-align: right;
-        padding-left: 50%;
-        position: relative;
+    .card img {
+        height: 120px;
     }
-    .admin-product-table td::before, .admin-order-table td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 10px;
-        width: 45%;
-        text-align: left;
-        font-weight: bold;
+    .cart-item {
+        flex-direction: column;
+        align-items: flex-start;
     }
-    .admin-product-table th {
-        display: none; /* Hide header on small screens when cells stack */
-    }
-    .admin-product-actions button {
-        width: calc(50% - 10px);
+    .cart-item-details {
         margin-bottom: 10px;
+        width: 100%;
+    }
+    .cart-item-quantity-control {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+    .cart-item-remove {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    .chat-message {
+        max-width: 90%; /* Allow messages to be wider on very small screens */
     }
 }
