@@ -48,13 +48,14 @@ const orderStatusSelect = document.getElementById("order-status-select");
 const updateOrderStatusBtn = document.getElementById("update-order-status-btn");
 const adminBackToOrderListBtn = document.getElementById("admin-back-to-order-list");
 let currentEditingOrderId = null;
+let currentEditingOrderUserId = null; // <-- MODIFICATION: Added to store the user ID of the order being edited
 
 
 // --- Firestore Collection Paths (These are defined locally in admin.js for clarity) ---
 const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in script.js
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
-// const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`; // No longer needed for direct updates by admin
+const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`; // <-- MODIFICATION: This path is now needed
 
 
 // --- Admin Panel Functions ---
@@ -162,32 +163,38 @@ function initAdminPanel(db, auth, userId, adminFlag) {
         adminOrdersList.parentElement.style.display = 'table';
         adminOrderDetailsView.style.display = 'none';
         currentEditingOrderId = null;
+        currentEditingOrderUserId = null; // <-- MODIFICATION: Clear the stored user ID
     };
     adminBackToOrderListBtn.addEventListener('click', adminBackToOrderListBtn._backListener);
 
+    // --- MODIFICATION START: The entire update listener is replaced ---
     updateOrderStatusBtn._updateListener = async () => {
-        if (!currentEditingOrderId) {
-            alert("No order selected for status update.");
+        if (!currentEditingOrderId || !currentEditingOrderUserId) {
+            alert("No order selected or user ID is missing. Cannot update status.");
             return;
         }
 
         const newStatus = orderStatusSelect.value;
         try {
-            const orderRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
-            await updateDoc(orderRef, { status: newStatus });
+            // Path to the order in the central 'allOrders' collection
+            const allOrdersRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
+            
+            // Path to the order in the user-specific subcollection
+            const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(currentEditingOrderUserId), currentEditingOrderId);
 
-            // Removed the problematic line that tried to update user's personal order.
-            // Direct update of user-specific orders by an admin client-side is not allowed
-            // by your current security rules (and generally not recommended).
-            // Synchronization would typically be handled by a Cloud Function on the backend.
+            // Update the status in BOTH locations
+            await updateDoc(allOrdersRef, { status: newStatus });
+            await updateDoc(userOrderRef, { status: newStatus });
 
             alert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
-            adminBackToOrderListBtn.click();
+            adminBackToOrderListBtn.click(); // Return to the list view
+
         } catch (e) {
-            console.error("Error updating order status:", e);
-            alert("Error updating order status: " + e.message);
+            console.error("Error updating order status in both locations:", e);
+            alert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
         }
     };
+    // --- MODIFICATION END ---
     updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
 
 
@@ -214,7 +221,7 @@ function cleanupAdminPanel() {
         }
     });
     if (saveProductBtn._saveListener) { saveProductBtn.removeEventListener('click', saveProductBtn._saveListener); saveProductBtn._saveListener = null; }
-    if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
+    if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
 
@@ -412,7 +419,7 @@ function renderAdminOrders() {
             <td data-label="User ID">${order.userId ? order.userId.substring(0, 8) + '...' : 'N/A'}</td>
             <td data-label="Date">${new Date(order.orderDate).toLocaleDateString()}</td>
             <td data-label="Total">₱${order.total.toFixed(2)}</td>
-            <td data-label="Status"><span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span></td>
+            <td data-label="Status"><span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span></td>
             <td data-label="Actions" class="admin-order-actions">
                 <button class="view" data-id="${order.id}">View</button>
             </td>
@@ -435,8 +442,10 @@ function renderAdminOrders() {
     });
 }
 
+// --- MODIFICATION: This function now also stores the userId of the selected order ---
 function showAdminOrderDetails(order) {
     currentEditingOrderId = order.id;
+    currentEditingOrderUserId = order.userId; // Store the user ID for the update function
     adminOrdersList.parentElement.style.display = 'none';
     adminOrderDetailsView.style.display = 'block';
 
