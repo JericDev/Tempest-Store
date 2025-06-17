@@ -826,7 +826,7 @@
         // Closes the order history modal if clicking outside the modal box.
         orderHistoryModal.addEventListener('click', (event) => {
             if (event.target === orderHistoryModal) {
-                orderHistoryModal.classList.remove('show');
+                orderModal.classList.remove('show'); // Fixed: Changed orderHistoryModal.classList.remove to orderModal.classList.remove
             }
         });
 
@@ -968,7 +968,7 @@
                 snapshot.forEach(doc => {
                     fetchedOrders.push({ id: doc.id, ...doc.data() });
                 });
-                allOrders = fetchedProducts; // Update the global allOrders array
+                allOrders = fetchedOrders; // Fixed: Changed fetchedProducts to fetchedOrders
                 renderAdminOrders(); // Re-render the admin orders table (if admin panel is open)
             }, (error) => {
                 console.error("Error listening to all orders:", error);
