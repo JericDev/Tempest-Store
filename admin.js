@@ -1,15 +1,27 @@
 // admin.js
 // This file contains all logic and DOM manipulations specific to the admin panel.
 
-import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs, limit } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+// Import Firebase Storage functions
+import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+
 
 // Global variables for admin-specific data and listeners
-let allOrders = []; // Global array to store all orders for admin view
-let unsubscribeAllOrders = null; // Unsubscribe function for allOrders listener
-let dbInstance = null; // Firestore instance passed from script.js
-let authInstance = null; // Auth instance passed from script.js
-let adminUserId = null; // Admin user ID passed from script.js
-let isAdminUser = false; // Is Admin flag passed from script.js
+let allOrders = []; 
+let allChats = []; 
+let unsubscribeAllOrders = null; 
+let unsubscribeAdminChatList = null; 
+let unsubscribeAdminChatMessages = null; 
+let unsubscribeAdminSellerStatus = null; // New unsubscribe for admin seller status
+let dbInstance = null; 
+let authInstance = null; 
+let storageInstance = null; 
+let adminUserId = null; 
+let isAdminUser = false; 
+let currentAdminChatId = null; 
+
+// Variables for image upload in admin chat
+let adminSelectedImageFile = null; 
 
 // --- DOM elements for Admin Panel ---
 const adminPanelModal = document.getElementById("admin-panel-modal");
@@ -17,6 +29,8 @@ const closeAdminPanelModalBtn = document.getElementById("close-admin-panel-modal
 const adminTabButtons = document.querySelectorAll(".admin-tab-btn");
 const adminProductManagement = document.getElementById("admin-product-management");
 const adminOrderManagement = document.getElementById("admin-order-management");
+const adminChatManagement = document.getElementById("admin-chat-management"); 
+const adminSellerStatusTab = document.getElementById("admin-seller-status"); // New Seller Status tab content
 
 // Product Form elements
 const productFormTitle = document.getElementById("product-form-title");
@@ -49,26 +63,39 @@ const updateOrderStatusBtn = document.getElementById("update-order-status-btn");
 const adminBackToOrderListBtn = document.getElementById("admin-back-to-order-list");
 let currentEditingOrderId = null;
 
+// Admin Chat elements
+const adminChatConversationsList = document.getElementById("admin-chat-conversations-list");
+const adminChatPartnerName = document.getElementById("admin-chat-partner-name");
+const adminChatMessagesContainer = document.getElementById("admin-chat-messages");
+const adminChatMessageInput = document.getElementById("admin-chat-message-input");
+const adminSendChatMessageBtn = document.getElementById("admin-send-chat-message-btn");
+const adminImageUploadInput = document.getElementById("admin-image-upload"); 
+const adminImagePreview = document.getElementById("admin-image-preview");     
 
-// --- Firestore Collection Paths (These are defined locally in admin.js for clarity) ---
-const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in script.js
+// Seller Status elements
+const adminSellerStatusDisplay = document.getElementById("admin-seller-status-display");
+const toggleSellerStatusBtn = document.getElementById("toggle-seller-status-btn");
+
+
+// --- Firestore Collection Paths ---
+const APP_ID = 'tempest-store-app'; 
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`; 
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`; 
-const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`; // Needed for updating user-specific order status
+const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`; 
+const CHATS_COLLECTION_PATH = `artifacts/${APP_ID}/chats`; 
+const SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New settings collection
 
 
 // --- Admin Panel Functions ---
-function initAdminPanel(db, auth, userId, adminFlag) {
+function initAdminPanel(db, auth, storage, userId, adminFlag) {
     dbInstance = db;
     authInstance = auth;
+    storageInstance = storage; 
     adminUserId = userId;
     isAdminUser = adminFlag;
 
-    // Attach event listener for the admin panel button
-    // This button is controlled by script.js's onAuthStateChanged for visibility
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton) {
-        // Remove existing listener to prevent duplicates on re-init
         if (adminPanelButton._adminListener) {
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         }
@@ -78,15 +105,30 @@ function initAdminPanel(db, auth, userId, adminFlag) {
                 return;
             }
             adminPanelModal.classList.add('show');
-            // Default to product management tab when opening
-            showAdminTab('products');
+            showAdminTab('products'); 
         };
         adminPanelButton.addEventListener('click', listener);
-        adminPanelButton._adminListener = listener; // Store reference to listener for removal
+        adminPanelButton._adminListener = listener;
     }
 
     closeAdminPanelModalBtn.addEventListener('click', () => {
         adminPanelModal.classList.remove('show');
+        if (unsubscribeAdminChatList) {
+            unsubscribeAdminChatList();
+            unsubscribeAdminChatList = null;
+        }
+        if (unsubscribeAdminChatMessages) {
+            unsubscribeAdminChatMessages();
+            unsubscribeAdminChatMessages = null;
+        }
+        if (unsubscribeAdminSellerStatus) { // Unsubscribe seller status
+            unsubscribeAdminSellerStatus();
+            unsubscribeAdminSellerStatus = null;
+        }
+        currentAdminChatId = null; 
+        adminSelectedImageFile = null; 
+        adminImagePreview.style.display = 'none';
+        adminImagePreview.src = '#';
     });
 
     adminPanelModal.addEventListener('click', (event) => {
@@ -96,7 +138,6 @@ function initAdminPanel(db, auth, userId, adminFlag) {
     });
 
     adminTabButtons.forEach(button => {
-        // Remove existing listeners to prevent duplicates on re-init
         if (button._tabListener) {
             button.removeEventListener('click', button._tabListener);
         }
@@ -105,7 +146,7 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             showAdminTab(tab);
         };
         button.addEventListener('click', listener);
-        button._tabListener = listener; // Store reference to listener
+        button._tabListener = listener;
     });
 
     // Remove existing listeners for product form buttons to prevent duplicates
@@ -113,6 +154,10 @@ function initAdminPanel(db, auth, userId, adminFlag) {
     if (cancelEditProductBtn._cancelListener) cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener);
     if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
     if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
+    if (adminSendChatMessageBtn._sendChatListener) adminSendChatMessageBtn.removeEventListener('click', adminSendChatMessageBtn._sendChatListener);
+    if (adminChatMessageInput._keyPressListener) adminChatMessageInput.removeEventListener('keypress', adminChatMessageInput._keyPressListener);
+    if (adminImageUploadInput._changeListener) adminImageUploadInput.removeEventListener('change', adminImageUploadInput._changeListener);
+    if (toggleSellerStatusBtn._toggleListener) toggleSellerStatusBtn.removeEventListener('click', toggleSellerStatusBtn._toggleListener);
 
 
     saveProductBtn._saveListener = async () => { 
@@ -176,7 +221,6 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             const orderRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
             await updateDoc(orderRef, { status: newStatus });
 
-            // Also update the status in the user's personal order history to keep them synchronized
             const orderToUpdate = allOrders.find(o => o.id === currentEditingOrderId);
             if (orderToUpdate && orderToUpdate.userId) {
                 const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(orderToUpdate.userId), currentEditingOrderId);
@@ -192,9 +236,44 @@ function initAdminPanel(db, auth, userId, adminFlag) {
     };
     updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
 
+    // Admin Chat Message Sending
+    adminSendChatMessageBtn._sendChatListener = sendAdminMessage;
+    adminSendChatMessageBtn.addEventListener('click', adminSendChatMessageBtn._sendChatListener);
+
+    adminChatMessageInput._keyPressListener = (e) => {
+        if (e.key === 'Enter') {
+            sendAdminMessage();
+        }
+    };
+    adminChatMessageInput.addEventListener('keypress', adminChatMessageInput._keyPressListener);
+
+    // Admin Image Upload handling
+    adminImageUploadInput._changeListener = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            adminSelectedImageFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                adminImagePreview.src = e.target.result;
+                adminImagePreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            adminSelectedImageFile = null;
+            adminImagePreview.style.display = 'none';
+            adminImagePreview.src = '#';
+        }
+    };
+    adminImageUploadInput.addEventListener('change', adminImageUploadInput._changeListener);
+
+    // Seller Status Toggle Button
+    toggleSellerStatusBtn._toggleListener = toggleSellerStatus;
+    toggleSellerStatusBtn.addEventListener('click', toggleSellerStatusBtn._toggleListener);
 
     // Initialize admin listeners if an admin is already logged in
     setupAllOrdersListener();
+    setupAdminChatListListener(); 
+    setupAdminSellerStatusListener(); // Start listening for seller status in admin panel
 }
 
 // Cleanup function for admin panel when user logs out
@@ -203,7 +282,25 @@ function cleanupAdminPanel() {
         unsubscribeAllOrders();
         unsubscribeAllOrders = null;
     }
-    // Remove specific event listeners to prevent memory leaks/duplicate calls
+    if (unsubscribeAdminChatList) {
+        unsubscribeAdminChatList();
+        unsubscribeAdminChatList = null;
+    }
+    if (unsubscribeAdminChatMessages) {
+        unsubscribeAdminChatMessages();
+        unsubscribeAdminChatMessages = null;
+    }
+    if (unsubscribeAdminSellerStatus) {
+        unsubscribeAdminSellerStatus();
+        unsubscribeAdminSellerStatus = null;
+    }
+    currentAdminChatId = null;
+    adminSelectedImageFile = null; 
+    adminImagePreview.style.display = 'none';
+    adminImagePreview.src = '#';
+    adminChatMessageInput.value = ''; 
+
+
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton && adminPanelButton._adminListener) {
         adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
@@ -219,10 +316,13 @@ function cleanupAdminPanel() {
     if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
+    if (adminSendChatMessageBtn._sendChatListener) { adminSendChatMessageBtn.removeEventListener('click', adminSendChatMessageBtn._sendChatListener); adminSendChatMessageBtn._sendChatListener = null; }
+    if (adminChatMessageInput._keyPressListener) { adminChatMessageInput.removeEventListener('keypress', adminChatMessageInput._keyPressListener); adminChatMessageInput._keyPressListener = null; }
+    if (adminImageUploadInput._changeListener) { adminImageUploadInput.removeEventListener('change', adminImageUploadInput._changeListener); adminImageUploadInput._changeListener = null; }
+    if (toggleSellerStatusBtn._toggleListener) { toggleSellerStatusBtn.removeEventListener('click', toggleSellerStatusBtn._toggleListener); toggleSellerStatusBtn._toggleListener = null; }
 
 
-    // Any other cleanup for admin UI goes here
-    adminPanelModal.classList.remove('show'); // Ensure admin modal is closed
+    adminPanelModal.classList.remove('show');
 }
 
 
@@ -288,7 +388,7 @@ function renderAdminProducts() {
                 <td data-label="Category">${product.category}</td>
                 <td data-label="Price">
                     ${product.sale && product.salePrice ? 
-                        `<span style="text-decoration: line-through; color: #888;">${product.price}</span> ${product.salePrice}` : 
+                        `<span style="text-decoration: line-through; color: #888;">₱${parseFloat(product.price.replace('₱', '')).toFixed(2)}</span> ₱${parseFloat(product.salePrice.replace('₱', '')).toFixed(2)}` : 
                         product.price}
                 </td>
                 <td data-label="Stock">${product.stock}</td>
@@ -302,7 +402,6 @@ function renderAdminProducts() {
         });
 
         adminProductsList.querySelectorAll('.edit').forEach(button => {
-            // Remove existing listeners to prevent duplicates
             if (button._editListener) button.removeEventListener('click', button._editListener);
             const listener = (e) => {
                 const productId = e.target.dataset.id;
@@ -316,7 +415,6 @@ function renderAdminProducts() {
         });
 
         adminProductsList.querySelectorAll('.delete').forEach(button => {
-            // Remove existing listeners to prevent duplicates
             if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
             const listener = (e) => {
                 const productId = e.target.dataset.id;
@@ -369,6 +467,25 @@ function showAdminTab(tabName) {
 
     adminProductManagement.style.display = 'none';
     adminOrderManagement.style.display = 'none';
+    adminChatManagement.style.display = 'none'; 
+    adminSellerStatusTab.style.display = 'none'; // Hide seller status tab
+
+    // Clean up chat listeners if switching away from chat tab
+    if (tabName !== 'admin-chat') {
+        if (unsubscribeAdminChatMessages) {
+            unsubscribeAdminChatMessages();
+            unsubscribeAdminChatMessages = null;
+        }
+        currentAdminChatId = null; 
+        adminChatMessageInput.disabled = true;
+        adminSendChatMessageBtn.disabled = true;
+        adminChatMessagesContainer.innerHTML = '<p class="empty-message">Select a conversation to view messages.</p>';
+        adminChatPartnerName.textContent = 'Select a chat';
+        adminSelectedImageFile = null; 
+        adminImagePreview.style.display = 'none';
+        adminImagePreview.src = '#';
+        adminChatMessageInput.value = ''; 
+    }
 
     if (tabName === 'products') {
         adminProductManagement.style.display = 'block';
@@ -378,6 +495,12 @@ function showAdminTab(tabName) {
         adminOrderManagement.style.display = 'block';
         adminOrderDetailsView.style.display = 'none'; 
         renderAdminOrders(); 
+    } else if (tabName === 'admin-chat') { 
+        adminChatManagement.style.display = 'flex'; 
+        renderAdminChatList(); 
+    } else if (tabName === 'seller-status') { // New seller status tab
+        adminSellerStatusTab.style.display = 'block';
+        setupAdminSellerStatusListener(); // Ensure listener is active for this tab
     }
 }
 
@@ -423,7 +546,6 @@ function renderAdminOrders() {
     });
 
     adminOrdersList.querySelectorAll('.view').forEach(button => {
-        // Remove existing listeners to prevent duplicates
         if (button._viewListener) button.removeEventListener('click', button._viewListener);
         const listener = (e) => {
             const orderId = e.target.dataset.id;
@@ -470,5 +592,245 @@ function showAdminOrderDetails(order) {
     }
 }
 
-// Export the initialization function for script.js to call
+// --- Chat System (Admin Side) ---
+function getChatId(user1Id, user2Id) {
+    const ids = [user1Id, user2Id].sort();
+    return `${ids[0]}_${ids[1]}`;
+}
+
+function setupAdminChatListListener() {
+    if (unsubscribeAdminChatList) {
+        unsubscribeAdminChatList();
+    }
+    const chatsColRef = collection(dbInstance, CHATS_COLLECTION_PATH);
+    const q = query(
+        chatsColRef, 
+        orderBy('updatedAt', 'desc')
+    ); 
+    
+    unsubscribeAdminChatList = onSnapshot(q, (snapshot) => {
+        const fetchedChats = [];
+        snapshot.forEach(doc => {
+            const chatData = doc.data();
+            if (chatData.participants && chatData.participants.includes(adminUserId)) {
+                fetchedChats.push({ id: doc.id, ...chatData });
+            }
+        });
+        allChats = fetchedChats;
+        renderAdminChatList();
+    }, (error) => {
+        console.error("Error listening to admin chat list:", error);
+    });
+}
+
+function renderAdminChatList() {
+    adminChatConversationsList.innerHTML = '';
+    if (allChats.length === 0) {
+        adminChatConversationsList.innerHTML = '<li class="empty-message">No conversations yet.</li>';
+        return;
+    }
+
+    allChats.forEach(chat => {
+        const otherParticipantId = chat.participants.find(pId => pId !== adminUserId);
+        const lastMessageSnippet = chat.lastMessage ? `${chat.lastMessage.senderId === adminUserId ? 'You' : otherParticipantId.substring(0, 4)}: ${chat.lastMessage.text ? chat.lastMessage.text.substring(0, 30) + (chat.lastMessage.text.length > 30 ? '...' : '') : (chat.lastMessage.imageUrl ? 'Image' : '')}` : 'No messages yet.';
+        const lastMessageTime = chat.lastMessage ? new Date(chat.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+        const listItem = document.createElement('li');
+        listItem.classList.add('chat-list-item');
+        listItem.dataset.chatId = chat.id;
+        listItem.innerHTML = `
+            <strong>User: ${otherParticipantId.substring(0, 8)}...</strong>
+            <p>${lastMessageSnippet}</p>
+            <span>${lastMessageTime}</span>
+        `;
+        if (chat.id === currentAdminChatId) {
+            listItem.classList.add('active');
+        }
+        adminChatConversationsList.appendChild(listItem);
+    });
+
+    adminChatConversationsList.querySelectorAll('.chat-list-item').forEach(item => {
+        if (item._chatSelectListener) item.removeEventListener('click', item._chatSelectListener);
+        const listener = (e) => {
+            const chatId = e.currentTarget.dataset.chatId;
+            openAdminChat(chatId);
+            adminChatConversationsList.querySelectorAll('.chat-list-item').forEach(li => li.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+        };
+        item.addEventListener('click', listener);
+        item._chatSelectListener = listener;
+    });
+}
+
+async function openAdminChat(chatId) {
+    if (unsubscribeAdminChatMessages) {
+        unsubscribeAdminChatMessages(); 
+    }
+    currentAdminChatId = chatId; 
+
+    const selectedChat = allChats.find(chat => chat.id === chatId);
+    const otherParticipantId = selectedChat ? selectedChat.participants.find(pId => pId !== adminUserId) : 'Unknown User';
+    adminChatPartnerName.textContent = `Chat with User: ${otherParticipantId.substring(0, 8)}...`;
+
+    adminChatMessageInput.disabled = false;
+    adminSendChatMessageBtn.disabled = false;
+    adminChatMessageInput.focus(); 
+
+    adminSelectedImageFile = null;
+    adminImagePreview.style.display = 'none';
+    adminImagePreview.src = '#';
+    adminImageUploadInput.value = ''; 
+
+
+    const messagesColRef = collection(dbInstance, CHATS_COLLECTION_PATH, chatId, 'messages');
+    const q = query(messagesColRef, orderBy("timestamp", "asc"));
+
+    unsubscribeAdminChatMessages = onSnapshot(q, (snapshot) => {
+        adminChatMessagesContainer.innerHTML = ''; 
+        if (snapshot.empty) {
+            adminChatMessagesContainer.innerHTML = '<p class="empty-message">No messages yet. Send your first message!</p>';
+        } else {
+            snapshot.forEach(doc => {
+                const message = doc.data();
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('chat-message');
+                messageDiv.classList.add(message.senderId === adminUserId ? 'sent' : 'received'); 
+
+                const senderInfo = message.senderId === adminUserId ? 'You (Admin)' : `User ${otherParticipantId.substring(0, 8)}...`;
+                const timestamp = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                let messageContent = '';
+                if (message.text) {
+                    messageContent += `<div class="message-bubble">${message.text}</div>`;
+                }
+                if (message.imageUrl) {
+                    messageContent += `<div class="message-image-container"><img src="${message.imageUrl}" alt="Sent image" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 5px;" /></div>`;
+                }
+
+                messageDiv.innerHTML = `
+                    ${messageContent}
+                    <div class="message-meta">${senderInfo} - ${timestamp}</div>
+                `;
+                adminChatMessagesContainer.appendChild(messageDiv);
+            });
+            adminChatMessagesContainer.scrollTop = adminChatMessagesContainer.scrollHeight; 
+        }
+    }, (error) => {
+        console.error("Error listening to admin chat messages:", error);
+    });
+}
+
+async function sendAdminMessage() {
+    const messageText = adminChatMessageInput.value.trim();
+    
+    if (!messageText && !adminSelectedImageFile) {
+        return; 
+    }
+
+    if (!currentAdminChatId || !adminUserId) {
+        alert("Cannot send message: Chat is not properly initialized or admin not logged in.");
+        return;
+    }
+
+    let imageUrl = null;
+    let imagePath = null;
+
+    if (adminSelectedImageFile) {
+        try {
+            const storageRef = ref(storageInstance, `chats/${currentAdminChatId}/${Date.now()}_${adminSelectedImageFile.name}`);
+            const uploadResult = await uploadBytes(storageRef, adminSelectedImageFile);
+            imageUrl = await getDownloadURL(uploadResult.ref);
+            imagePath = uploadResult.ref.fullPath;
+            console.log("Admin image uploaded:", imageUrl);
+        } catch (e) {
+            console.error("Error uploading admin image:", e);
+            alert("Failed to upload image. Please try again.");
+            return;
+        }
+    }
+
+    try {
+        const messagesColRef = collection(dbInstance, CHATS_COLLECTION_PATH, currentAdminChatId, 'messages');
+        await addDoc(messagesColRef, {
+            senderId: adminUserId,
+            text: messageText,
+            imageUrl: imageUrl, 
+            imagePath: imagePath,
+            timestamp: new Date().toISOString()
+        });
+
+        const chatDocRef = doc(dbInstance, CHATS_COLLECTION_PATH, currentAdminChatId);
+        const selectedChat = allChats.find(chat => chat.id === currentAdminChatId);
+        const otherParticipantId = selectedChat.participants.find(pId => pId !== adminUserId);
+        const lastMessageText = messageText || (imageUrl ? "Image" : "");
+
+        await setDoc(chatDocRef, {
+            participants: [adminUserId, otherParticipantId].sort(),
+            lastMessage: {
+                senderId: adminUserId,
+                text: lastMessageText,
+                timestamp: new Date().toISOString()
+            },
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        adminChatMessageInput.value = ''; 
+        adminSelectedImageFile = null; 
+        adminImagePreview.style.display = 'none';
+        adminImagePreview.src = '#';
+        adminImageUploadInput.value = ''; 
+        adminChatMessagesContainer.scrollTop = adminChatMessagesContainer.scrollHeight; 
+    } catch (e) {
+        console.error("Error sending admin message:", e);
+        alert("Failed to send message. Please try again.");
+    }
+}
+
+// --- Seller Status Management (Admin Side) ---
+const SELLER_STATUS_DOC_PATH = doc(dbInstance, SETTINGS_COLLECTION_PATH, 'sellerStatus');
+
+// Sets up a real-time listener for the seller status in the admin panel
+function setupAdminSellerStatusListener() {
+    if (unsubscribeAdminSellerStatus) {
+        unsubscribeAdminSellerStatus(); // Unsubscribe from previous listener if it exists
+    }
+    unsubscribeAdminSellerStatus = onSnapshot(SELLER_STATUS_DOC_PATH, (docSnap) => {
+        if (docSnap.exists()) {
+            const statusData = docSnap.data();
+            const isOnline = statusData.isOnline;
+            adminSellerStatusDisplay.textContent = isOnline ? 'Online' : 'Offline';
+            adminSellerStatusDisplay.classList.toggle('online', isOnline);
+            adminSellerStatusDisplay.classList.toggle('offline', !isOnline);
+        } else {
+            adminSellerStatusDisplay.textContent = 'Offline';
+            adminSellerStatusDisplay.classList.remove('online');
+            adminSellerStatusDisplay.classList.add('offline');
+            // Create the default status document if it's missing (should only happen once)
+            setDoc(SELLER_STATUS_DOC_PATH, { isOnline: false }, { merge: true }).catch(e => console.error("Error creating default seller status document:", e));
+        }
+    }, (error) => {
+        console.error("Error listening to admin seller status:", error);
+    });
+}
+
+// Toggles the seller's online/offline status in Firestore
+async function toggleSellerStatus() {
+    try {
+        const docSnap = await getDoc(SELLER_STATUS_DOC_PATH);
+        let currentStatus = false;
+        if (docSnap.exists()) {
+            currentStatus = docSnap.data().isOnline;
+        }
+
+        const newStatus = !currentStatus;
+        await setDoc(SELLER_STATUS_DOC_PATH, { isOnline: newStatus }, { merge: true });
+        alert(`Seller status updated to: ${newStatus ? 'Online' : 'Offline'}`);
+    } catch (e) {
+        console.error("Error toggling seller status:", e);
+        alert("Failed to toggle seller status. Please check console for details.");
+    }
+}
+
+
+// Export the initialization function and cleanup for script.js to call
 export { initAdminPanel, cleanupAdminPanel };
