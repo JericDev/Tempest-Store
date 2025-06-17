@@ -403,7 +403,7 @@
             } else {
                 // Ensure effectivePrice is based on product's current sale status/price
                 const productDetails = allProducts.find(p => p.id === product.id);
-                const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : product.price;
+                const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
                 cart.push({ ...product, quantity: 1, effectivePrice: priceToUse }); 
             }
             saveCart(); 
