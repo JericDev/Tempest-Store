@@ -89,7 +89,7 @@
         const productPriceInput = document.getElementById("product-price");
         const productSalePriceInput = document.getElementById("product-sale-price"); 
         const productStockInput = document.getElementById("product-stock");
-        const productImageInput = document.getElementById("product-image");
+        const productImageInput = document.getElementById("product-image"); // Changed to text input for filename
         const productNewCheckbox = document.getElementById("product-new");
         const productSaleCheckbox = document.getElementById("product-sale");
         const saveProductBtn = document.getElementById("save-product-btn");
@@ -262,7 +262,7 @@
                 setupUserOrderHistoryListener(currentUserId);
                 // Set up real-time listener for all products from Firestore
                 setupProductsListener();
-                // If the user is an admin, set up a real-time listener for all orders
+                // If the user is an an admin, set up a real-time listener for all orders
                 if (isAdmin) {
                     setupAllOrdersListener();
                 }
@@ -334,6 +334,10 @@
         async function saveProductToFirestore(productData) {
             try {
                 if (productData.id) { // If productData has an ID, it means we are editing an existing product
+                    // Add confirmation for editing
+                    if (!confirm("Are you sure you want to save changes to this product?")) {
+                        return; // User cancelled the edit
+                    }
                     const productRef = doc(db, PRODUCTS_COLLECTION_PATH, productData.id);
                     await updateDoc(productRef, productData);
                     console.log("Product updated:", productData.id);
@@ -376,8 +380,10 @@
 
             allProducts.forEach(product => {
                 const row = document.createElement('tr');
+                // Use the filename for the image path
+                const imageUrl = `images/${product.image}`;
                 row.innerHTML = `
-                    <td data-label="Image"><img src="images/${product.image}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/50x50/f0f0f0/888?text=N/A';" /></td>
+                    <td data-label="Image"><img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/50x50/f0f0f0/888?text=N/A';" /></td>
                     <td data-label="Name">${product.name}</td>
                     <td data-label="Category">${product.category}</td>
                     <td data-label="Price">
@@ -425,7 +431,8 @@
             // Populate sale price input
             productSalePriceInput.value = product.salePrice ? parseFloat(product.salePrice.replace('₱', '')) : ''; 
             productStockInput.value = product.stock;
-            productImageInput.value = product.image;
+            // Set image filename directly
+            productImageInput.value = product.image; 
             productNewCheckbox.checked = product.new || false;
             productSaleCheckbox.checked = product.sale || false;
             saveProductBtn.textContent = "Save Changes"; // Change button text to "Save Changes"
@@ -441,7 +448,7 @@
             productPriceInput.value = '';
             productSalePriceInput.value = ''; // Clear sale price input
             productStockInput.value = '';
-            productImageInput.value = '';
+            productImageInput.value = ''; // Clear file input
             productNewCheckbox.checked = false;
             productSaleCheckbox.checked = false;
             saveProductBtn.textContent = "Add Product"; // Change button text back to "Add Product"
@@ -450,10 +457,11 @@
 
         // --- Product Form Event Listeners ---
         // Handles saving a new product or updating an existing one when the save button is clicked.
-        saveProductBtn.addEventListener('click', () => {
+        saveProductBtn.addEventListener('click', async () => { 
             const productId = productIdInput.value;
             const isSale = productSaleCheckbox.checked;
             let salePrice = null;
+            let productImage = productImageInput.value.trim(); // Get filename directly
 
             if (isSale && productSalePriceInput.value.trim() !== '') {
                 salePrice = `₱${parseFloat(productSalePriceInput.value).toFixed(2)}`;
@@ -465,14 +473,14 @@
                 price: `₱${parseFloat(productPriceInput.value).toFixed(2)}`, // Format price with '₱' and 2 decimal places
                 salePrice: salePrice, // Include sale price
                 stock: parseInt(productStockInput.value),
-                image: productImageInput.value.trim(),
+                image: productImage, // Use filename
                 new: productNewCheckbox.checked,
                 sale: isSale // Use the checked status of the 'On Sale' checkbox
             };
 
             // Basic validation for form fields
             if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
-                alert("Please fill in all product fields correctly.");
+                alert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
                 return;
             }
             // Validate sale price only if 'On Sale' is checked
@@ -650,10 +658,12 @@
                 cart.forEach(item => {
                     // Use effectivePrice if available (meaning it was added as a sale item), otherwise use regular price
                     const priceToDisplay = item.effectivePrice || item.price; 
-                    const cartItemDiv = document.createElement('div'); // Define cartItemDiv here
+                    // Use the filename for the image path
+                    const imageUrl = `images/${item.image}`;
+                    const cartItemDiv = document.createElement('div'); 
                     cartItemDiv.className = 'cart-item';
                     cartItemDiv.innerHTML = `
-                        <img src="images/${item.image}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
+                        <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
                         <div class="cart-item-details">
                             <h4>${item.name}</h4>
                             <div class="cart-item-price">${priceToDisplay}</div>
@@ -826,7 +836,7 @@
         // Closes the order history modal if clicking outside the modal box.
         orderHistoryModal.addEventListener('click', (event) => {
             if (event.target === orderHistoryModal) {
-                orderModal.classList.remove('show'); // Fixed: Changed orderHistoryModal.classList.remove to orderModal.classList.remove
+                orderHistoryModal.classList.remove('show'); 
             }
         });
 
@@ -894,6 +904,7 @@
                 order.items.forEach(item => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'order-detail-item';
+                    const imageUrl = `images/${item.image}`; // Use filename for image path
                     itemDiv.innerHTML = `
                         <span class="order-detail-item-name">${item.name}</span>
                         <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
@@ -968,7 +979,7 @@
                 snapshot.forEach(doc => {
                     fetchedOrders.push({ id: doc.id, ...doc.data() });
                 });
-                allOrders = fetchedOrders; // Fixed: Changed fetchedProducts to fetchedOrders
+                allOrders = fetchedOrders; 
                 renderAdminOrders(); // Re-render the admin orders table (if admin panel is open)
             }, (error) => {
                 console.error("Error listening to all orders:", error);
@@ -1034,6 +1045,7 @@
                 order.items.forEach(item => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'admin-order-detail-item';
+                    const imageUrl = `images/${item.image}`; // Use filename for image path
                     itemDiv.innerHTML = `
                         <span class="admin-order-detail-item-name">${item.name}</span>
                         <span class="admin-order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
@@ -1127,11 +1139,12 @@
                 const displayPrice = product.sale && product.salePrice ? 
                                      `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` : 
                                      product.price;
-
+                // Use the filename for the image path
+                const imageUrl = `images/${product.image}`;
                 card.innerHTML = `
                     ${product.new ? `<span class="badge">NEW</span>` : ""}
                     ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
-                    <img src="images/${product.image}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
+                    <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
                     <h4>${product.name}</h4>
                     <div class="price">${displayPrice}</div>
                     <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
