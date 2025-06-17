@@ -1,7 +1,10 @@
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+        // Import writeBatch for atomic updates and necessary Firestore functions
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+        // Import Firebase Storage functions
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
 
         // Your web app's Firebase configuration
         // IMPORTANT: Ensure this configuration matches your Firebase project's config.
@@ -9,7 +12,7 @@
           apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
           authDomain: "store-7b9bd.firebaseapp.com",
           projectId: "store-7b9bd",
-          storageBucket: "store-7b9bd.firebase-storage.app",
+          storageBucket: "store-7b9bd.firebaseapp.com", // Ensure this matches your Storage Bucket URL
           messagingSenderId: "1015427798898",
           appId: "1:1015427798898:web:a15c71636506fac128afeb",
           measurementId: "G-NR4JS3FLWG"
@@ -19,21 +22,23 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app); // Initialize Firestore
+        const storage = getStorage(app); // Initialize Firebase Storage
 
         let currentUserId = null; // To store the current authenticated user's ID
         let isAdmin = false; // Flag to check if the current user is an admin
-        // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
-        // You can find your UID in the Firebase Console -> Authentication -> Users tab.
-        const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
+        const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; 
 
         let cart = []; // Global cart array
-        let userOrders = []; // Global array to store user's orders (for user history)
         let allProducts = []; // Global array to store all products from Firestore
+        let currentChatId = null; // Stores the ID of the currently open chat
 
         // Global variables to store unsubscribe functions for real-time listeners
-        let unsubscribeUserOrders = null;
         let unsubscribeProducts = null;
-        // Unsubscribe for allOrders will be handled in admin.js
+        let unsubscribeChatMessages = null;
+        let unsubscribeSellerStatus = null; // New unsubscribe for seller status
+        
+        // Variables for image upload
+        let selectedImageFile = null; 
 
         // Reference to the admin panel initialization function from admin.js
         let initAdminPanelModule = null;
@@ -47,14 +52,16 @@
         const loginButton = document.getElementById("login-button");
         const loginRegisterButton = document.getElementById("login-register-button"); 
         const logoutButton = document.getElementById("logout-button");
-        const myOrdersButton = document.getElementById("my-orders-button");
-        // adminPanelButton is now managed by admin.js, but its visibility by script.js
+        const chatButton = document.getElementById("chat-button");
         const adminPanelButton = document.getElementById("admin-panel-button"); 
         const authMessage = document.getElementById("auth-message");
         const userDisplay = document.getElementById("user-display");
         const authModal = document.getElementById("auth-modal"); 
         const closeAuthModalBtn = document.getElementById("close-auth-modal"); 
-        const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
+        const forgotPasswordButton = document.getElementById("forgot-password-button");
+
+        // New DOM element for Seller Status
+        const sellerStatusDisplay = document.getElementById("seller-status-display");
 
 
         // --- DOM elements for Cart/Checkout ---
@@ -68,20 +75,16 @@
         const placeOrderBtn = document.getElementById("place-order-btn");
         const robloxUsernameInput = document.getElementById("roblox-username-input");
 
-        // --- DOM elements for Order History ---
-        const orderHistoryModal = document.getElementById("order-history-modal");
-        const closeOrderHistoryModalBtn = document.getElementById("close-order-history-modal");
-        const orderHistoryList = document.getElementById("order-history-list");
-        const orderHistoryTitle = document.getElementById("order-history-title");
-        const orderDetailsView = document.getElementById("order-details-view");
-        const detailOrderId = document.getElementById("detail-order-id");
-        const detailOrderDate = document.getElementById("detail-order-date");
-        const detailOrderStatus = document.getElementById("detail-order-status");
-        const detailOrderPrice = document.getElementById("detail-order-price");
-        const detailPaymentMethod = document.getElementById("detail-payment-method");
-        const detailRobloxUsername = document.getElementById("detail-roblox-username");
-        const detailItemsList = document.getElementById("detail-items-list");
-        const backToOrderListBtn = document.getElementById("back-to-order-list");
+        // --- DOM elements for Customer Chat ---
+        const chatModal = document.getElementById("chat-modal");
+        const closeChatModalBtn = document.getElementById("close-chat-modal");
+        const chatHeader = document.getElementById("chat-header");
+        const chatPartnerName = document.getElementById("chat-partner-name");
+        const chatMessagesContainer = document.getElementById("chat-messages");
+        const chatMessageInput = document.getElementById("chat-message-input");
+        const sendChatMessageBtn = document.getElementById("send-chat-message-btn");
+        const userImageUploadInput = document.getElementById("user-image-upload"); 
+        const userImagePreview = document.getElementById("user-image-preview");     
 
 
         // --- Authentication Functions ---
@@ -206,12 +209,11 @@
 
         // --- Authentication State Observer (Crucial for loading user data) ---
         onAuthStateChanged(auth, async (user) => {
-            // Unsubscribe from any existing listeners that are managed here
-            if (unsubscribeUserOrders) {
-                unsubscribeUserOrders();
-                unsubscribeUserOrders = null;
+            // Cleanup previous chat listener
+            if (unsubscribeChatMessages) {
+                unsubscribeChatMessages();
+                unsubscribeChatMessages = null;
             }
-            // Product listener is always active, no need to unsubscribe here.
             
             // Clean up admin panel if currently active
             if (adminCleanupFunction) {
@@ -226,7 +228,7 @@
                 userDisplay.textContent = `Welcome, ${user.email}`;
                 loginRegisterButton.style.display = "none"; 
                 logoutButton.style.display = "inline-block";
-                myOrdersButton.style.display = "inline-block"; 
+                chatButton.style.display = "inline-block"; // Show chat button
 
                 if (isAdmin) {
                     adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
@@ -245,7 +247,7 @@
                     }
                     if (initAdminPanelModule) {
                         // Pass Firestore and Auth instances, plus user info to admin module
-                        initAdminPanelModule(db, auth, currentUserId, isAdmin);
+                        initAdminPanelModule(db, auth, storage, currentUserId, isAdmin); // Pass storage instance
                     }
                 } else {
                     adminPanelButton.style.display = "none";
@@ -256,7 +258,9 @@
                 await loadCartFromFirestore(currentUserId); 
                 await syncCartOnLogin(currentUserId); 
 
-                unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
+                // Setup chat listener for the buyer when logged in
+                setupChatMessagesListener(currentUserId);
+
 
             } else {
                 currentUserId = null; 
@@ -265,13 +269,12 @@
                 userDisplay.textContent = "";
                 loginRegisterButton.style.display = "inline-block"; 
                 logoutButton.style.display = "none";
-                myOrdersButton.style.display = "none"; 
+                chatButton.style.display = "none"; // Hide chat button
                 adminPanelButton.style.display = "none"; 
                 
                 robloxUsernameInput.style.display = "none"; 
 
                 cart = loadCartFromLocalStorage(); 
-                userOrders = []; 
             }
             authEmailInput.value = "";
             authPasswordInput.value = "";
@@ -287,11 +290,47 @@
         const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
         const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
         const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`; 
+        const CHATS_COLLECTION_PATH = `artifacts/${APP_ID}/chats`; 
+        const SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New settings collection
+
+
+        // --- Seller Status Management ---
+        // Sets up a real-time listener for the global seller status
+        function setupSellerStatusListener() {
+            if (unsubscribeSellerStatus) {
+                unsubscribeSellerStatus(); // Unsubscribe from previous listener if it exists
+            }
+            const sellerStatusDocRef = doc(db, SETTINGS_COLLECTION_PATH, 'sellerStatus');
+            unsubscribeSellerStatus = onSnapshot(sellerStatusDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const statusData = docSnap.data();
+                    const isOnline = statusData.isOnline;
+                    sellerStatusDisplay.textContent = isOnline ? 'Online' : 'Offline';
+                    sellerStatusDisplay.classList.toggle('online', isOnline);
+                    sellerStatusDisplay.classList.toggle('offline', !isOnline);
+                } else {
+                    // Default to offline if document doesn't exist
+                    sellerStatusDisplay.textContent = 'Offline';
+                    sellerStatusDisplay.classList.remove('online');
+                    sellerStatusDisplay.classList.add('offline');
+                    // Optionally, create the default status document if it's missing
+                    setDoc(sellerStatusDocRef, { isOnline: false }, { merge: true }).catch(e => console.error("Error creating default seller status:", e));
+                }
+            }, (error) => {
+                console.error("Error listening to seller status:", error);
+            });
+        }
+        // Call this listener immediately when script loads to display initial status
+        setupSellerStatusListener();
+
 
         // --- Product Display (Accessible to all) ---
         function setupProductsListener() {
+            if (unsubscribeProducts) {
+                unsubscribeProducts();
+            }
             const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-            return onSnapshot(productsColRef, (snapshot) => { 
+            unsubscribeProducts = onSnapshot(productsColRef, (snapshot) => { 
                 const fetchedProducts = [];
                 snapshot.forEach(doc => {
                     fetchedProducts.push({ id: doc.id, ...doc.data() });
@@ -306,7 +345,7 @@
         }
 
         // Call setupProductsListener once when the script loads to always show products
-        unsubscribeProducts = setupProductsListener();
+        setupProductsListener();
 
         // --- Cart Persistence (Customer-side) ---
         async function saveCartToFirestore(userId, cartData) {
@@ -377,22 +416,6 @@
                 localStorage.removeItem('tempestStoreCart'); 
                 renderCart(); 
             }
-        }
-
-        // --- Customer Order History (User-side) ---
-        function setupUserOrderHistoryListener(userId) {
-            const ordersCollectionRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
-            const q = query(ordersCollectionRef, orderBy("orderDate", "desc"));
-            return onSnapshot(q, (snapshot) => { 
-                const fetchedOrders = [];
-                snapshot.forEach(doc => {
-                    fetchedOrders.push({ id: doc.id, ...doc.data() });
-                });
-                userOrders = fetchedOrders; 
-                renderOrderHistory(); 
-            }, (error) => {
-                console.error("Error listening to user order history:", error);
-            });
         }
 
         // --- Cart Management Functions ---
@@ -595,15 +618,39 @@
 
                 console.log("Placing Order:", orderDetails);
 
-                const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
-                const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
+                const batch = writeBatch(db); // Start a new batch for atomic updates
 
+                // 1. Add order to user's personal collection
+                const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
+                const userOrderDocRef = doc(userOrdersColRef); // Create a new doc ref with auto-generated ID
+                batch.set(userOrderDocRef, orderDetails);
+
+                // 2. Add order to central 'allOrders' collection
                 const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
-                // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
-                await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails); 
+                batch.set(doc(allOrdersColRef, userOrderDocRef.id), orderDetails); // Use same ID
+
+                // 3. Deduct stock for each item in the cart
+                for (const item of cart) {
+                    const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
+                    // Fetch current product to safely deduct stock, this should be already available in allProducts
+                    const currentProduct = allProducts.find(p => p.id === item.id);
+                    if (currentProduct && currentProduct.stock >= item.quantity) {
+                        batch.update(productRef, {
+                            stock: currentProduct.stock - item.quantity
+                        });
+                    } else {
+                        // This case should ideally be prevented by UI checks
+                        console.warn(`Product ${item.name} (ID: ${item.id}) is out of stock or insufficient quantity for order.`);
+                        alert(`Not enough stock for ${item.name}. Please adjust your cart.`);
+                        placeOrderBtn.disabled = false;
+                        return; // Stop the order process
+                    }
+                }
+
+                await batch.commit(); // Commit all batch operations atomically
 
                 alert("Successfully Placed Order!"); 
-                console.log("Order saved to Firestore!");
+                console.log("Order saved and stock deducted in Firestore!");
                 
                 cart = [];
                 saveCart();
@@ -612,107 +659,12 @@
                 robloxUsernameInput.value = ''; 
 
             } catch (e) {
-                console.error("Error placing order to Firestore:", e);
+                console.error("Error placing order to Firestore or deducting stock:", e);
                 alert("There was an error placing your order. Please try again.");
             } finally {
                 placeOrderBtn.disabled = false; 
             }
         });
-
-
-        // --- Order History Functions (User-side) ---
-        myOrdersButton.addEventListener('click', () => {
-            if (!currentUserId) {
-                alert("Please log in to view your order history."); 
-                return;
-            }
-            orderHistoryModal.classList.add('show');
-            orderHistoryTitle.textContent = "My Orders";
-            orderHistoryList.style.display = 'block'; 
-            orderDetailsView.style.display = 'none'; 
-            renderOrderHistory(); 
-        });
-
-        closeOrderHistoryModalBtn.addEventListener('click', () => {
-            orderHistoryModal.classList.remove('show');
-        });
-
-        orderHistoryModal.addEventListener('click', (event) => {
-            if (event.target === orderHistoryModal) {
-                orderHistoryModal.classList.remove('show'); 
-            }
-        });
-
-        backToOrderListBtn.addEventListener('click', () => {
-            orderHistoryList.style.display = 'block';
-            orderDetailsView.style.display = 'none';
-            orderHistoryTitle.textContent = "My Orders";
-            renderOrderHistory();
-        });
-
-        function renderOrderHistory() {
-            orderHistoryList.innerHTML = ''; 
-
-            if (userOrders.length === 0) {
-                orderHistoryList.innerHTML = '<p class="empty-message">No orders found.</p>';
-                return;
-            }
-
-            userOrders.forEach(order => {
-                const orderItemDiv = document.createElement('div');
-                orderItemDiv.className = 'order-item';
-                orderItemDiv.innerHTML = `
-                    <div class="order-item-info">
-                        <strong>Order ID: ${order.id.substring(0, 8)}...</strong>
-                        <span>Date: ${new Date(order.orderDate).toLocaleDateString()}</span>
-                        <span>Price: ₱${order.total.toFixed(2)}</span>
-                    </div>
-                    <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span>
-                    <button class="view-details-btn" data-order-id="${order.id}">View Details</button>
-                `;
-                orderHistoryList.appendChild(orderItemDiv);
-            });
-
-            orderHistoryList.querySelectorAll('.view-details-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const orderId = event.target.dataset.orderId;
-                    const selectedOrder = userOrders.find(order => order.id === orderId);
-                    if (selectedOrder) {
-                        showOrderDetails(selectedOrder); 
-                    }
-                });
-            });
-        }
-
-        function showOrderDetails(order) {
-            orderHistoryTitle.textContent = "Order Details";
-            orderHistoryList.style.display = 'none'; 
-            orderDetailsView.style.display = 'block'; 
-
-            detailOrderId.textContent = order.id;
-            detailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
-            detailOrderStatus.textContent = order.status;
-            detailOrderStatus.className = `status-info order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`;
-            detailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
-            detailPaymentMethod.textContent = order.paymentMethod;
-            detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
-
-            detailItemsList.innerHTML = ''; 
-            if (order.items && order.items.length > 0) {
-                order.items.forEach(item => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'order-detail-item';
-                    const imageUrl = `images/${item.image}`; 
-                    itemDiv.innerHTML = `
-                        <span class="order-detail-item-name">${item.name}</span>
-                        <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
-                    `;
-                    detailItemsList.appendChild(itemDiv);
-                });
-            } else {
-                detailItemsList.innerHTML = '<p>No items found for this order.</p>';
-            }
-        }
 
 
         // --- Product Display Functions (Main Store Page) ---
@@ -732,8 +684,8 @@
                 if (isOutOfStock) card.classList.add("out-of-stock"); 
 
                 const displayPrice = product.sale && product.salePrice ? 
-                                     `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` : 
-                                     product.price;
+                                     `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">₱${parseFloat(product.price.replace('₱', '')).toFixed(2)}</span> ₱${parseFloat(product.salePrice.replace('₱', '')).toFixed(2)}` : 
+                                     product.price; 
                 const imageUrl = `images/${product.image}`;
                 card.innerHTML = `
                     ${product.new ? `<span class="badge">NEW</span>` : ""}
@@ -784,9 +736,181 @@
             renderProducts(filtered); 
         }
 
+        // --- Chat System (Buyer Side) ---
+        // Generates a consistent chat ID between two users by sorting their UIDs.
+        function getChatId(user1Id, user2Id) {
+            const ids = [user1Id, user2Id].sort();
+            return `${ids[0]}_${ids[1]}`;
+        }
+
+        // Opens the chat modal and sets up the listener for messages.
+        chatButton.addEventListener('click', () => {
+            if (!currentUserId) {
+                alert("Please log in to use the chat system.");
+                return;
+            }
+            chatModal.classList.add('show');
+            selectedImageFile = null; // Clear any selected image on modal open
+            userImagePreview.style.display = 'none';
+            userImagePreview.src = '#';
+
+            // For customer, they always chat with the ADMIN_UID
+            currentChatId = getChatId(currentUserId, ADMIN_UID);
+            chatPartnerName.textContent = "Chat with Admin"; 
+            setupChatMessagesListener(currentChatId);
+        });
+
+        // Closes the chat modal.
+        closeChatModalBtn.addEventListener('click', () => {
+            chatModal.classList.remove('show');
+            if (unsubscribeChatMessages) {
+                unsubscribeChatMessages();
+                unsubscribeChatMessages = null;
+            }
+            currentChatId = null; // Clear active chat ID
+            selectedImageFile = null; // Clear any selected image on close
+            userImagePreview.style.display = 'none';
+            userImagePreview.src = '#';
+            chatMessageInput.value = ''; // Clear message input
+        });
+
+        // Handles sending a message in the active chat.
+        sendChatMessageBtn.addEventListener('click', sendMessage);
+        chatMessageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Handle image file selection
+        userImageUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                selectedImageFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    userImagePreview.src = e.target.result;
+                    userImagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                selectedImageFile = null;
+                userImagePreview.style.display = 'none';
+                userImagePreview.src = '#';
+            }
+        });
+
+
+        async function sendMessage() {
+            const messageText = chatMessageInput.value.trim();
+            
+            if (!messageText && !selectedImageFile) {
+                // If both message text and image are empty, do nothing
+                return;
+            }
+            
+            if (!currentChatId || !currentUserId) {
+                alert("Cannot send message: Chat is not properly initialized or user not logged in.");
+                return;
+            }
+
+            let imageUrl = null;
+            let imagePath = null;
+            
+            if (selectedImageFile) {
+                try {
+                    const storageRef = ref(storage, `chats/${currentChatId}/${Date.now()}_${selectedImageFile.name}`);
+                    const uploadResult = await uploadBytes(storageRef, selectedImageFile);
+                    imageUrl = await getDownloadURL(uploadResult.ref);
+                    imagePath = uploadResult.ref.fullPath; 
+                    console.log("Image uploaded:", imageUrl);
+                } catch (e) {
+                    console.error("Error uploading image:", e);
+                    alert("Failed to upload image. Please try again.");
+                    return; 
+                }
+            }
+
+            try {
+                const messagesColRef = collection(db, CHATS_COLLECTION_PATH, currentChatId, 'messages');
+                await addDoc(messagesColRef, {
+                    senderId: currentUserId,
+                    text: messageText,
+                    imageUrl: imageUrl, 
+                    imagePath: imagePath, 
+                    timestamp: new Date().toISOString()
+                });
+
+                // Update lastMessage in the chat document
+                const chatDocRef = doc(db, CHATS_COLLECTION_PATH, currentChatId);
+                const lastMessageText = messageText || (imageUrl ? "Image" : ""); 
+                await setDoc(chatDocRef, {
+                    participants: [currentUserId, ADMIN_UID].sort(), 
+                    lastMessage: {
+                        senderId: currentUserId,
+                        text: lastMessageText,
+                        timestamp: new Date().toISOString()
+                    },
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                chatMessageInput.value = ''; 
+                selectedImageFile = null; 
+                userImagePreview.style.display = 'none';
+                userImagePreview.src = '#';
+                userImageUploadInput.value = ''; 
+                chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight; 
+            } catch (e) {
+                console.error("Error sending message:", e);
+                alert("Failed to send message. Please try again.");
+            }
+        }
+
+        // Sets up a real-time listener for messages in a specific chat.
+        function setupChatMessagesListener(chatId) {
+            if (unsubscribeChatMessages) {
+                unsubscribeChatMessages(); 
+            }
+            const messagesColRef = collection(db, CHATS_COLLECTION_PATH, chatId, 'messages');
+            const q = query(messagesColRef, orderBy("timestamp", "asc"));
+
+            unsubscribeChatMessages = onSnapshot(q, (snapshot) => {
+                chatMessagesContainer.innerHTML = ''; 
+                if (snapshot.empty) {
+                    chatMessagesContainer.innerHTML = '<p class="empty-message">No messages yet. Send your first message!</p>';
+                } else {
+                    snapshot.forEach(doc => {
+                        const message = doc.data();
+                        const messageDiv = document.createElement('div');
+                        messageDiv.classList.add('chat-message');
+                        messageDiv.classList.add(message.senderId === currentUserId ? 'sent' : 'received');
+                        
+                        const senderInfo = message.senderId === currentUserId ? 'You' : 'Admin'; 
+                        const timestamp = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                        let messageContent = '';
+                        if (message.text) {
+                            messageContent += `<div class="message-bubble">${message.text}</div>`;
+                        }
+                        if (message.imageUrl) {
+                            messageContent += `<div class="message-image-container"><img src="${message.imageUrl}" alt="Sent image" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 5px;" /></div>`;
+                        }
+                        
+                        messageDiv.innerHTML = `
+                            ${messageContent}
+                            <div class="message-meta">${senderInfo} - ${timestamp}</div>
+                        `;
+                        chatMessagesContainer.appendChild(messageDiv);
+                    });
+                    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight; 
+                }
+            }, (error) => {
+                console.error("Error listening to chat messages:", error);
+            });
+        }
+
         // Event listener for when the DOM content is fully loaded.
         window.addEventListener("DOMContentLoaded", () => {
             updateCartCountBadge(); 
-            // Initial product rendering is now handled by setupProductsListener
-            // Initial auth state check is handled by onAuthStateChanged
         });
+
