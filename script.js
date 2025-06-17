@@ -246,10 +246,7 @@
                 unsubscribeUserOrders();
                 unsubscribeUserOrders = null;
             }
-            if (unsubscribeProducts) {
-                unsubscribeProducts();
-                unsubscribeProducts = null;
-            }
+            // Product listener is now outside the if(user) block, so don't unsubscribe here.
             if (unsubscribeAllOrders) {
                 unsubscribeAllOrders();
                 unsubscribeAllOrders = null;
@@ -280,7 +277,7 @@
 
                 // Set up real-time listeners and store their unsubscribe functions
                 unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
-                unsubscribeProducts = setupProductsListener();
+                // setupProductsListener is now always active, outside this block.
                 if (isAdmin) {
                     unsubscribeAllOrders = setupAllOrdersListener();
                 }
@@ -302,7 +299,7 @@
                 // Load cart from local storage if logged out
                 cart = loadCartFromLocalStorage(); 
                 userOrders = []; // Clear orders for logged out users
-                allProducts = []; // Clear products display (will be refetched if logged in later)
+                // allProducts is no longer cleared here as it's populated by a persistent listener
                 allOrders = []; // Clear admin orders
             }
             // Clear authentication form fields and messages
@@ -348,6 +345,10 @@
                 console.error("Error listening to products:", error);
             });
         }
+
+        // Call setupProductsListener once when the script loads to always show products
+        unsubscribeProducts = setupProductsListener();
+
 
         // Saves a product (new or existing) to Firestore.
         async function saveProductToFirestore(productData) {
@@ -658,7 +659,7 @@
             updateCartCountBadge(); // Update the cart count in the header and button text
         }
 
-        // Updates the cart count badge in the header and the "Place Order" button text/disabled state.
+        // Updates the cart count badge in the header and the "Place Order" button's disabled state.
         function updateCartCountBadge() {
             const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
             cartCountBadge.textContent = totalItems;
@@ -789,15 +790,21 @@
             placeOrderBtn.disabled = true;
 
             try {
-                // Require Roblox username if logged in
-                if (currentUserId && robloxUsername === '') {
-                    alert("Please enter your Roblox Username to proceed with the order.");
-                    return; // Exit if validation fails
-                } else if (!currentUserId) {
-                    // If user is not logged in, prompt for login/register and stop checkout
+                if (!currentUserId) {
+                    // If user is not logged in, show auth modal and guide them
                     authModal.classList.add('show');
-                    alert("Please login or register to place your order!");
-                    return; // Exit if not logged in
+                    authMessage.textContent = "Please login or register to complete your order.";
+                    authEmailInput.value = ""; // Clear for a fresh start
+                    authPasswordInput.value = ""; // Clear for a fresh start
+                    placeOrderBtn.disabled = false; // Re-enable if we're just showing the auth modal
+                    return; // Stop checkout process until authenticated
+                }
+                
+                // Require Roblox username if logged in
+                if (robloxUsername === '') {
+                    alert("Please enter your Roblox Username to proceed with the order.");
+                    placeOrderBtn.disabled = false; // Re-enable if validation fails
+                    return; 
                 }
 
                 const { subtotal, total } = calculateCartTotals(); 
