@@ -1,7 +1,8 @@
+// script.js
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-// Add 'where' for filtering the query
+// IMPORTANT: Added 'where' for the Firestore query
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
 // Your web app's Firebase configuration
@@ -257,10 +258,11 @@ onAuthStateChanged(auth, async (user) => {
         await loadCartFromFirestore(currentUserId);
         await syncCartOnLogin(currentUserId);
 
-        // FIX: Change the listener for user orders to the ALL_ORDERS_COLLECTION_PATH
-        // and filter by userId. This ensures updates from admin.js (which likely
-        // updates only the allOrders collection) are reflected for the user.
+        // FIX STARTS HERE: Change the listener for user orders to the ALL_ORDERS_COLLECTION_PATH
+        // and filter by userId. This ensures updates from admin.js (which updates
+        // the allOrders collection) are reflected for the user.
         unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
+        // FIX ENDS HERE
 
     } else {
         currentUserId = null;
@@ -384,7 +386,7 @@ async function syncCartOnLogin(userId) {
 }
 
 // --- Customer Order History (User-side) ---
-// FIX: Modified this function to listen to ALL_ORDERS_COLLECTION_PATH
+// FIX STARTS HERE: Modified this function to listen to ALL_ORDERS_COLLECTION_PATH
 // and filter by the currentUserId. This is the key change for real-time updates.
 function setupUserOrderHistoryListener(userId) {
     // Listen to the main 'allOrders' collection
@@ -403,6 +405,7 @@ function setupUserOrderHistoryListener(userId) {
         console.error("Error listening to user order history:", error);
     });
 }
+// FIX ENDS HERE
 
 // --- Cart Management Functions ---
 function addToCart(product) {
@@ -527,15 +530,16 @@ function calculateCartTotals() {
     cart.forEach(item => {
         // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
         // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
-        const priceValue = parseFloat((item.effectivePrice || item.price).toString().replace('₱', '')); // Ensure price is a string before replace
+        // FIX: Ensure price conversion is robust
+        const priceValue = parseFloat((item.effectivePrice || item.price || "₱0.00").toString().replace('₱', ''));
         subtotal += priceValue * item.quantity;
         totalItemsInCart += item.quantity;
     });
 
     const total = subtotal;
 
-    cartSubtotalSpan.textContent = `₱${total.toFixed(2)}`; // Updated to use total consistently
-    cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
+    cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`; // Use subtotal for subtotal display
+    cartTotalSpan.textContent = `₱${total.toFixed(2)}`; // Use total for total display (assuming no tax/shipping)
 
     return { subtotal, total, totalItemsInCart };
 }
@@ -606,11 +610,12 @@ placeOrderBtn.addEventListener('click', async () => {
 
         // Add to user-specific orders collection
         const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
+        // Use addDoc to auto-generate an ID
         const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
 
-        // Add to allOrders collection with the same ID
+        // Add to allOrders collection with the SAME ID generated for the user's order
         const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
-        // Using setDoc with userOrderDocRef.id to ensure both documents have the same ID
+        // Using setDoc here with the ID from userOrderDocRef to ensure consistency
         await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails);
 
         alert("Successfully Placed Order!");
@@ -723,7 +728,9 @@ function showOrderDetails(orderId) {
     detailItemsList.innerHTML = '';
     order.items.forEach(item => {
         const listItem = document.createElement('li');
-        listItem.textContent = `${item.name} x ${item.quantity} (₱${(parseFloat(item.effectivePrice.toString().replace('₱', '')) * item.quantity).toFixed(2)})`;
+        // FIX: Ensure price conversion is robust for display
+        const itemTotal = parseFloat((item.effectivePrice || item.price || "₱0.00").toString().replace('₱', '')) * item.quantity;
+        listItem.textContent = `${item.name} x ${item.quantity} (₱${itemTotal.toFixed(2)})`;
         detailItemsList.appendChild(listItem);
     });
 }
