@@ -762,31 +762,38 @@
             });
         }
 
-        function setFilter(category) {
-            currentCategory = category;
+function setFilter(category) {
+    currentCategory = category;
 
-            document.querySelectorAll(".filters button").forEach(btn => {
-                btn.classList.toggle("active", btn.dataset.cat === category);
-            });
+    document.querySelectorAll(".filters button").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.cat === category);
+    });
 
-            applyFilters(); 
-        }
+    applyFilters(); 
+}
 
-        function applyFilters() {
-            const query = document.getElementById("searchBox").value.toLowerCase();
+function applyFilters() {
+    const query = document.getElementById("searchBox").value.toLowerCase();
 
-            const filtered = allProducts.filter(product => { 
-                const matchesCategory = currentCategory === "all" || product.category === currentCategory;
-                const matchesSearch = product.name.toLowerCase().includes(query);
-                return matchesCategory && matchesSearch;
-            });
+    const filtered = allProducts.filter(product => { 
+        const matchesCategory = currentCategory === "all" || product.category === currentCategory;
+        const matchesSearch = product.name.toLowerCase().includes(query);
+        return matchesCategory && matchesSearch;
+    });
 
-            renderProducts(filtered); 
-        }
+    renderProducts(filtered); 
+}
 
-        // Event listener for when the DOM content is fully loaded.
-        window.addEventListener("DOMContentLoaded", () => {
-            updateCartCountBadge(); 
-            // Initial product rendering is now handled by setupProductsListener
-            // Initial auth state check is handled by onAuthStateChanged
-        });
+// ✅ DOMContentLoaded with proper setup
+window.addEventListener("DOMContentLoaded", () => {
+    updateCartCountBadge(); 
+
+    // 👉 Setup search box input listener
+    const searchBox = document.getElementById("searchBox");
+    if (searchBox) {
+        searchBox.addEventListener("input", applyFilters);
+    }
+
+    // 👉 Optionally apply default filter (like "all") on load
+    setFilter("all");
+});
