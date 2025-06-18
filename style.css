@@ -1151,7 +1151,7 @@ main#product-list {
     .admin-order-table td {
         display: block;
         text-align: right;
-        border: none; /* Remove cell borders */
+        border: none;
         position: relative;
         padding-left: 50%; /* Space for data-label */
         white-space: normal; /* Allow content to wrap */
