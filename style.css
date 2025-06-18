@@ -24,6 +24,9 @@ body {
     background-color: var(--bg-color-light);
     color: var(--text-color-dark);
     line-height: 1.6;
+    min-height: 100vh; /* Ensure body takes full viewport height */
+    display: flex;
+    flex-direction: column;
 }
 
 /* Header Styling */
@@ -36,6 +39,7 @@ header {
     align-items: center;
     box-shadow: var(--shadow);
     flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    gap: 10px; /* Space between logo and auth section */
 }
 
 header .logo {
@@ -43,6 +47,7 @@ header .logo {
     font-weight: bold;
     display: flex;
     align-items: center;
+    flex-grow: 1; /* Allow logo to take available space */
 }
 
 header .logo strong {
@@ -54,7 +59,7 @@ header .logo strong {
     align-items: center;
     gap: 10px; /* Space between buttons */
     flex-wrap: wrap; /* Allow buttons to wrap */
-    justify-content: center; /* Center buttons when wrapped */
+    justify-content: flex-end; /* Align to the right by default */
 }
 
 .auth-section button {
@@ -65,11 +70,12 @@ header .logo strong {
     border-radius: var(--border-radius-sm);
     cursor: pointer;
     font-size: 0.9em;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 .auth-section button:hover {
     background-color: #0056b3;
+    transform: translateY(-1px);
 }
 
 .auth-section #logout-button {
@@ -104,6 +110,8 @@ header .logo strong {
     padding: 2px 7px;
     font-size: 0.7em;
     font-weight: bold;
+    min-width: 18px; /* Ensure badge is circular even for single digits */
+    text-align: center;
 }
 
 /* Contact Center */
@@ -206,11 +214,12 @@ header .logo strong {
     cursor: pointer;
     font-size: 1.1em;
     margin-bottom: 10px;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 .modal-box button:hover {
     background-color: #0056b3;
+    transform: translateY(-1px);
 }
 
 #login-button, #register-button {
@@ -224,6 +233,66 @@ header .logo strong {
     background-color: var(--secondary-color);
 }
 #forgot-password-button:hover {
+    background-color: #5a6268;
+}
+
+/* Custom Message Box Styling */
+#custom-message-box-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1001; /* Higher than other modals */
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.3s ease-out;
+}
+
+#custom-message-box {
+    background-color: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#custom-message-box-text {
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+#custom-message-box-ok-btn,
+#custom-message-box-cancel-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin: 5px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    width: auto; /* Allow buttons to size to content */
+    display: inline-block; /* Display side by side */
+}
+
+#custom-message-box-ok-btn:hover,
+#custom-message-box-cancel-btn:hover {
+    transform: translateY(-1px);
+}
+
+#custom-message-box-cancel-btn {
+    background-color: var(--secondary-color);
+}
+
+#custom-message-box-cancel-btn:hover {
     background-color: #5a6268;
 }
 
@@ -279,6 +348,7 @@ main#product-list {
     padding: 20px;
     max-width: 1200px;
     margin: 20px auto;
+    flex-grow: 1; /* Allow main content to grow */
 }
 
 .product-card {
@@ -386,6 +456,11 @@ main#product-list {
     background-color: #218838;
 }
 
+.product-card .add-to-cart-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
 /* Cart Modal Specifics */
 #cart-items-container {
     max-height: 300px; /* Scrollable cart items */
@@ -414,6 +489,7 @@ main#product-list {
     height: 60px;
     object-fit: contain;
     border-radius: var(--border-radius-sm);
+    flex-shrink: 0; /* Prevent image from shrinking */
 }
 
 .cart-item-details {
@@ -436,6 +512,7 @@ main#product-list {
     display: flex;
     align-items: center;
     gap: 5px;
+    flex-shrink: 0;
 }
 
 .cart-item-quantity input {
@@ -476,6 +553,7 @@ main#product-list {
     cursor: pointer;
     font-size: 0.8em;
     transition: background-color 0.3s ease;
+    flex-shrink: 0;
 }
 
 .cart-item-remove:hover {
@@ -531,6 +609,7 @@ main#product-list {
 .payment-option input[type="radio"] {
     margin-right: 10px;
     accent-color: var(--primary-color); /* Style radio button */
+    flex-shrink: 0;
 }
 
 .payment-option img {
@@ -538,6 +617,7 @@ main#product-list {
     height: 25px;
     margin-right: 10px;
     border-radius: 3px;
+    flex-shrink: 0;
 }
 
 .roblox-username-input {
@@ -553,6 +633,11 @@ main#product-list {
 
 .place-order-btn:hover {
     background-color: #218838;
+}
+
+.place-order-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
 }
 
 /* Order History Modal Specifics */
@@ -712,6 +797,8 @@ main#product-list {
     display: flex;
     margin-bottom: 20px;
     border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
+    justify-content: center;
 }
 
 .admin-tab-btn {
@@ -725,6 +812,10 @@ main#product-list {
     border-top-right-radius: var(--border-radius-sm);
     margin-right: 5px;
     transition: background-color 0.3s ease;
+    flex-grow: 1; /* Allow buttons to grow and fill space */
+    max-width: 200px; /* Limit max width for tabs */
+    white-space: nowrap; /* Prevent tab text from wrapping */
+    text-align: center;
 }
 
 .admin-tab-btn:hover {
@@ -799,6 +890,10 @@ main#product-list {
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
+    display: block; /* For responsive table behavior */
+    overflow-x: auto; /* Allow horizontal scrolling */
+    white-space: nowrap; /* Prevent content from wrapping in cells */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .admin-product-table th,
@@ -808,6 +903,7 @@ main#product-list {
     padding: 10px;
     text-align: left;
     font-weight: bold;
+    border: 1px solid var(--primary-color); /* Added border for clarity */
 }
 
 .admin-product-table td,
@@ -918,6 +1014,7 @@ main#product-list {
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid var(--border-color);
+    flex-wrap: wrap; /* Allow elements to wrap */
 }
 
 .order-status-update-section select {
@@ -969,20 +1066,36 @@ main#product-list {
     header {
         flex-direction: column;
         gap: 15px;
+        padding: 10px; /* Reduce header padding */
+    }
+
+    header .logo {
+        font-size: 1.5em;
+        text-align: center;
+        width: 100%;
     }
 
     .auth-section {
         width: 100%;
         justify-content: center;
+        gap: 8px; /* Slightly smaller gap for buttons */
     }
 
     .auth-section button {
         flex-grow: 1; /* Allow buttons to expand */
+        padding: 7px 12px; /* Slightly smaller padding */
+        font-size: 0.85em;
+    }
+
+    .contact-center a {
+        font-size: 0.9em;
+        margin: 0 5px;
     }
 
     .filters {
         flex-direction: column;
         align-items: stretch;
+        padding: 15px;
     }
 
     .filters button, .filters #searchBox {
@@ -992,18 +1105,27 @@ main#product-list {
     main#product-list {
         grid-template-columns: 1fr; /* Single column on small screens */
         padding: 15px;
+        margin: 15px auto;
+    }
+
+    .product-card {
+        padding: 15px; /* Reduce card padding */
     }
 
     .modal-box {
         width: 95%;
-        padding: 20px;
+        padding: 20px; /* Maintain good padding for modals */
     }
 
+    .modal-box h3, .modal-box h2 {
+        font-size: 1.5em;
+    }
+
+    /* Admin Tables - Enhanced Responsiveness */
     .admin-product-table,
     .admin-order-table {
-        display: block; /* Make table responsive */
-        overflow-x: auto; /* Enable horizontal scrolling for tables */
-        white-space: nowrap; /* Prevent content from wrapping in cells */
+        border: none; /* Remove outer table border for cleaner look */
+        width: 100%; /* Ensure it still tries to take full width */
     }
 
     .admin-product-table thead,
@@ -1014,18 +1136,20 @@ main#product-list {
     .admin-product-table tr,
     .admin-order-table tr {
         display: block;
-        margin-bottom: 10px;
+        margin-bottom: 15px; /* More space between stacked rows */
         border: 1px solid var(--border-color);
         border-radius: var(--border-radius-sm);
+        padding: 10px; /* Add padding to each row */
     }
 
     .admin-product-table td,
     .admin-order-table td {
         display: block;
         text-align: right;
-        border: none;
+        border: none; /* Remove cell borders */
         position: relative;
         padding-left: 50%; /* Space for data-label */
+        white-space: normal; /* Allow content to wrap */
     }
 
     .admin-product-table td::before,
@@ -1039,9 +1163,23 @@ main#product-list {
         color: var(--secondary-color);
     }
 
+    .admin-product-actions,
+    .admin-order-actions {
+        display: flex; /* Arrange buttons in a row */
+        justify-content: center; /* Center buttons */
+        margin-top: 10px; /* Space from previous content */
+        gap: 10px; /* Space between action buttons */
+    }
+    .admin-product-actions button,
+    .admin-order-actions button {
+        flex-grow: 1;
+        max-width: 120px; /* Limit button width */
+    }
+
     .order-item {
         flex-direction: column;
         align-items: flex-start;
+        padding: 10px;
     }
 
     .order-item-info, .order-item-actions {
@@ -1064,16 +1202,33 @@ main#product-list {
         width: 100%;
         max-width: none;
     }
+
+    .payment-option {
+        flex-direction: column; /* Stack image and text for payment options */
+        align-items: center;
+        text-align: center;
+        padding: 10px 5px;
+    }
+
+    .payment-option input[type="radio"] {
+        margin-bottom: 5px;
+        margin-right: 0;
+    }
+
+    .payment-option img {
+        margin-right: 0;
+        margin-bottom: 5px;
+    }
 }
 
 @media (max-width: 480px) {
     header .logo {
-        font-size: 1.5em;
+        font-size: 1.4em;
     }
 
     .auth-section button {
-        padding: 6px 12px;
-        font-size: 0.8em;
+        padding: 6px 10px;
+        font-size: 0.75em;
     }
 
     .modal-box {
@@ -1081,6 +1236,34 @@ main#product-list {
     }
 
     .modal-box h3, .modal-box h2 {
-        font-size: 1.5em;
+        font-size: 1.4em;
+    }
+
+    .cart-item {
+        flex-wrap: wrap; /* Allow cart item details to wrap */
+        justify-content: center;
+        text-align: center;
+    }
+
+    .cart-item img {
+        width: 50px;
+        height: 50px;
+    }
+
+    .cart-item-details, .cart-item-quantity, .cart-item-remove {
+        width: 100%; /* Make them take full width */
+        margin-top: 5px;
+        text-align: center;
+        justify-content: center; /* Center content in flex items */
+    }
+
+    .cart-item-remove {
+        padding: 8px; /* Make remove button larger for touch */
+    }
+
+    .admin-tab-btn {
+        padding: 8px 10px;
+        font-size: 0.9em;
     }
 }
+
