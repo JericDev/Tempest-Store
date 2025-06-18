@@ -116,9 +116,19 @@ const detailPaymentMethod = document.getElementById("detail-payment-method");
 const detailRobloxUsername = document.getElementById("detail-roblox-username");
 const detailItemsList = document.getElementById("detail-items-list");
 
+// --- Custom Message/Confirm Box Elements (Dynamically created) ---
+let messageBoxOverlay = null; // Overlay for the message box
+let messageBox = null;       // The message box itself
+let messageBoxText = null;   // Text content area
+let messageBoxOKBtn = null;  // OK button
+let messageBoxCancelBtn = null; // Cancel button for confirm dialogs
+
 
 // --- Event Listeners Setup ---
 document.addEventListener("DOMContentLoaded", () => {
+    // Initialize custom message box elements
+    createMessageBoxElements();
+
     // Auth Modal Listeners
     loginRegisterButton.addEventListener('click', () => {
         authModal.classList.add('show');
@@ -183,6 +193,130 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchProducts(); // Fetch products on page load
 });
 
+// --- Custom Message Box Functions (Replacing alert/confirm) ---
+
+// Creates the DOM elements for the custom message box and appends them to the body.
+function createMessageBoxElements() {
+    messageBoxOverlay = document.createElement('div');
+    messageBoxOverlay.id = 'custom-message-box-overlay';
+    messageBoxOverlay.style.cssText = `
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 1001; /* Higher than other modals */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `;
+
+    messageBox = document.createElement('div');
+    messageBox.id = 'custom-message-box';
+    messageBox.style.cssText = `
+        background-color: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        animation: fadeIn 0.3s ease-out;
+        box-sizing: border-box;
+        position: relative;
+    `;
+
+    messageBoxText = document.createElement('p');
+    messageBoxText.id = 'custom-message-box-text';
+    messageBoxText.style.cssText = `
+        margin-bottom: 20px;
+        font-size: 1.1em;
+        color: #333;
+    `;
+
+    messageBoxOKBtn = document.createElement('button');
+    messageBoxOKBtn.id = 'custom-message-box-ok-btn';
+    messageBoxOKBtn.textContent = 'OK';
+    messageBoxOKBtn.style.cssText = `
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        margin: 5px;
+        transition: background-color 0.3s ease;
+    `;
+    messageBoxOKBtn.onmouseover = () => messageBoxOKBtn.style.backgroundColor = '#0056b3';
+    messageBoxOKBtn.onmouseout = () => messageBoxOKBtn.style.backgroundColor = '#007bff';
+
+    messageBoxCancelBtn = document.createElement('button');
+    messageBoxCancelBtn.id = 'custom-message-box-cancel-btn';
+    messageBoxCancelBtn.textContent = 'Cancel';
+    messageBoxCancelBtn.style.cssText = `
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        margin: 5px;
+        transition: background-color 0.3s ease;
+    `;
+    messageBoxCancelBtn.onmouseover = () => messageBoxCancelBtn.style.backgroundColor = '#5a6268';
+    messageBoxCancelBtn.onmouseout = () => messageBoxCancelBtn.style.backgroundColor = '#6c757d';
+
+    messageBox.appendChild(messageBoxText);
+    messageBox.appendChild(messageBoxOKBtn);
+    messageBox.appendChild(messageBoxCancelBtn); // Add cancel btn, hidden by default
+    messageBoxOverlay.appendChild(messageBox);
+    document.body.appendChild(messageBoxOverlay);
+}
+
+/**
+ * Shows a custom message box (replacement for alert).
+ * @param {string} message The message to display.
+ */
+function showMessageBox(message) {
+    return new Promise(resolve => {
+        messageBoxText.textContent = message;
+        messageBoxCancelBtn.style.display = 'none'; // Hide cancel button for alert-like behavior
+        messageBoxOverlay.style.display = 'flex';
+        messageBoxOKBtn.onclick = () => {
+            messageBoxOverlay.style.display = 'none';
+            resolve(true); // Always resolve true for simple messages
+        };
+    });
+}
+
+/**
+ * Shows a custom confirmation box (replacement for confirm).
+ * @param {string} message The confirmation message.
+ * @returns {Promise<boolean>} Resolves true if OK is clicked, false if Cancel.
+ */
+function showConfirmBox(message) {
+    return new Promise(resolve => {
+        messageBoxText.textContent = message;
+        messageBoxCancelBtn.style.display = 'inline-block'; // Show cancel button for confirm
+        messageBoxOverlay.style.display = 'flex';
+
+        messageBoxOKBtn.onclick = () => {
+            messageBoxOverlay.style.display = 'none';
+            resolve(true); // User confirmed
+        };
+
+        messageBoxCancelBtn.onclick = () => {
+            messageBoxOverlay.style.display = 'none';
+            resolve(false); // User cancelled
+        };
+    });
+}
+
+
 // --- Firebase Authentication State Listener ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -196,7 +330,8 @@ onAuthStateChanged(auth, (user) => {
         isAdmin = (currentUserId === ADMIN_UID);
         if (isAdmin) {
             document.getElementById("admin-panel-button").style.display = 'inline-block';
-            initAdminPanel(db, auth, currentUserId, isAdmin); // Initialize admin panel
+            // Pass the custom message box functions to admin.js
+            initAdminPanel(db, auth, currentUserId, isAdmin, showMessageBox, showConfirmBox); 
         } else {
             document.getElementById("admin-panel-button").style.display = 'none';
             cleanupAdminPanel(); // Ensure admin panel is cleaned up if not admin
@@ -226,12 +361,12 @@ async function handleRegister() {
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
     if (!email || !password) {
-        authMessage.textContent = "Please enter both email and password.";
+        showMessageBox("Please enter both email and password.");
         return;
     }
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        authMessage.textContent = "Registration successful! You are now logged in.";
+        showMessageBox("Registration successful! You are now logged in.");
         authModal.classList.remove('show');
         // Optionally, create a user document in Firestore
         await setDoc(doc(db, `artifacts/${APP_ID}/users/${userCredential.user.uid}`), {
@@ -240,7 +375,7 @@ async function handleRegister() {
         });
     } catch (error) {
         console.error("Registration error:", error);
-        authMessage.textContent = `Registration failed: ${error.message}`;
+        authMessage.textContent = `Registration failed: ${error.message}`; // Keep specific message on auth modal
     }
 }
 
@@ -248,16 +383,16 @@ async function handleLogin() {
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
     if (!email || !password) {
-        authMessage.textContent = "Please enter both email and password.";
+        showMessageBox("Please enter both email and password.");
         return;
     }
     try {
         await signInWithEmailAndPassword(auth, email, password);
-        authMessage.textContent = "Login successful!";
+        showMessageBox("Login successful!");
         authModal.classList.remove('show');
     } catch (error) {
         console.error("Login error:", error);
-        authMessage.textContent = `Login failed: ${error.message}`;
+        authMessage.textContent = `Login failed: ${error.message}`; // Keep specific message on auth modal
     }
 }
 
@@ -268,22 +403,22 @@ async function handleLogout() {
         // onAuthStateChanged will handle UI updates
     } catch (error) {
         console.error("Logout error:", error);
-        alert("Error logging out: " + error.message); // Using alert here for simplicity, custom modal preferred
+        await showMessageBox("Error logging out: " + error.message);
     }
 }
 
 async function handleForgotPassword() {
     const email = authEmailInput.value;
     if (!email) {
-        authMessage.textContent = "Please enter your email to reset password.";
+        showMessageBox("Please enter your email to reset password.");
         return;
     }
     try {
         await sendPasswordResetEmail(auth, email);
-        authMessage.textContent = "Password reset email sent! Check your inbox.";
+        showMessageBox("Password reset email sent! Check your inbox.");
     } catch (error) {
         console.error("Forgot password error:", error);
-        authMessage.textContent = `Failed to send reset email: ${error.message}`;
+        authMessage.textContent = `Failed to send reset email: ${error.message}`; // Keep specific message on auth modal
     }
 }
 
@@ -306,10 +441,18 @@ function fetchProducts() {
         snapshot.forEach(doc => {
             allProducts.push({ id: doc.id, ...doc.data() });
         });
+        
+        if (allProducts.length === 0) {
+            console.warn("No products found in Firestore. Please add some via the admin panel!");
+            productListContainer.innerHTML = `
+                <p class="empty-message">No products available. If you're an admin, please add products via the Admin Panel.</p>
+                <p class="empty-message">If products should be here, check your Firestore database and security rules.</p>
+            `;
+        }
         applyFilters(); // Re-render products after fetching/updating
     }, (error) => {
-        console.error("Error fetching products:", error);
-        productListContainer.innerHTML = '<p class="empty-message">Error loading products.</p>';
+        console.error("Error fetching products from Firestore:", error);
+        productListContainer.innerHTML = '<p class="empty-message">Error loading products. Check your console for details, and ensure Firestore security rules allow read access to "products" collection.</p>';
     });
 }
 
@@ -416,6 +559,7 @@ function setupUserCartListener(userId) {
         updateCartDisplay();
     }, (error) => {
         console.error("Error listening to user cart:", error);
+        showMessageBox("Error loading your cart. Please try again or check your internet connection.");
     });
 }
 
@@ -437,7 +581,7 @@ function cleanupUserCartAndOrders() {
 
 async function addToCart(product) {
     if (!currentUserId) {
-        alert("Please log in to add items to your cart.");
+        await showMessageBox("Please log in to add items to your cart.");
         authModal.classList.add('show'); // Show login modal
         return;
     }
@@ -453,7 +597,7 @@ async function addToCart(product) {
         if (currentQty < product.stock) {
             userCart[existingItemIndex].quantity += 1;
         } else {
-            alert(`Cannot add more "${product.name}". Maximum stock reached.`);
+            await showMessageBox(`Cannot add more "${product.name}". Maximum stock available is ${product.stock}.`);
             return;
         }
     } else {
@@ -470,7 +614,7 @@ async function addToCart(product) {
                 quantity: 1 
             });
         } else {
-            alert(`"${product.name}" is out of stock.`);
+            await showMessageBox(`"${product.name}" is out of stock.`);
             return;
         }
     }
@@ -479,9 +623,10 @@ async function addToCart(product) {
         await setDoc(cartDocRef, { items: userCart });
         // The onSnapshot listener will update the UI
         console.log(`Added "${product.name}" to cart.`);
+        showMessageBox(`"${product.name}" added to cart!`);
     } catch (e) {
         console.error("Error adding to cart:", e);
-        alert("Failed to add to cart: " + e.message);
+        await showMessageBox("Failed to add to cart: " + e.message + "\n\nNote: Check Firestore Security Rules for 'users/{userId}/cart' collection.");
     }
 }
 
@@ -500,10 +645,20 @@ async function updateCartItemQuantity(productId, newQuantity) {
             userCart[itemIndex].quantity = newQuantity;
         } else if (newQuantity <= 0) {
             // If quantity is 0 or less, remove item
-            userCart.splice(itemIndex, 1);
+            const confirmed = await showConfirmBox(`Are you sure you want to remove "${userCart[itemIndex].name}" from your cart?`);
+            if (confirmed) {
+                userCart.splice(itemIndex, 1);
+            } else {
+                // User cancelled removal, revert quantity to 1 if it was 0
+                if (newQuantity <= 0) {
+                    userCart[itemIndex].quantity = 1;
+                }
+                updateCartDisplay(); // Re-render to show reverted quantity
+                return; // Stop further execution for this update
+            }
         } else {
             // newQuantity > product.stock
-            alert(`Cannot set quantity to ${newQuantity} for "${product.name}". Only ${product.stock} in stock.`);
+            await showMessageBox(`Cannot set quantity to ${newQuantity} for "${product.name}". Only ${product.stock} in stock.`);
             // Reset to max available stock
             userCart[itemIndex].quantity = product.stock; 
         }
@@ -514,7 +669,7 @@ async function updateCartItemQuantity(productId, newQuantity) {
             // UI will update via onSnapshot
         } catch (e) {
             console.error("Error updating cart quantity:", e);
-            alert("Failed to update cart quantity: " + e.message);
+            await showMessageBox("Failed to update cart quantity: " + e.message);
         }
     }
 }
@@ -524,14 +679,17 @@ async function removeCartItem(productId) {
 
     const itemIndex = userCart.findIndex(item => item.id === productId);
     if (itemIndex > -1) {
-        userCart.splice(itemIndex, 1);
-        try {
-            const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
-            await setDoc(cartDocRef, { items: userCart });
-            // UI will update via onSnapshot
-        } catch (e) {
-            console.error("Error removing cart item:", e);
-            alert("Failed to remove item from cart: " + e.message);
+        const confirmed = await showConfirmBox(`Are you sure you want to remove "${userCart[itemIndex].name}" from your cart?`);
+        if (confirmed) {
+            userCart.splice(itemIndex, 1);
+            try {
+                const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
+                await setDoc(cartDocRef, { items: userCart });
+                // UI will update via onSnapshot
+            } catch (e) {
+                console.error("Error removing cart item:", e);
+                await showMessageBox("Failed to remove item from cart: " + e.message);
+            }
         }
     }
 }
@@ -592,10 +750,10 @@ function updateCartDisplay() {
         });
 
         cartItemsContainer.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('change', (e) => {
+            input.addEventListener('change', async (e) => { // Made async for showConfirmBox
                 const productId = e.target.dataset.id;
                 const newQty = parseInt(e.target.value);
-                updateCartItemQuantity(productId, newQty);
+                await updateCartItemQuantity(productId, newQty); // Await the update
             });
         });
 
@@ -644,18 +802,18 @@ function updatePaymentPreviewImage() {
 
 async function handlePlaceOrder() {
     if (userCart.length === 0) {
-        alert("Your cart is empty. Please add items before placing an order.");
+        await showMessageBox("Your cart is empty. Please add items before placing an order.");
         return;
     }
     if (!currentUserId) {
-        alert("You must be logged in to place an order.");
+        await showMessageBox("You must be logged in to place an order.");
         authModal.classList.add('show');
         return;
     }
 
     const robloxUsername = robloxUsernameInput.value.trim();
     if (!robloxUsername) {
-        alert("Please enter your Roblox Username to complete the order.");
+        await showMessageBox("Please enter your Roblox Username to complete the order.");
         robloxUsernameInput.focus();
         return;
     }
@@ -698,13 +856,13 @@ async function handlePlaceOrder() {
         userCart = []; // Clear local cart
         updateCartDisplay(); // Update UI to reflect empty cart
 
-        alert("Order placed successfully! Your order ID is: " + userOrderDocRef.id.substring(0, 8) + '...');
+        await showMessageBox("Order placed successfully! Your order ID is: " + userOrderDocRef.id.substring(0, 8) + '...');
         cartModal.classList.remove('show'); // Close cart modal
         robloxUsernameInput.value = ''; // Clear Roblox username input
         
     } catch (e) {
         console.error("Error placing order:", e);
-        alert("Failed to place order: " + e.message);
+        await showMessageBox("Failed to place order: " + e.message);
     }
 }
 
@@ -731,6 +889,7 @@ function setupUserOrdersListener(userId) {
         renderUserOrders();
     }, (error) => {
         console.error("Error listening to user orders:", error);
+        showMessageBox("Error loading your order history. Please try again or check your internet connection.");
     });
 }
 
@@ -804,5 +963,3 @@ function showOrderDetails(order) {
 window.setFilter = setFilter;
 window.applyFilters = applyFilters;
 // Any other functions referenced in index.html's onclick should be exposed here.
-
-
