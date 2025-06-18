@@ -549,7 +549,8 @@ function setupUserCartListener(userId) {
         return;
     }
 
-    const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/cart/current`);
+    // UPDATED: Changed 'cart' to 'carts' (plural) to match the Firestore Security Rules path
+    const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/carts/current`); 
     unsubscribeUserCart = onSnapshot(cartDocRef, (docSnap) => {
         if (docSnap.exists()) {
             userCart = docSnap.data().items || [];
@@ -586,7 +587,8 @@ async function addToCart(product) {
         return;
     }
 
-    const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
+    // UPDATED: Changed 'cart' to 'carts' (plural) to match the Firestore Security Rules path
+    const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/carts/current`);
     
     // Check if product is already in cart
     const existingItemIndex = userCart.findIndex(item => item.id === product.id);
@@ -626,7 +628,7 @@ async function addToCart(product) {
         showMessageBox(`"${product.name}" added to cart!`);
     } catch (e) {
         console.error("Error adding to cart:", e);
-        await showMessageBox("Failed to add to cart: " + e.message + "\n\nNote: Check Firestore Security Rules for 'users/{userId}/cart' collection.");
+        await showMessageBox("Failed to add to cart: " + e.message + "\n\nNote: Check Firestore Security Rules for 'users/{userId}/carts' collection.");
     }
 }
 
@@ -664,7 +666,8 @@ async function updateCartItemQuantity(productId, newQuantity) {
         }
 
         try {
-            const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
+            // UPDATED: Changed 'cart' to 'carts' (plural)
+            const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/carts/current`);
             await setDoc(cartDocRef, { items: userCart });
             // UI will update via onSnapshot
         } catch (e) {
@@ -683,7 +686,8 @@ async function removeCartItem(productId) {
         if (confirmed) {
             userCart.splice(itemIndex, 1);
             try {
-                const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
+                // UPDATED: Changed 'cart' to 'carts' (plural)
+                const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/carts/current`);
                 await setDoc(cartDocRef, { items: userCart });
                 // UI will update via onSnapshot
             } catch (e) {
@@ -852,7 +856,8 @@ async function handlePlaceOrder() {
         console.log("Order mirrored to allOrders for admin view:", userOrderDocRef.id);
 
         // 3. Clear user's cart in Firestore
-        await deleteDoc(doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`));
+        // UPDATED: Changed 'cart' to 'carts' (plural)
+        await deleteDoc(doc(db, `artifacts/${APP_ID}/users/${currentUserId}/carts/current`));
         userCart = []; // Clear local cart
         updateCartDisplay(); // Update UI to reflect empty cart
 
