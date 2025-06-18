@@ -234,25 +234,33 @@
                 myOrdersButton.style.display = "inline-block"; // Show My Orders button
 
                 if (isAdmin) {
+                    console.log("User is admin. Attempting to show admin panel button.");
                     adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
                     // Dynamically import and initialize admin module
                     if (!initAdminPanelModule) {
+                        console.log("admin.js module not yet loaded. Attempting dynamic import...");
                         try {
                             // Ensure the path is correct relative to script.js
                             const adminModule = await import('./admin.js'); 
                             initAdminPanelModule = adminModule.initAdminPanel;
                             adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
+                            console.log("admin.js loaded successfully. initAdminPanelModule set.");
                         } catch (error) {
                             console.error("Error loading admin.js:", error);
                             // Hide admin button if load fails
                             adminPanelButton.style.display = "none"; 
+                            console.log("Admin panel button hidden due to admin.js load error.");
                         }
                     }
                     if (initAdminPanelModule) {
+                        console.log("Calling initAdminPanelModule.");
                         // Pass Firestore and Auth instances, plus user info to admin module
                         initAdminPanelModule(db, auth, storage, currentUserId, isAdmin); // Pass storage instance
+                    } else {
+                        console.log("initAdminPanelModule is null after attempted load. Admin panel won't function.");
                     }
                 } else {
+                    console.log("User is NOT admin. Hiding admin panel button.");
                     adminPanelButton.style.display = "none";
                 }
                 
@@ -263,6 +271,7 @@
                 loadOrdersFromFirestore(currentUserId); // Load orders for authenticated user
 
             } else {
+                console.log("User is logged out. Hiding admin panel button.");
                 currentUserId = null; 
                 isAdmin = false; 
 
@@ -884,3 +893,4 @@
                 displayPaymentQrCode(checkedPaymentMethod.value);
             }
         });
+
