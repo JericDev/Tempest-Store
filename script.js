@@ -785,9 +785,17 @@
             renderProducts(filtered); 
         }
 
-        // Event listener for when the DOM content is fully loaded.
         window.addEventListener("DOMContentLoaded", () => {
-            updateCartCountBadge(); 
-            // Initial product rendering is now handled by setupProductsListener
-            // Initial auth state check is handled by onAuthStateChanged
+    updateCartCountBadge(); 
+    // Initial product rendering is now handled by setupProductsListener
+    // Initial auth state check is handled by onAuthStateChanged
+
+    // ✅ Payment method preview image change
+    document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
+            const img = document.getElementById('payment-preview-img');
+            img.src = `images/${selected}.png`;
         });
+    });
+});
