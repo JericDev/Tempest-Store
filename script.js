@@ -282,8 +282,11 @@ function createMessageBoxElements() {
  * @param {string} message The message to display.
  */
 function showMessageBox(message) {
+    // Debugging: Log the message being passed
+    console.log("showMessageBox called with message:", message);
     return new Promise(resolve => {
-        messageBoxText.textContent = message;
+        // Ensure message is a string and set textContent
+        messageBoxText.textContent = String(message || ''); // Robustly set text content
         messageBoxCancelBtn.style.display = 'none'; // Hide cancel button for alert-like behavior
         messageBoxOverlay.style.display = 'flex';
         messageBoxOKBtn.onclick = () => {
@@ -299,8 +302,11 @@ function showMessageBox(message) {
  * @returns {Promise<boolean>} Resolves true if OK is clicked, false if Cancel.
  */
 function showConfirmBox(message) {
+    // Debugging: Log the message being passed
+    console.log("showConfirmBox called with message:", message);
     return new Promise(resolve => {
-        messageBoxText.textContent = message;
+        // Ensure message is a string and set textContent
+        messageBoxText.textContent = String(message || ''); // Robustly set text content
         messageBoxCancelBtn.style.display = 'inline-block'; // Show cancel button for confirm
         messageBoxOverlay.style.display = 'flex';
 
@@ -452,6 +458,7 @@ function fetchProducts() {
         applyFilters(); // Re-render products after fetching/updating
     }, (error) => {
         console.error("Error fetching products from Firestore:", error);
+        showMessageBox("Error loading products. Check your browser console for details, and ensure Firestore security rules allow read access to the 'products' collection.");
         productListContainer.innerHTML = '<p class="empty-message">Error loading products. Check your console for details, and ensure Firestore security rules allow read access to "products" collection.</p>';
     });
 }
@@ -529,6 +536,7 @@ function renderProducts(productsToRender) {
             const productId = e.target.dataset.id;
             const productToAdd = allProducts.find(p => p.id === productId);
             if (productToAdd) {
+                console.log("Attempting to add to cart:", productToAdd.name); // Debugging log
                 addToCart(productToAdd);
             }
         });
@@ -560,7 +568,7 @@ function setupUserCartListener(userId) {
         updateCartDisplay();
     }, (error) => {
         console.error("Error listening to user cart:", error);
-        showMessageBox("Error loading your cart. Please try again or check your internet connection.");
+        showMessageBox("Error loading your cart. Please try again or check your internet connection. (Details in console)");
     });
 }
 
@@ -599,7 +607,9 @@ async function addToCart(product) {
         if (currentQty < product.stock) {
             userCart[existingItemIndex].quantity += 1;
         } else {
-            await showMessageBox(`Cannot add more "${product.name}". Maximum stock available is ${product.stock}.`);
+            const message = `Cannot add more "${product.name}". Maximum stock available is ${product.stock}.`;
+            console.log("addToCart: Max stock reached message:", message); // Debugging log
+            await showMessageBox(message);
             return;
         }
     } else {
@@ -616,7 +626,9 @@ async function addToCart(product) {
                 quantity: 1 
             });
         } else {
-            await showMessageBox(`"${product.name}" is out of stock.`);
+            const message = `"${product.name}" is out of stock.`;
+            console.log("addToCart: Out of stock message:", message); // Debugging log
+            await showMessageBox(message);
             return;
         }
     }
@@ -624,11 +636,11 @@ async function addToCart(product) {
     try {
         await setDoc(cartDocRef, { items: userCart });
         // The onSnapshot listener will update the UI
-        console.log(`Added "${product.name}" to cart.`);
+        console.log(`Added "${product.name}" to cart. Cart state updated.`);
         showMessageBox(`"${product.name}" added to cart!`);
     } catch (e) {
-        console.error("Error adding to cart:", e);
-        await showMessageBox("Failed to add to cart: " + e.message + "\n\nNote: Check Firestore Security Rules for 'users/{userId}/carts' collection.");
+        console.error("Error adding to cart (Firestore operation failed):", e);
+        await showMessageBox("Failed to add to cart: " + e.message + "\n\nNote: Check Firestore Security Rules for 'users/{userId}/carts' collection. (Details in console)");
     }
 }
 
@@ -639,7 +651,7 @@ async function updateCartItemQuantity(productId, newQuantity) {
     if (itemIndex > -1) {
         const product = allProducts.find(p => p.id === productId); // Get full product data for stock check
         if (!product) {
-            console.error("Product not found in allProducts:", productId);
+            console.error("Product not found in allProducts for quantity update:", productId);
             return;
         }
 
@@ -647,7 +659,9 @@ async function updateCartItemQuantity(productId, newQuantity) {
             userCart[itemIndex].quantity = newQuantity;
         } else if (newQuantity <= 0) {
             // If quantity is 0 or less, remove item
-            const confirmed = await showConfirmBox(`Are you sure you want to remove "${userCart[itemIndex].name}" from your cart?`);
+            const confirmMessage = `Are you sure you want to remove "${userCart[itemIndex].name}" from your cart?`;
+            console.log("updateCartItemQuantity: Confirm removal message:", confirmMessage); // Debugging log
+            const confirmed = await showConfirmBox(confirmMessage);
             if (confirmed) {
                 userCart.splice(itemIndex, 1);
             } else {
@@ -660,7 +674,9 @@ async function updateCartItemQuantity(productId, newQuantity) {
             }
         } else {
             // newQuantity > product.stock
-            await showMessageBox(`Cannot set quantity to ${newQuantity} for "${product.name}". Only ${product.stock} in stock.`);
+            const message = `Cannot set quantity to ${newQuantity} for "${product.name}". Only ${product.stock} in stock.`;
+            console.log("updateCartItemQuantity: Exceeded stock message:", message); // Debugging log
+            await showMessageBox(message);
             // Reset to max available stock
             userCart[itemIndex].quantity = product.stock; 
         }
@@ -670,9 +686,10 @@ async function updateCartItemQuantity(productId, newQuantity) {
             const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/carts/current`);
             await setDoc(cartDocRef, { items: userCart });
             // UI will update via onSnapshot
+            console.log(`Cart quantity for "${product.name}" updated to ${userCart[itemIndex]?.quantity || 'removed'}.`); // Debugging log
         } catch (e) {
-            console.error("Error updating cart quantity:", e);
-            await showMessageBox("Failed to update cart quantity: " + e.message);
+            console.error("Error updating cart quantity (Firestore operation failed):", e);
+            await showMessageBox("Failed to update cart quantity: " + e.message + " (Details in console)");
         }
     }
 }
@@ -682,7 +699,9 @@ async function removeCartItem(productId) {
 
     const itemIndex = userCart.findIndex(item => item.id === productId);
     if (itemIndex > -1) {
-        const confirmed = await showConfirmBox(`Are you sure you want to remove "${userCart[itemIndex].name}" from your cart?`);
+        const confirmMessage = `Are you sure you want to remove "${userCart[itemIndex].name}" from your cart?`;
+        console.log("removeCartItem: Confirm removal message:", confirmMessage); // Debugging log
+        const confirmed = await showConfirmBox(confirmMessage);
         if (confirmed) {
             userCart.splice(itemIndex, 1);
             try {
@@ -690,9 +709,10 @@ async function removeCartItem(productId) {
                 const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/carts/current`);
                 await setDoc(cartDocRef, { items: userCart });
                 // UI will update via onSnapshot
+                console.log(`Item "${productId}" removed from cart.`); // Debugging log
             } catch (e) {
-                console.error("Error removing cart item:", e);
-                await showMessageBox("Failed to remove item from cart: " + e.message);
+                console.error("Error removing cart item (Firestore operation failed):", e);
+                await showMessageBox("Failed to remove item from cart: " + e.message + " (Details in console)");
             }
         }
     }
@@ -894,7 +914,7 @@ function setupUserOrdersListener(userId) {
         renderUserOrders();
     }, (error) => {
         console.error("Error listening to user orders:", error);
-        showMessageBox("Error loading your order history. Please try again or check your internet connection.");
+        showMessageBox("Error loading your order history. Please try again or check your internet connection. (Details in console)");
     });
 }
 
@@ -965,6 +985,4 @@ function showOrderDetails(order) {
 // --- Export functions for global access if needed (e.g., for inline HTML onClick attributes) ---
 // This ensures functions called directly from HTML (like setFilter, applyFilters) are accessible.
 // In a more modern setup, all event listeners would be added via JS, removing the need for global exposure.
-window.setFilter = setFilter;
-window.applyFilters = applyFilters;
-// Any other functions referenced in index.html's onclick should be exposed here.
+windo
