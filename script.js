@@ -765,26 +765,27 @@
         }
 
         function setFilter(category) {
-            currentCategory = category;
+    currentCategory = category;
 
-            document.querySelectorAll(".filters button").forEach(btn => {
-                btn.classList.toggle("active", btn.dataset.cat === category);
-            });
+    document.querySelectorAll(".filters button").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.cat === category);
+    });
 
-            applyFilters(); 
-        }
+    applyFilters();  // Apply category + search
+}
 
-        function applyFilters() {
-            const query = document.getElementById("searchBox").value.toLowerCase();
+function applyFilters() {
+    const query = document.getElementById("searchBox").value.toLowerCase();
 
-            const filtered = allProducts.filter(product => { 
-                const matchesCategory = currentCategory === "all" || product.category === currentCategory;
-                const matchesSearch = product.name.toLowerCase().includes(query);
-                return matchesCategory && matchesSearch;
-            });
+    const filtered = allProducts.filter(product => {
+        const matchesCategory = currentCategory === "all" || product.category === currentCategory;
+        const matchesSearch = product.name.toLowerCase().includes(query);
+        return matchesCategory && matchesSearch;
+    });
 
-            renderProducts(filtered); 
-        }
+    renderProducts(filtered);
+}
+
 
         window.addEventListener("DOMContentLoaded", () => {
     updateCartCountBadge(); 
