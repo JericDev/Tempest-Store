@@ -1003,11 +1003,12 @@ main#product-list {
     .admin-product-table th {
         display: none; /* Hide header on small screens when cells stack */
     }
-    .admin-product-actions button {
-        width: calc(50% - 10px);
-        margin-bottom: 10px;
-    }
+      .admin-product-actions button {
+    width: calc(50% - 10px);
+    margin-bottom: 10px;
+  }
 }
+
 /* Payment Method Styles */
 .payment-option {
   display: flex;
@@ -1050,4 +1051,3 @@ main#product-list {
   height: auto;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
-
