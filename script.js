@@ -289,21 +289,25 @@
         const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`; 
 
         // --- Product Display (Accessible to all) ---
-        function setupProductsListener() {
-            const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-            return onSnapshot(productsColRef, (snapshot) => { 
-                const fetchedProducts = [];
-                snapshot.forEach(doc => {
-                    fetchedProducts.push({ id: doc.id, ...doc.data() });
-                });
-                allProducts = fetchedProducts; 
-                renderProducts(allProducts); 
-                // Re-render cart on product changes to update prices
-                renderCart();
-            }, (error) => {
-                console.error("Error listening to products:", error);
-            });
-        }
+        // --- Product Display (Accessible to all) ---
+function setupProductsListener() {
+    const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
+    return onSnapshot(productsColRef, (snapshot) => { 
+        const fetchedProducts = [];
+        snapshot.forEach(doc => {
+            fetchedProducts.push({ id: doc.id, ...doc.data() });
+        });
+        allProducts = fetchedProducts; 
+
+        // Apply current filter and re-render products
+        applyFilters();
+
+        // Re-render cart on product changes to update prices
+        renderCart();
+    }, (error) => {
+        console.error("Error listening to products:", error);
+    });
+}
 
 
         // Call setupProductsListener once when the script loads to always show products
