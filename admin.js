@@ -81,6 +81,7 @@ function initAdminPanel(db, auth, userId, adminFlag, messageBoxFunc, confirmBoxF
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         }
         const listener = async () => { // Changed to async to use await with showMessageBox
+            console.log("Admin Panel Button clicked. Is Admin:", isAdminUser); // Debugging
             if (!isAdminUser) {
                 await showMessageBox("You are not authorized to access the Admin Panel.");
                 return;
@@ -110,6 +111,7 @@ function initAdminPanel(db, auth, userId, adminFlag, messageBoxFunc, confirmBoxF
         }
         const listener = (e) => {
             const tab = e.target.dataset.tab;
+            console.log("Admin tab clicked:", tab); // Debugging
             showAdminTab(tab);
         };
         button.addEventListener('click', listener);
@@ -148,10 +150,12 @@ function initAdminPanel(db, auth, userId, adminFlag, messageBoxFunc, confirmBoxF
         };
 
         if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
+            console.log("Save Product: Validation failed. Showing message."); // Debugging
             await showMessageBox("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
             return;
         }
         if (isSale && (salePrice === null || isNaN(parseFloat(salePrice.replace('₱', ''))))) {
+            console.log("Save Product: Sale price validation failed. Showing message."); // Debugging
             await showMessageBox("Please enter a valid Sale Price if the product is On Sale.");
             return;
         }
@@ -177,11 +181,13 @@ function initAdminPanel(db, auth, userId, adminFlag, messageBoxFunc, confirmBoxF
     // --- MODIFICATION START: The entire update listener is replaced ---
     updateOrderStatusBtn._updateListener = async () => {
         if (!currentEditingOrderId || !currentEditingOrderUserId) {
+            console.log("Update Order Status: Missing ID or User ID. Showing message."); // Debugging
             await showMessageBox("No order selected or user ID is missing. Cannot update status.");
             return;
         }
 
         const newStatus = orderStatusSelect.value;
+        console.log(`Update Order Status: Attempting to update order ${currentEditingOrderId} to status ${newStatus}`); // Debugging
         try {
             // Path to the order in the central 'allOrders' collection
             const allOrdersRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
@@ -215,7 +221,7 @@ function cleanupAdminPanel() {
         unsubscribeAllOrders();
         unsubscribeAllOrders = null;
     }
-    // Remove specific event listeners to prevent memory leaks/duplicate calls
+    // Remove specific event listeners to prevent memory leaks/duplicates
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton && adminPanelButton._adminListener) {
         adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
@@ -242,7 +248,9 @@ function cleanupAdminPanel() {
 async function saveProductToFirestore(productData) {
     try {
         if (productData.id) {
-            const confirmed = await showConfirmBox("Are you sure you want to save changes to this product?");
+            const confirmMessage = "Are you sure you want to save changes to this product?";
+            console.log("saveProductToFirestore: Confirm save message:", confirmMessage); // Debugging
+            const confirmed = await showConfirmBox(confirmMessage);
             if (!confirmed) {
                 return;
             }
@@ -264,7 +272,9 @@ async function saveProductToFirestore(productData) {
 
 // Deletes a product from Firestore.
 async function deleteProductFromFirestore(productId) {
-    const confirmed = await showConfirmBox("Are you sure you want to delete this product?");
+    const confirmMessage = "Are you sure you want to delete this product?";
+    console.log("deleteProductFromFirestore: Confirm delete message:", confirmMessage); // Debugging
+    const confirmed = await showConfirmBox(confirmMessage);
     if (confirmed) {
         try {
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
@@ -288,6 +298,7 @@ function renderAdminProducts() {
             fetchedProducts.push({ id: doc.id, ...doc.data() });
         });
 
+        console.log("renderAdminProducts: Fetched products count:", fetchedProducts.length); // Debugging
         if (fetchedProducts.length === 0) {
             adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found. Add products using the form above.</td></tr>';
             return;
@@ -322,6 +333,7 @@ function renderAdminProducts() {
                 const productId = e.target.dataset.id;
                 const productToEdit = fetchedProducts.find(p => p.id === productId);
                 if (productToEdit) {
+                    console.log("Edit product button clicked. Editing:", productToEdit.name); // Debugging
                     editProduct(productToEdit);
                 }
             };
@@ -334,6 +346,7 @@ function renderAdminProducts() {
             if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
             const listener = (e) => {
                 const productId = e.target.dataset.id;
+                console.log("Delete product button clicked. Deleting ID:", productId); // Debugging
                 deleteProductFromFirestore(productId);
             };
             button.addEventListener('click', listener);
