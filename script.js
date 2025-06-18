@@ -81,7 +81,7 @@
         const closeCartModalBtn = document.getElementById("close-cart-modal");
         const cartItemsContainer = document.getElementById("cart-items-container");
         const cartSubtotalSpan = document.getElementById("cart-subtotal");
-        const cartTotalSpan = document = document.getElementById("cart-total"); 
+        const cartTotalSpan = document.getElementById("cart-total"); // Fixed typo here
         const placeOrderBtn = document.getElementById("place-order-btn");
         const robloxUsernameInput = document.getElementById("roblox-username-input");
         const paymentMethodRadios = document.querySelectorAll('input[name="payment-method"]'); // Get all payment radio buttons
@@ -308,9 +308,6 @@
 
                 console.log("[Cart] Loading cart from Local Storage (user logged out)...");
                 cart = loadCartFromLocalStorage(); 
-                // userOrders = []; // User orders handled by listener cleanup now
-                // allProducts = []; // Products are always rendered via setupProductsListener
-                // allOrders = []; // Admin orders handled by admin cleanup now
             }
             authEmailInput.value = "";
             authPasswordInput.value = "";
@@ -351,7 +348,7 @@
                     sellerStatusDisplay.classList.remove('online');
                     sellerStatusDisplay.classList.add('offline');
                     console.log("[Seller Status] Document does not exist. Defaulting to Offline. Attempting to create default.");
-                    // Create the default status document if it's missing (should only happen once)
+                    // Optionally, create the default status document if it's missing
                     setDoc(sellerStatusDocRef, { isOnline: false }, { merge: true }).catch(e => console.error("[Seller Status] Error creating default seller status:", e));
                 }
             }, (error) => {
@@ -893,9 +890,6 @@
                 snapshot.forEach(docSnap => {
                     fetchedOrders.push({ id: docSnap.id, ...docSnap.data() });
                 });
-                // userOrders is not a global variable in this script, it was local to loadOrdersFromFirestore.
-                // We will directly render here or assign to a global if it's used elsewhere for data storage.
-                // For now, let's keep it simple and just render.
                 renderUserOrdersList(fetchedOrders); // Pass fetched orders to render function
                 console.log(`[Orders] Fetched ${fetchedOrders.length} user orders.`);
             }, (error) => {
