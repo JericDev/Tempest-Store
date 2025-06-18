@@ -34,6 +34,7 @@
         // Global variables to store unsubscribe functions for real-time listeners
         let unsubscribeProducts = null;
         let unsubscribeSellerStatus = null; 
+        let unsubscribeUserOrders = null; // Unsubscribe for user's own orders
         
         // Reference to the admin panel initialization function from admin.js
         let initAdminPanelModule = null;
@@ -105,7 +106,7 @@
                 .then((userCredential) => {
                     authMessage.textContent = `Registered and logged in as: ${userCredential.user.email}`;
                     authMessage.style.color = 'green'; 
-                    console.log("User registered:", userCredential.user.email);
+                    console.log("[Auth] User registered:", userCredential.user.email);
                     authModal.classList.remove('show'); 
                 })
                 .catch((error) => { 
@@ -115,7 +116,7 @@
                         authMessage.textContent = `Registration failed: ${error.message}`; 
                     }
                     authMessage.style.color = 'red'; 
-                    console.error("Registration error:", error); 
+                    console.error("[Auth] Registration error:", error); 
                 });
         });
 
@@ -127,7 +128,7 @@
                 .then((userCredential) => {
                     authMessage.textContent = `Logged in as: ${userCredential.user.email}`;
                     authMessage.style.color = 'green'; 
-                    console.log("User logged in:", userCredential.user.email);
+                    console.log("[Auth] User logged in:", userCredential.user.email);
                     authModal.classList.remove('show'); 
                 })
                 .catch((error) => { 
@@ -147,7 +148,7 @@
                             authMessage.textContent = `Login failed: ${error.message}`;
                     }
                     authMessage.style.color = 'red'; 
-                    console.error("Login error:", error); 
+                    console.error("[Auth] Login error:", error); 
                 });
         });
 
@@ -156,12 +157,12 @@
                 .then(() => {
                     authMessage.textContent = "Logged out successfully.";
                     authMessage.style.color = 'green'; 
-                    console.log("User logged out.");
+                    console.log("[Auth] User logged out.");
                 })
                 .catch((error) => { 
                     authMessage.textContent = `Logout failed: ${error.message}`; 
                     authMessage.style.color = 'red'; 
-                    console.error("Logout error:", error); 
+                    console.error("[Auth] Logout error:", error); 
                 });
         });
 
@@ -211,22 +212,32 @@
                             authMessage.textContent = `Password reset failed: ${error.message}`;
                     }
                     authMessage.style.color = 'red';
-                    console.error("Password reset error:", error);
+                    console.error("[Auth] Password reset error:", error);
                 });
         });
 
 
         // --- Authentication State Observer (Crucial for loading user data) ---
         onAuthStateChanged(auth, async (user) => {
+            console.log("--- Auth State Changed ---");
             // Clean up admin panel if currently active
             if (adminCleanupFunction) {
+                console.log("[Admin] Calling admin cleanup function.");
                 adminCleanupFunction();
                 adminCleanupFunction = null;
+            }
+            // Clean up user orders listener
+            if (unsubscribeUserOrders) {
+                console.log("[Orders] Unsubscribing from user orders.");
+                unsubscribeUserOrders();
+                unsubscribeUserOrders = null;
             }
 
             if (user) {
                 currentUserId = user.uid; // Set current user ID
                 isAdmin = (currentUserId === ADMIN_UID); // Check if current user is admin
+                console.log(`[Auth] User logged in: ${user.email} (UID: ${currentUserId})`);
+                console.log(`[Auth] Is user admin? ${isAdmin}`);
 
                 userDisplay.textContent = `Welcome, ${user.email}`;
                 loginRegisterButton.style.display = "none"; 
@@ -234,35 +245,49 @@
                 myOrdersButton.style.display = "inline-block"; // Show My Orders button
 
                 if (isAdmin) {
+                    console.log("[Admin] User is admin. Setting admin panel button to 'inline-block'.");
                     adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
                     // Dynamically import and initialize admin module
                     if (!initAdminPanelModule) {
+                        console.log("[Admin] admin.js module not yet loaded. Attempting dynamic import...");
                         try {
                             // Ensure the path is correct relative to script.js
                             const adminModule = await import('./admin.js'); 
                             initAdminPanelModule = adminModule.initAdminPanel;
                             adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
+                            console.log("[Admin] admin.js loaded successfully. initAdminPanelModule set.");
                         } catch (error) {
-                            console.error("Error loading admin.js:", error);
+                            console.error("[Admin] Error loading admin.js:", error);
                             // Hide admin button if load fails
                             adminPanelButton.style.display = "none"; 
+                            console.log("[Admin] Admin panel button hidden due to admin.js load error.");
                         }
                     }
                     if (initAdminPanelModule) {
+                        console.log("[Admin] Calling initAdminPanelModule.");
                         // Pass Firestore and Auth instances, plus user info to admin module
                         initAdminPanelModule(db, auth, storage, currentUserId, isAdmin); // Pass storage instance
+                        console.log("[Admin] initAdminPanelModule call attempted.");
+                    } else {
+                        console.log("[Admin] initAdminPanelModule is null after attempted load. Admin panel won't function.");
                     }
                 } else {
+                    console.log(`[Admin] User is NOT admin (currentUserId: ${currentUserId}). Hiding admin panel button.`);
                     adminPanelButton.style.display = "none";
                 }
                 
                 robloxUsernameInput.style.display = "block"; 
                 
+                console.log("[Cart] Loading cart from Firestore...");
                 await loadCartFromFirestore(currentUserId); 
+                console.log("[Cart] Syncing cart on login...");
                 await syncCartOnLogin(currentUserId); 
-                loadOrdersFromFirestore(currentUserId); // Load orders for authenticated user
+                
+                console.log("[Orders] Setting up user order history listener...");
+                setupUserOrderHistoryListener(currentUserId); // Load orders for authenticated user
 
             } else {
+                console.log("[Auth] User is logged out. Resetting UI elements.");
                 currentUserId = null; 
                 isAdmin = false; 
 
@@ -274,12 +299,17 @@
                 
                 robloxUsernameInput.style.display = "none"; 
 
+                console.log("[Cart] Loading cart from Local Storage (user logged out)...");
                 cart = loadCartFromLocalStorage(); 
+                // userOrders = []; // User orders handled by listener cleanup now
+                // allProducts = []; // Products are always rendered via setupProductsListener
+                // allOrders = []; // Admin orders handled by admin cleanup now
             }
             authEmailInput.value = "";
             authPasswordInput.value = "";
             authMessage.textContent = "";
             authMessage.style.color = 'red'; 
+            console.log("[UI] Rendering cart...");
             renderCart(); 
             // Products are always rendered via the setupProductsListener called globally.
         });
@@ -301,22 +331,24 @@
             }
             const sellerStatusDocRef = doc(db, SETTINGS_COLLECTION_PATH, 'sellerStatus');
             unsubscribeSellerStatus = onSnapshot(sellerStatusDocRef, (docSnap) => {
+                console.log("[Seller Status] Listener triggered.");
                 if (docSnap.exists()) {
                     const statusData = docSnap.data();
                     const isOnline = statusData.isOnline;
                     sellerStatusDisplay.textContent = isOnline ? 'Online' : 'Offline';
                     sellerStatusDisplay.classList.toggle('online', isOnline);
                     sellerStatusDisplay.classList.toggle('offline', !isOnline);
+                    console.log(`[Seller Status] Status: ${isOnline ? 'Online' : 'Offline'}`);
                 } else {
-                    // Default to offline if document doesn't exist
                     sellerStatusDisplay.textContent = 'Offline';
                     sellerStatusDisplay.classList.remove('online');
                     sellerStatusDisplay.classList.add('offline');
-                    // Optionally, create the default status document if it's missing
-                    setDoc(sellerStatusDocRef, { isOnline: false }, { merge: true }).catch(e => console.error("Error creating default seller status:", e));
+                    console.log("[Seller Status] Document does not exist. Defaulting to Offline. Attempting to create default.");
+                    // Create the default status document if it's missing (should only happen once)
+                    setDoc(sellerStatusDocRef, { isOnline: false }, { merge: true }).catch(e => console.error("[Seller Status] Error creating default seller status:", e));
                 }
             }, (error) => {
-                console.error("Error listening to seller status:", error);
+                console.error("[Seller Status] Error listening to seller status:", error);
             });
         }
         // Call this listener immediately when script loads to display initial status
@@ -330,16 +362,18 @@
             }
             const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
             unsubscribeProducts = onSnapshot(productsColRef, (snapshot) => { 
+                console.log("[Products] Products listener triggered. Fetching products...");
                 const fetchedProducts = [];
                 snapshot.forEach(doc => {
                     fetchedProducts.push({ id: doc.id, ...doc.data() });
                 });
                 allProducts = fetchedProducts; 
+                console.log(`[Products] Fetched ${allProducts.length} products.`);
                 renderProducts(allProducts); 
                 // Re-render cart on product changes to update prices
                 renderCart();
             }, (error) => {
-                console.error("Error listening to products:", error);
+                console.error("[Products] Error listening to products:", error);
             });
         }
 
@@ -351,9 +385,9 @@
             try {
                 const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
                 await setDoc(userCartRef, { items: JSON.stringify(cartData) }); 
-                console.log("Cart saved to Firestore for user:", userId);
+                console.log("[Cart] Cart saved to Firestore for user:", userId);
             } catch (e) {
-                console.error("Error saving cart to Firestore:", e);
+                console.error("[Cart] Error saving cart to Firestore:", e);
             }
         }
 
@@ -364,34 +398,39 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     cart = JSON.parse(data.items || '[]'); 
-                    console.log("Cart loaded from Firestore for user:", userId, cart);
+                    console.log("[Cart] Cart loaded from Firestore for user:", userId, cart);
                 } else {
                     cart = []; 
-                    console.log("No cart found in Firestore for user:", userId);
+                    console.log("[Cart] No cart found in Firestore for user:", userId);
                 }
             } catch (e) {
-                console.error("Error loading cart from Firestore:", e);
+                console.error("[Cart] Error loading cart from Firestore:", e);
                 cart = []; 
             }
         }
 
         function saveCartToLocalStorage(cartData) {
             localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
+            console.log("[Cart] Cart saved to Local Storage.");
         }
 
         function loadCartFromLocalStorage() {
             const storedCart = localStorage.getItem('tempestStoreCart');
-            return storedCart ? JSON.parse(storedCart) : [];
+            const loadedCart = storedCart ? JSON.parse(storedCart) : [];
+            console.log("[Cart] Cart loaded from Local Storage:", loadedCart);
+            return loadedCart;
         }
 
         async function syncCartOnLogin(userId) {
             const localCart = loadCartFromLocalStorage();
             if (localCart.length > 0) {
+                console.log("[Cart] Local cart found. Syncing with Firestore...");
                 const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
                 const docSnap = await getDoc(userCartRef);
                 let firestoreCart = [];
                 if (docSnap.exists()) {
                     firestoreCart = JSON.parse(docSnap.data().items || '[]');
+                    console.log("[Cart] Existing Firestore cart found:", firestoreCart);
                 }
 
                 localCart.forEach(localItem => {
@@ -406,6 +445,7 @@
                             firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
                         } else {
                             // Fallback if product not found (e.g., deleted by admin)
+                            console.warn(`[Cart] Product ${localItem.name} (ID: ${localItem.id}) not found in allProducts during sync. Adding with existing price.`);
                             firestoreCart.push(localItem);
                         }
                     }
@@ -413,7 +453,10 @@
                 cart = firestoreCart; 
                 await saveCartToFirestore(userId, cart); 
                 localStorage.removeItem('tempestStoreCart'); 
+                console.log("[Cart] Local cart cleared after sync.");
                 renderCart(); 
+            } else {
+                console.log("[Cart] No local cart found to sync.");
             }
         }
 
@@ -430,13 +473,14 @@
             }
             saveCart(); 
             renderCart(); 
-            console.log("Cart contents:", cart);
+            console.log("[Cart] Added to cart:", product.name, "Current cart:", cart);
         }
 
         function removeFromCart(productId) {
             cart = cart.filter(item => item.id !== productId);
             saveCart(); 
             renderCart(); 
+            console.log("[Cart] Removed from cart:", productId, "Current cart:", cart);
         }
 
         function updateCartQuantity(productId, newQuantity) {
@@ -445,6 +489,7 @@
                 item.quantity = Math.max(1, newQuantity); 
                 saveCart(); 
                 renderCart(); 
+                console.log("[Cart] Updated quantity for", productId, "to", newQuantity);
             }
         }
 
@@ -468,6 +513,7 @@
             // Check if cart is empty OR if user is logged in and Roblox username is empty
             const isRobloxUsernameMissing = currentUserId && robloxUsernameInput.value.trim() === '';
             placeOrderBtn.disabled = totalItems === 0 || isRobloxUsernameMissing;
+            console.log(`[Cart UI] Cart badge updated: ${totalItems} items, Place Order button state: ${placeOrderBtn.disabled ? 'disabled' : 'enabled'}`);
         }
 
         function renderCart() {
@@ -486,6 +532,7 @@
                         item.effectivePrice = priceToDisplay; 
                     } else {
                         // Fallback if product is no longer found (e.g., deleted by admin)
+                        console.warn(`[Cart UI] Product ${item.name} (ID: ${item.id}) not found in allProducts during render. Displaying existing effectivePrice.`);
                         priceToDisplay = item.effectivePrice || item.price;
                     }
 
@@ -535,6 +582,7 @@
             calculateCartTotals(); 
             updateCartCountBadge(); 
             displayPaymentQrCode(); // Ensure QR code is updated when cart renders
+            console.log("[Cart UI] Cart items rendered.");
         }
 
         function calculateCartTotals() {
@@ -552,6 +600,7 @@
 
             cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
             cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
+            console.log(`[Cart Totals] Subtotal: ₱${subtotal.toFixed(2)}, Total: ₱${total.toFixed(2)}`);
 
             return { subtotal, total, totalItemsInCart }; 
         }
@@ -572,15 +621,18 @@
                 paymentQrImage.src = '';
                 paymentQrMessage.style.display = 'block';
             }
+            console.log("[Cart Modal] Opened cart modal.");
         });
 
         closeCartModalBtn.addEventListener('click', () => {
             cartModal.classList.remove('show');
+            console.log("[Cart Modal] Closed cart modal.");
         });
 
         cartModal.addEventListener('click', (event) => {
             if (event.target === cartModal) {
                 cartModal.classList.remove('show');
+                console.log("[Cart Modal] Closed cart modal by clicking outside.");
             }
         });
 
@@ -590,6 +642,7 @@
         paymentMethodRadios.forEach(radio => {
             radio.addEventListener('change', (event) => {
                 displayPaymentQrCode(event.target.value);
+                console.log("[Payment] Payment method changed to:", event.target.value);
             });
         });
 
@@ -599,19 +652,23 @@
                 paymentQrImage.src = imageUrl;
                 paymentQrImage.style.display = 'block';
                 paymentQrMessage.style.display = 'none';
+                console.log("[Payment] Displaying QR for:", method);
             } else {
                 paymentQrImage.style.display = 'none';
                 paymentQrImage.src = '';
                 paymentQrMessage.style.display = 'block';
                 paymentQrMessage.textContent = 'Image not available for this payment method.';
+                console.warn("[Payment] No QR image URL found for:", method);
             }
         }
 
 
         // Handles the process of placing an order.
         placeOrderBtn.addEventListener('click', async () => {
+            console.log("[Order] Place order button clicked.");
             if (cart.length === 0) {
                 alert("Your cart is empty. Please add items before placing an order.");
+                console.log("[Order] Cart is empty. Order not placed.");
                 return;
             }
 
@@ -626,12 +683,14 @@
                     authEmailInput.value = ""; 
                     authPasswordInput.value = ""; 
                     placeOrderBtn.disabled = false; 
+                    console.log("[Order] User not logged in. Prompting for login/registration.");
                     return; 
                 }
                 
                 if (robloxUsername === '') {
                     alert("Please enter your Roblox Username to proceed with the order.");
                     placeOrderBtn.disabled = false; 
+                    console.log("[Order] Roblox username is empty. Order not placed.");
                     return; 
                 }
 
@@ -650,7 +709,7 @@
                     robloxUsername: robloxUsername 
                 };
 
-                console.log("Placing Order:", orderDetails);
+                console.log("[Order] Attempting to place order with details:", orderDetails);
 
                 const batch = writeBatch(db); // Start a new batch for atomic updates
 
@@ -658,10 +717,12 @@
                 const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
                 const userOrderDocRef = doc(userOrdersColRef); // Create a new doc ref with auto-generated ID
                 batch.set(userOrderDocRef, orderDetails);
+                console.log("[Order] Batch: Adding order to user's collection.");
 
                 // 2. Add order to central 'allOrders' collection
                 const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
                 batch.set(doc(allOrdersColRef, userOrderDocRef.id), orderDetails); // Use same ID
+                console.log("[Order] Batch: Adding order to allOrders collection.");
 
                 // 3. Deduct stock for each item in the cart
                 for (const item of cart) {
@@ -672,9 +733,10 @@
                         batch.update(productRef, {
                             stock: currentProduct.stock - item.quantity
                         });
+                        console.log(`[Order] Batch: Deducting ${item.quantity} from stock for product ${item.name}.`);
                     } else {
                         // This case should ideally be prevented by UI checks
-                        console.warn(`Product ${item.name} (ID: ${item.id}) is out of stock or insufficient quantity for order.`);
+                        console.warn(`[Order] Product ${item.name} (ID: ${item.id}) is out of stock or insufficient quantity for order. Stock: ${currentProduct ? currentProduct.stock : 'N/A'}`);
                         alert(`Not enough stock for ${item.name}. Please adjust your cart.`);
                         placeOrderBtn.disabled = false;
                         return; // Stop the order process
@@ -682,6 +744,7 @@
                 }
 
                 await batch.commit(); // Commit all batch operations atomically
+                console.log("[Order] Batch commit successful!");
 
                 alert("Successfully Placed Order!"); 
                 console.log("Order saved and stock deducted in Firestore!");
@@ -693,10 +756,11 @@
                 robloxUsernameInput.value = ''; 
 
             } catch (e) {
-                console.error("Error placing order to Firestore or deducting stock:", e);
+                console.error("[Order] Error placing order to Firestore or deducting stock:", e);
                 alert("There was an error placing your order. Please try again.");
             } finally {
                 placeOrderBtn.disabled = false; 
+                console.log("[Order] Place Order button enabled.");
             }
         });
 
@@ -705,9 +769,11 @@
         function renderProducts(items) {
             const list = document.getElementById("product-list");
             list.innerHTML = ""; 
+            console.log("[Product UI] Rendering products. Total items to render:", items.length);
 
             if (items.length === 0) {
                  list.innerHTML = '<p class="empty-message" style="width: 100%;">No products available. Please add some from the Admin Panel!</p>';
+                 console.log("[Product UI] No products to render. Displaying empty message.");
                  return;
             }
 
@@ -746,6 +812,7 @@
                     }
                 });
             });
+            console.log("[Product UI] Products rendered successfully.");
         }
 
         // Global functions for filters, called directly from HTML onclick/oninput
@@ -756,6 +823,7 @@
                 btn.classList.toggle("active", btn.dataset.cat === category);
             });
             window.applyFilters(); 
+            console.log("[Filter] Category filter set to:", category);
         }
 
         window.applyFilters = function() {
@@ -766,112 +834,135 @@
                 return matchesCategory && matchesSearch;
             });
             renderProducts(filtered); 
+            console.log(`[Filter] Applied filters. Search query: "${query}", Category: "${window.currentCategory}". Found ${filtered.length} products.`);
         }
         window.currentCategory = "all"; // Initialize global currentCategory
 
         // --- Order History Functions (Customer Side) ---
         myOrdersButton.addEventListener('click', () => {
+            console.log("[My Orders] My Orders button clicked.");
             if (!currentUserId) {
                 alert("Please log in to view your orders.");
+                console.log("[My Orders] User not logged in. Cannot view orders.");
                 return;
             }
             orderHistoryModal.classList.add('show');
-            loadOrdersFromFirestore(currentUserId);
+            // Listener is already setup in onAuthStateChanged, just need to ensure render
+            // loadOrdersFromFirestore(currentUserId); // This is now handled by the onSnapshot listener
+            console.log("[My Orders] Showing order history modal.");
         });
 
         closeOrderHistoryModalBtn.addEventListener('click', () => {
             orderHistoryModal.classList.remove('show');
+            console.log("[My Orders] Closed order history modal.");
         });
 
         orderHistoryModal.addEventListener('click', (event) => {
             if (event.target === orderHistoryModal) {
                 orderHistoryModal.classList.remove('show');
+                console.log("[My Orders] Closed order history modal by clicking outside.");
             }
         });
 
         backToOrderListBtn.addEventListener('click', () => {
             orderHistoryList.style.display = 'block';
             orderDetailsView.style.display = 'none';
+            console.log("[My Orders] Back to order list view.");
         });
 
-        async function loadOrdersFromFirestore(userId) {
-            orderHistoryList.innerHTML = '';
+        // Sets up a real-time listener for a specific user's order history in Firestore.
+        // This function will be called once onAuthStateChanged.
+        function setupUserOrderHistoryListener(userId) {
+            if (unsubscribeUserOrders) {
+                unsubscribeUserOrders(); // Unsubscribe from previous listener if it exists
+                console.log("[Orders] Existing user orders listener unsubscribed.");
+            }
             const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
             const q = query(userOrdersColRef, orderBy("orderDate", "desc")); // Order by most recent
 
-            try {
-                const querySnapshot = await getDocs(q);
-                if (querySnapshot.empty) {
-                    orderHistoryList.innerHTML = '<p class="empty-message">You have no past orders.</p>';
-                } else {
-                    querySnapshot.forEach(docSnap => {
-                        const order = { id: docSnap.id, ...docSnap.data() };
-                        const orderDate = new Date(order.orderDate).toLocaleDateString();
-                        const orderDiv = document.createElement('div');
-                        orderDiv.className = 'order-summary-item';
-                        orderDiv.innerHTML = `
+            unsubscribeUserOrders = onSnapshot(q, (snapshot) => {
+                console.log("[Orders] User orders listener triggered. Fetching user orders...");
+                const fetchedOrders = [];
+                snapshot.forEach(docSnap => {
+                    fetchedOrders.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                // userOrders is not a global variable in this script, it was local to loadOrdersFromFirestore.
+                // We will directly render here or assign to a global if it's used elsewhere for data storage.
+                // For now, let's keep it simple and just render.
+                renderUserOrdersList(fetchedOrders); // Pass fetched orders to render function
+                console.log(`[Orders] Fetched ${fetchedOrders.length} user orders.`);
+            }, (error) => {
+                console.error("[Orders] Error listening to user order history:", error);
+                orderHistoryList.innerHTML = '<p class="empty-message">Error loading your orders.</p>';
+            });
+        }
+
+        function renderUserOrdersList(ordersToRender) {
+            orderHistoryList.innerHTML = ''; // Clear existing list
+            if (ordersToRender.length === 0) {
+                orderHistoryList.innerHTML = '<p class="empty-message">You have no past orders.</p>';
+                console.log("[My Orders UI] No user orders to render. Displaying empty message.");
+                return;
+            }
+
+            ordersToRender.forEach(order => {
+                const orderDate = new Date(order.orderDate).toLocaleDateString();
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-summary-item';
+                orderDiv.innerHTML = `
                             <p><strong>Order ID:</strong> ${order.id.substring(0, 8)}...</p>
                             <p><strong>Date:</strong> ${orderDate}</p>
                             <p><strong>Total:</strong> ₱${order.total.toFixed(2)}</p>
                             <p><strong>Status:</strong> <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span></p>
                             <button class="view-order-details" data-order-id="${order.id}">View Details</button>
                         `;
-                        orderHistoryList.appendChild(orderDiv);
-                    });
+                orderHistoryList.appendChild(orderDiv);
+            });
 
-                    // Add event listeners for "View Details" buttons
-                    orderHistoryList.querySelectorAll('.view-order-details').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const orderId = e.target.dataset.orderId;
-                            showOrderDetails(orderId);
-                        });
-                    });
-                }
-            } catch (e) {
-                console.error("Error loading orders:", e);
-                orderHistoryList.innerHTML = '<p class="empty-message">Error loading your orders.</p>';
-            }
+            // Add event listeners for "View Details" buttons
+            orderHistoryList.querySelectorAll('.view-order-details').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const orderId = e.target.dataset.orderId;
+                    // Find the order from the currently rendered list
+                    const selectedOrder = ordersToRender.find(order => order.id === orderId);
+                    if (selectedOrder) {
+                        showOrderDetails(selectedOrder);
+                    }
+                });
+            });
+            console.log("[My Orders UI] User orders list rendered.");
         }
 
-        async function showOrderDetails(orderId) {
-            const orderRef = doc(db, USER_ORDERS_COLLECTION_PATH(currentUserId), orderId);
-            try {
-                const docSnap = await getDoc(orderRef);
-                if (docSnap.exists()) {
-                    const order = { id: docSnap.id, ...docSnap.data() };
-                    orderHistoryList.style.display = 'none';
-                    orderDetailsView.style.display = 'block';
 
-                    detailOrderId.textContent = order.id;
-                    detailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
-                    detailOrderStatus.textContent = order.status;
-                    detailOrderStatus.className = `order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`; // Apply status class
-                    detailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
-                    detailPaymentMethod.textContent = order.paymentMethod;
-                    detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
+        async function showOrderDetails(order) { // This function now takes the order object directly
+            console.log("[My Orders] Showing details for order ID:", order.id);
+            orderHistoryList.style.display = 'none';
+            orderDetailsView.style.display = 'block';
 
-                    detailItemsList.innerHTML = '';
-                    if (order.items && order.items.length > 0) {
-                        order.items.forEach(item => {
-                            const itemDiv = document.createElement('div');
-                            itemDiv.className = 'order-detail-item';
-                            itemDiv.innerHTML = `
+            detailOrderId.textContent = order.id;
+            detailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
+            detailOrderStatus.textContent = order.status;
+            detailOrderStatus.className = `order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`; // Apply status class
+            detailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
+            detailPaymentMethod.textContent = order.paymentMethod;
+            detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
+
+            detailItemsList.innerHTML = '';
+            if (order.items && order.items.length > 0) {
+                order.items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'order-detail-item';
+                    itemDiv.innerHTML = `
                                 <span>${item.name}</span>
                                 <span>Qty: ${item.quantity}</span>
                                 <span>${item.effectivePrice || item.price}</span>
                             `;
-                            detailItemsList.appendChild(itemDiv);
-                        });
-                    } else {
-                        detailItemsList.innerHTML = '<p>No items found for this order.</p>';
-                    }
-                } else {
-                    alert("Order not found.");
-                }
-            } catch (e) {
-                console.error("Error fetching order details:", e);
-                alert("Error fetching order details: " + e.message);
+                    detailItemsList.appendChild(itemDiv);
+                });
+            } else {
+                detailItemsList.innerHTML = '<p>No items found for this order.</p>';
             }
+            console.log("[My Orders] Order details populated for order ID:", order.id);
         }
 
 
@@ -883,4 +974,6 @@
             if (checkedPaymentMethod) {
                 displayPaymentQrCode(checkedPaymentMethod.value);
             }
+            console.log("[Init] DOM Content Loaded. Initial UI setup complete.");
         });
+
