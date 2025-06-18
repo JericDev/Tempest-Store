@@ -29,7 +29,6 @@
         let cart = []; // Global cart array
         let userOrders = []; // Global array to store user's orders (for user history)
         let allProducts = []; // Global array to store all products from Firestore
-        let currentCategory = "all";
 
         // Global variables to store unsubscribe functions for real-time listeners
         let unsubscribeUserOrders = null;
@@ -292,19 +291,19 @@
         // --- Product Display (Accessible to all) ---
         function setupProductsListener() {
             const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-             return onSnapshot(productsColRef, (snapshot) => { 
-              const fetchedProducts = [];
+            return onSnapshot(productsColRef, (snapshot) => { 
+                const fetchedProducts = [];
                 snapshot.forEach(doc => {
                     fetchedProducts.push({ id: doc.id, ...doc.data() });
                 });
                 allProducts = fetchedProducts; 
-                applyFilters(); // ✅ this filters and renders properly
-                renderCart();   // ✅ still fine to keep
+                renderProducts(allProducts); 
+                // Re-render cart on product changes to update prices
+                renderCart();
             }, (error) => {
                 console.error("Error listening to products:", error);
             });
         }
-
 
 
         // Call setupProductsListener once when the script loads to always show products
