@@ -266,6 +266,10 @@ header .logo strong {
     margin-bottom: 20px;
     font-size: 1.1em;
     color: #333;
+    /* Added for robustness */
+    display: block;
+    word-wrap: break-word; /* Ensures long words wrap */
+    white-space: normal; /* Ensures text wraps normally */
 }
 
 #custom-message-box-ok-btn,
@@ -1001,6 +1005,7 @@ main#product-list {
     justify-content: space-between;
     padding: 8px 0;
     border-bottom: 1px dashed #eee;
+    font-size: 0.95em;
 }
 
 .admin-order-detail-item:last-child {
