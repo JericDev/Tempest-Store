@@ -81,7 +81,7 @@
         const closeCartModalBtn = document.getElementById("close-cart-modal");
         const cartItemsContainer = document.getElementById("cart-items-container");
         const cartSubtotalSpan = document.getElementById("cart-subtotal");
-        const cartTotalSpan = document.getElementById("cart-total"); 
+        const cartTotalSpan = document = document.getElementById("cart-total"); 
         const placeOrderBtn = document.getElementById("place-order-btn");
         const robloxUsernameInput = document.getElementById("roblox-username-input");
         const paymentMethodRadios = document.querySelectorAll('input[name="payment-method"]'); // Get all payment radio buttons
@@ -247,6 +247,13 @@
                 if (isAdmin) {
                     console.log("[Admin] User is admin. Setting admin panel button to 'inline-block'.");
                     adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
+                    // NEW: Log the computed style of the button
+                    if (adminPanelButton) {
+                        console.log("[Admin] Admin Panel Button computed display style:", window.getComputedStyle(adminPanelButton).display);
+                    } else {
+                        console.warn("[Admin] Admin Panel Button element not found in DOM.");
+                    }
+
                     // Dynamically import and initialize admin module
                     if (!initAdminPanelModule) {
                         console.log("[Admin] admin.js module not yet loaded. Attempting dynamic import...");
@@ -976,4 +983,3 @@
             }
             console.log("[Init] DOM Content Loaded. Initial UI setup complete.");
         });
-
