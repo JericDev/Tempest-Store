@@ -290,20 +290,21 @@
 
         // --- Product Display (Accessible to all) ---
         function setupProductsListener() {
-            const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-            return onSnapshot(productsColRef, (snapshot) => { 
-                const fetchedProducts = [];
-                snapshot.forEach(doc => {
-                    fetchedProducts.push({ id: doc.id, ...doc.data() });
-                });
-                allProducts = fetchedProducts; 
-                renderProducts(allProducts); 
-                // Re-render cart on product changes to update prices
-                renderCart();
-            }, (error) => {
-                console.error("Error listening to products:", error);
-            });
-        }
+    const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
+    return onSnapshot(productsColRef, (snapshot) => { 
+        const fetchedProducts = [];
+        snapshot.forEach(doc => {
+            fetchedProducts.push({ id: doc.id, ...doc.data() });
+        });
+
+        allProducts = fetchedProducts;
+        applyFilters();  // <-- This replaces renderProducts
+        renderCart();    // <-- Keeps cart in sync with stock/price
+    }, (error) => {
+        console.error("Error listening to products:", error);
+    });
+}
+
 
 
         // Call setupProductsListener once when the script loads to always show products
