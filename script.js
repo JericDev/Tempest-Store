@@ -29,7 +29,6 @@
         let cart = []; // Global cart array
         let userOrders = []; // Global array to store user's orders (for user history)
         let allProducts = []; // Global array to store all products from Firestore
-        let currentCategory = "all";
 
         // Global variables to store unsubscribe functions for real-time listeners
         let unsubscribeUserOrders = null;
@@ -291,21 +290,20 @@
 
         // --- Product Display (Accessible to all) ---
         function setupProductsListener() {
-    const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-    return onSnapshot(productsColRef, (snapshot) => { 
-        const fetchedProducts = [];
-        snapshot.forEach(doc => {
-            fetchedProducts.push({ id: doc.id, ...doc.data() });
-        });
-
-        allProducts = fetchedProducts;
-        applyFilters();  // <-- This replaces renderProducts
-        renderCart();    // <-- Keeps cart in sync with stock/price
-    }, (error) => {
-        console.error("Error listening to products:", error);
-    });
-}
-
+            const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
+            return onSnapshot(productsColRef, (snapshot) => { 
+                const fetchedProducts = [];
+                snapshot.forEach(doc => {
+                    fetchedProducts.push({ id: doc.id, ...doc.data() });
+                });
+                allProducts = fetchedProducts; 
+                renderProducts(allProducts); 
+                // Re-render cart on product changes to update prices
+                renderCart();
+            }, (error) => {
+                console.error("Error listening to products:", error);
+            });
+        }
 
 
         // Call setupProductsListener once when the script loads to always show products
@@ -765,35 +763,27 @@
             });
         }
 
-let currentCategory = "all"; // 🔑 Make sure this is defined globally
+        function setFilter(category) {
+            currentCategory = category;
 
-function setFilter(category) {
-    currentCategory = category;
+            document.querySelectorAll(".filters button").forEach(btn => {
+                btn.classList.toggle("active", btn.dataset.cat === category);
+            });
 
-    document.querySelectorAll(".filters button").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.cat === category);
-    });
+            applyFilters(); 
+        }
 
-    applyFilters(); // Apply both category + search
-}
+        function applyFilters() {
+            const query = document.getElementById("searchBox").value.toLowerCase();
 
-function applyFilters() {
-    const query = document.getElementById("searchBox").value.toLowerCase().trim();
+            const filtered = allProducts.filter(product => { 
+                const matchesCategory = currentCategory === "all" || product.category === currentCategory;
+                const matchesSearch = product.name.toLowerCase().includes(query);
+                return matchesCategory && matchesSearch;
+            });
 
-    const filtered = allProducts.filter(product => {
-        const matchesCategory =
-            currentCategory === "all" || product.category?.toLowerCase() === currentCategory;
-
-        const matchesSearch =
-            product.name?.toLowerCase().includes(query);
-
-        return matchesCategory && matchesSearch;
-    });
-
-    renderProducts(filtered);
-}
-
-
+            renderProducts(filtered); 
+        }
 
         window.addEventListener("DOMContentLoaded", () => {
     updateCartCountBadge(); 
