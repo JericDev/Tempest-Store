@@ -789,12 +789,28 @@ function setupProductsListener() {
             applyFilters(); // Ensures filtering happens after data is loaded 
         }
 
-        window.addEventListener("DOMContentLoaded", () => {
-    updateCartCountBadge(); 
-    // Initial product rendering is now handled by setupProductsListener
-    // Initial auth state check is handled by onAuthStateChanged
+       window.addEventListener("DOMContentLoaded", () => {
+    updateCartCountBadge();
 
-    // ✅ Payment method preview image change
+    const searchBox = document.getElementById("searchBox");
+    if (searchBox) {
+        searchBox.addEventListener("input", applyFilters);
+    }
+
+    document.querySelectorAll(".filters button").forEach(button => {
+        button.addEventListener("click", (e) => {
+            const category = e.target.dataset.cat;
+            if (category) {
+                setFilter(category);
+                applyFilters();
+            }
+        });
+    });
+
+    setFilter("all");
+    applyFilters();
+
+    // Payment method preview image change
     document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
