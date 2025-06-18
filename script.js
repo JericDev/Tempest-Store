@@ -765,27 +765,34 @@
             });
         }
 
-        function setFilter(category) {
+let currentCategory = "all"; // 🔑 Make sure this is defined globally
+
+function setFilter(category) {
     currentCategory = category;
 
     document.querySelectorAll(".filters button").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.cat === category);
     });
 
-    applyFilters();  // Apply category + search
+    applyFilters(); // Apply both category + search
 }
 
 function applyFilters() {
-    const query = document.getElementById("searchBox").value.toLowerCase();
+    const query = document.getElementById("searchBox").value.toLowerCase().trim();
 
     const filtered = allProducts.filter(product => {
-        const matchesCategory = currentCategory === "all" || product.category === currentCategory;
-        const matchesSearch = product.name.toLowerCase().includes(query);
+        const matchesCategory =
+            currentCategory === "all" || product.category?.toLowerCase() === currentCategory;
+
+        const matchesSearch =
+            product.name?.toLowerCase().includes(query);
+
         return matchesCategory && matchesSearch;
     });
 
     renderProducts(filtered);
 }
+
 
 
         window.addEventListener("DOMContentLoaded", () => {
