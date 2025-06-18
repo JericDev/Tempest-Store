@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-const adminUID = "thisLigBezoWV9eVo8lglsijoWinKmA2";
+const adminUID = "LigBezoWV9eVo8lglsijoWinKmA2";
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
