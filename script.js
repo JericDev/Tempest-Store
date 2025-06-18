@@ -762,106 +762,32 @@
             });
         }
 
-let currentCategory = "all";
-let allProducts = [];
+        function setFilter(category) {
+            currentCategory = category;
 
-// Set category filter when a button is clicked
-function setFilter(category) {
-    currentCategory = category;
+            document.querySelectorAll(".filters button").forEach(btn => {
+                btn.classList.toggle("active", btn.dataset.cat === category);
+            });
 
-    document.querySelectorAll(".filters button").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.cat === category);
-    });
+            applyFilters(); 
+        }
 
-    applyFilters();
-}
+        function applyFilters() {
+            const query = document.getElementById("searchBox").value.toLowerCase();
 
-// Apply both category and search filters
-function applyFilters() {
-    const query = document.getElementById("searchBox").value.toLowerCase();
+            const filtered = allProducts.filter(product => { 
+                const matchesCategory = currentCategory === "all" || product.category === currentCategory;
+                const matchesSearch = product.name.toLowerCase().includes(query);
+                return matchesCategory && matchesSearch;
+            });
 
-    const filtered = allProducts.filter(product => {
-        const matchesCategory = currentCategory === "all" || product.category === currentCategory;
-        const matchesSearch = product.name.toLowerCase().includes(query);
-        return matchesCategory && matchesSearch;
-    });
+            renderProducts(filtered); 
+        }
 
-    renderProducts(filtered);
-}
-
-// Render filtered product list to HTML
-function renderProducts(products) {
-    const container = document.getElementById("product-list");
-    container.innerHTML = "";
-
-    if (!products.length) {
-        container.innerHTML = `<p class="empty-message">No products found.</p>`;
-        return;
-    }
-
-    products.forEach(product => {
-        const card = document.createElement("div");
-        card.className = "card";
-        if (!product.stock) card.classList.add("out-of-stock");
-
-        const badgeHTML = product.new
-            ? `<div class="badge">New</div>`
-            : product.sale
-            ? `<div class="badge sale">Sale</div>`
-            : "";
-
-        card.innerHTML = `
-            ${badgeHTML}
-            <img src="${product.image}" alt="${product.name}">
-            <h3>${product.name}</h3>
-            <div class="price">${product.price}</div>
-            <div class="stock-info ${product.stock ? 'in-stock' : 'out-of-stock-text'}">
-                ${product.stock ? 'In Stock' : 'Out of Stock'}
-            </div>
-            <button class="add-to-cart-btn" ${!product.stock ? "disabled" : ""}>Add to Cart</button>
-        `;
-
-        container.appendChild(card);
-    });
-}
-
-// Update the cart icon count badge (example implementation)
-function updateCartCountBadge() {
-    const badge = document.querySelector(".cart-count-badge");
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    if (badge) badge.textContent = cart.length;
-}
-
-// Setup product data listener (if using Firebase)
-function setupProductsListener() {
-    const appId = "tempest-store-app";
-    const db = firebase.firestore();
-    db.collection(`artifacts/${appId}/products`).onSnapshot(snapshot => {
-        const products = [];
-        snapshot.forEach(doc => {
-            products.push({ id: doc.id, ...doc.data() });
+        // Event listener for when the DOM content is fully loaded.
+        window.addEventListener("DOMContentLoaded", () => {
+            updateCartCountBadge(); 
+            // Initial product rendering is now handled by setupProductsListener
+            // Initial auth state check is handled by onAuthStateChanged
         });
-        allProducts = products;
-        applyFilters(); // re-render on update
-    });
-}
 
-// Firebase auth state change
-firebase.auth().onAuthStateChanged(user => {
-    updateCartCountBadge();
-    setupProductsListener(); // load products once logged in
-});
-
-// DOM ready: setup search and default filter
-document.addEventListener("DOMContentLoaded", () => {
-    const searchBox = document.getElementById("searchBox");
-    if (searchBox) {
-        searchBox.addEventListener("input", applyFilters);
-    }
-
-    setFilter("all"); // default filter
-});
-
-// ✅ Expose to global scope for onclick support in HTML
-window.setFilter = setFilter;
-window.applyFilters = applyFilters;
