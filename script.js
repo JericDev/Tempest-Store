@@ -1,38 +1,43 @@
-// script.js
-// This script handles core store functionalities: Firebase authentication, product display,
-// cart management, order placement, and user order history. It also dynamically
-// loads the admin.js module when an admin user logs in.
-
-// Import necessary Firebase SDK functions (Modular v9+)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
 
-// Your web app's Firebase configuration
-// IMPORTANT: Ensure this configuration matches your Firebase project's config.
 const firebaseConfig = {
   apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
   authDomain: "store-7b9bd.firebaseapp.com",
   projectId: "store-7b9bd",
-  storageBucket: "store-7b9bd.firebaseapp.com", // Ensure this matches your Storage Bucket URL
+  storageBucket: "store-7b9bd.firebasestorage.app",
   messagingSenderId: "1015427798898",
   appId: "1:1015427798898:web:a15c71636506fac128afeb",
   measurementId: "G-NR4JS3FLWG"
 };
 
-// Initialize Firebase services
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Global state variables
-let currentUserId = null; // Stores the UID of the currently authenticated user
-let isAdmin = false;      // Flag to indicate if the current user is an admin
-// ADMIN_UID: Replace with the actual UID of your admin user from Firebase Authentication.
-// You can find your UID in the Firebase Console -> Authentication -> Users tab.
-const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // **IMPORTANT: VERIFY THIS UID!**
+const adminUID = "thisLigBezoWV9eVo8lglsijoWinKmA2";
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    console.log("Logged in as:", user.uid);
+    
+    // Normal user initialization
+    initUserFeatures(user); // <- your regular user logic here
+
+    // If admin, load admin.js
+    if (user.uid === adminUID) {
+      const { initAdminPanel } = await import("./admin.js");
+      initAdminPanel(db, auth, storage, user.uid, true);
+      document.getElementById("admin-panel-button").style.display = "inline-block";
+    }
+  } else {
+    console.log("Not logged in");
+    // Redirect to login or show guest view
+  }
+});
 
 let cart = [];          // Global array to hold items in the user's shopping cart
 window.allProducts = [];   // Global array to hold all products fetched from Firestore. Made global for admin.js access.
