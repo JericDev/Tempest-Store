@@ -88,6 +88,7 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
 
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton) {
+        // Remove previous listener to prevent duplicates if initAdminPanel is called multiple times
         if (adminPanelButton._adminListener) {
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         }
@@ -97,21 +98,18 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
                 return;
             }
             adminPanelModal.classList.add('show');
-            showAdminTab('products'); 
+            showAdminTab('products'); // Default to products tab on open
         };
         adminPanelButton.addEventListener('click', listener);
-        adminPanelButton._adminListener = listener;
+        adminPanelButton._adminListener = listener; // Store listener for removal later
     }
 
     closeAdminPanelModalBtn.addEventListener('click', () => {
         adminPanelModal.classList.remove('show');
-        // Chat-related cleanup removed
-        if (unsubscribeAdminSellerStatus) { // Unsubscribe seller status
+        if (unsubscribeAdminSellerStatus) { // Unsubscribe seller status when closing admin panel
             unsubscribeAdminSellerStatus();
             unsubscribeAdminSellerStatus = null;
         }
-        // currentAdminChatId removed
-        // adminSelectedImageFile and adminImagePreview cleanup removed
     });
 
     adminPanelModal.addEventListener('click', (event) => {
@@ -121,6 +119,7 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
     });
 
     adminTabButtons.forEach(button => {
+        // Remove previous listener to prevent duplicates
         if (button._tabListener) {
             button.removeEventListener('click', button._tabListener);
         }
@@ -129,15 +128,15 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
             showAdminTab(tab);
         };
         button.addEventListener('click', listener);
-        button._tabListener = listener;
+        button._tabListener = listener; // Store listener for removal later
     });
 
     // Remove existing listeners for product form buttons to prevent duplicates
+    // This is important if initAdminPanel is called multiple times (e.g., on auth state change)
     if (saveProductBtn._saveListener) saveProductBtn.removeEventListener('click', saveProductBtn._saveListener);
     if (cancelEditProductBtn._cancelListener) cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener);
     if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
     if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
-    // admin chat message sending listeners removed
     if (toggleSellerStatusBtn._toggleListener) toggleSellerStatusBtn.removeEventListener('click', toggleSellerStatusBtn._toggleListener);
 
 
@@ -217,40 +216,37 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
     };
     updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
 
-    // Admin Chat Message Sending listeners removed
-
-    // Admin Image Upload handling listeners removed
-
     // Seller Status Toggle Button
     toggleSellerStatusBtn._toggleListener = toggleSellerStatus;
     toggleSellerStatusBtn.addEventListener('click', toggleSellerStatusBtn._toggleListener);
 
-    // Initialize admin listeners if an admin is already logged in
+    // Initial setup of listeners if admin is already logged in
     setupAllOrdersListener();
-    // setupAdminChatListListener removed
     setupAdminSellerStatusListener(); // Start listening for seller status in admin panel
 }
 
-// Cleanup function for admin panel when user logs out
+// Cleanup function for admin panel when user logs out or admin panel modal closes
 function cleanupAdminPanel() {
+    console.log("Cleaning up admin panel listeners...");
     if (unsubscribeAllOrders) {
         unsubscribeAllOrders();
         unsubscribeAllOrders = null;
+        console.log("Unsubscribed from allOrders.");
     }
-    // unsubscribeAdminChatList and unsubscribeAdminChatMessages removed
     if (unsubscribeAdminSellerStatus) {
         unsubscribeAdminSellerStatus();
         unsubscribeAdminSellerStatus = null;
+        console.log("Unsubscribed from admin seller status.");
     }
-    // currentAdminChatId removed
-    // adminSelectedImageFile and adminImagePreview cleanup removed
-    // adminChatMessageInput cleanup removed
+    // Reset specific states if needed
+    currentEditingOrderId = null; 
 
-
+    // Remove all event listeners that were added by initAdminPanel
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton && adminPanelButton._adminListener) {
         adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         adminPanelButton._adminListener = null;
+        console.log("Removed adminPanelButton listener.");
     }
     adminTabButtons.forEach(button => {
         if (button._tabListener) {
@@ -262,13 +258,12 @@ function cleanupAdminPanel() {
     if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
-    // admin chat message sending listeners removed
-    // admin chat message input keypress listener removed
-    // admin image upload input change listener removed
     if (toggleSellerStatusBtn._toggleListener) { toggleSellerStatusBtn.removeEventListener('click', toggleSellerStatusBtn._toggleListener); toggleSellerStatusBtn._toggleListener = null; }
 
 
+    // Ensure modal is closed
     adminPanelModal.classList.remove('show');
+    console.log("Admin panel modal closed and cleaned up.");
 }
 
 
@@ -348,6 +343,7 @@ function renderAdminProducts() {
         });
 
         adminProductsList.querySelectorAll('.edit').forEach(button => {
+            // Remove previous listener to prevent duplicates
             if (button._editListener) button.removeEventListener('click', button._editListener);
             const listener = (e) => {
                 const productId = e.target.dataset.id;
@@ -357,17 +353,18 @@ function renderAdminProducts() {
                 }
             };
             button.addEventListener('click', listener);
-            button._editListener = listener;
+            button._editListener = listener; // Store listener for removal later
         });
 
         adminProductsList.querySelectorAll('.delete').forEach(button => {
+            // Remove previous listener to prevent duplicates
             if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
             const listener = (e) => {
                 const productId = e.target.dataset.id;
                 deleteProductFromFirestore(productId); 
             };
             button.addEventListener('click', listener);
-            button._deleteListener = listener;
+            button._deleteListener = listener; // Store listener for removal later
         });
     }).catch(error => {
         console.error("Error rendering admin products:", error);
@@ -413,10 +410,7 @@ function showAdminTab(tabName) {
 
     adminProductManagement.style.display = 'none';
     adminOrderManagement.style.display = 'none';
-    // adminChatManagement removed
     adminSellerStatusTab.style.display = 'none'; // Hide seller status tab
-
-    // Clean up chat listeners if switching away from chat tab (removed as chat is removed)
 
     if (tabName === 'products') {
         adminProductManagement.style.display = 'block';
@@ -426,7 +420,7 @@ function showAdminTab(tabName) {
         adminOrderManagement.style.display = 'block';
         adminOrderDetailsView.style.display = 'none'; 
         renderAdminOrders(); 
-    } else if (tabName === 'seller-status') { // New seller status tab
+    } else if (tabName === 'seller-status') { 
         adminSellerStatusTab.style.display = 'block';
         setupAdminSellerStatusListener(); // Ensure listener is active for this tab
     }
@@ -474,6 +468,7 @@ function renderAdminOrders() {
     });
 
     adminOrdersList.querySelectorAll('.view').forEach(button => {
+        // Remove previous listener to prevent duplicates
         if (button._viewListener) button.removeEventListener('click', button._viewListener);
         const listener = (e) => {
             const orderId = e.target.dataset.id;
@@ -483,7 +478,7 @@ function renderAdminOrders() {
             }
         };
         button.addEventListener('click', listener);
-        button._viewListener = listener;
+        button._viewListener = listener; // Store listener for removal later
     });
 }
 
@@ -519,8 +514,6 @@ function showAdminOrderDetails(order) {
         adminDetailItemsList.innerHTML = '<p>No items found for this order.</p>';
     }
 }
-
-// --- Chat System (Admin Side) functions removed ---
 
 // --- Seller Status Management (Admin Side) ---
 const SELLER_STATUS_DOC_PATH = doc(dbInstance, SETTINGS_COLLECTION_PATH, 'sellerStatus');
