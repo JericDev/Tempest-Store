@@ -493,27 +493,73 @@ async function updateOrderStatus() {
     }
 
     const newStatus = orderStatusSelect.value;
+    const orderDocRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
+
     try {
+        const orderSnap = await getDoc(orderDocRef);
+        if (!orderSnap.exists()) {
+            alert("Error: Order not found.");
+            console.error("[Admin Order] Order document not found for ID:", currentEditingOrderId);
+            return;
+        }
+        const oldOrderData = orderSnap.data();
+        const oldStatus = oldOrderData.status;
+
+        // Create a batch for atomic updates
+        const batch = writeBatch(dbInstance);
+
         // Update in central `allOrders` collection
-        const allOrderRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
-        await updateDoc(allOrderRef, { status: newStatus });
-        console.log(`[Admin Order] Updated status in allOrders for ${currentEditingOrderId.substring(0, 8)}... to ${newStatus}.`);
+        batch.update(orderDocRef, { status: newStatus });
+        console.log(`[Admin Order] Batch: Marking order ${currentEditingOrderId.substring(0, 8)}... status to ${newStatus} in allOrders.`);
 
         // Also update in the specific user's order collection
-        const orderToUpdate = allOrders.find(o => o.id === currentEditingOrderId);
-        if (orderToUpdate && orderToUpdate.userId) {
-            const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(orderToUpdate.userId), currentEditingOrderId);
-            await updateDoc(userOrderRef, { status: newStatus });
-            console.log(`[Admin Order] Updated status in user's order collection for ${orderToUpdate.userId.substring(0, 8)}... to ${newStatus}.`);
+        if (oldOrderData.userId) {
+            const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(oldOrderData.userId), currentEditingOrderId);
+            batch.update(userOrderRef, { status: newStatus });
+            console.log(`[Admin Order] Batch: Marking order ${currentEditingOrderId.substring(0, 8)}... status to ${newStatus} in user ${oldOrderData.userId.substring(0, 8)}... collection.`);
         } else {
             console.warn(`[Admin Order] User ID not found for order ${currentEditingOrderId.substring(0, 8)}... Skipping update in user's collection.`);
         }
 
+        // Deduct stock ONLY if status is changing TO 'Completed' and WAS NOT already 'Completed'
+        if (newStatus === 'Completed' && oldStatus !== 'Completed') {
+            console.log(`[Admin Order] Order ${currentEditingOrderId.substring(0, 8)}... is transitioning to 'Completed'. Initiating stock deduction.`);
+            if (oldOrderData.items && oldOrderData.items.length > 0) {
+                for (const item of oldOrderData.items) {
+                    const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, item.id);
+                    // Use a transaction or get current stock for safety, but with current Firestore
+                    // listener approach, window.allProducts should be reasonably up-to-date.
+                    // For a robust system, you might fetch product doc directly here.
+                    const currentProductSnap = await getDoc(productRef); // Fetch latest product state
+                    if (currentProductSnap.exists()) {
+                        const currentProductData = currentProductSnap.data();
+                        const newStock = currentProductData.stock - item.quantity;
+                        if (newStock >= 0) {
+                            batch.update(productRef, { stock: newStock });
+                            console.log(`[Admin Order] Batch: Deducted ${item.quantity} from product ${item.name}. New stock: ${newStock}`);
+                        } else {
+                            console.warn(`[Admin Order] Attempted to deduct stock for ${item.name} (ID: ${item.id}), but would result in negative stock. Current: ${currentProductData.stock}, Deduct: ${item.quantity}.`);
+                            // This scenario implies a race condition or manual stock error.
+                            // You might want to revert the batch or handle this more aggressively.
+                            alert(`Warning: Not enough stock for ${item.name} to fulfill order ${currentEditingOrderId.substring(0,8)}... after deduction.`);
+                        }
+                    } else {
+                        console.warn(`[Admin Order] Product ${item.name} (ID: ${item.id}) not found for stock deduction for order ${currentEditingOrderId.substring(0,8)}...`);
+                    }
+                }
+            } else {
+                console.warn(`[Admin Order] Order ${currentEditingOrderId.substring(0, 8)}... has no items for stock deduction.`);
+            }
+        }
+
+        await batch.commit(); // Commit all batch operations atomically
         alert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
+        console.log(`[Admin Order] Order ${currentEditingOrderId.substring(0, 8)}... batch commit successful.`);
+
         adminBackToOrderListBtn.click(); // Go back to list after update
     } catch (e) {
-        console.error("[Admin Order] Error updating order status:", e);
-        alert("Error updating order status: " + e.message);
+        console.error("[Admin Order] Error updating order status or deducting stock:", e);
+        alert("Error updating order status: " + e.message + " Please check console for details.");
     }
 }
 
