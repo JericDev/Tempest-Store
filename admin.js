@@ -11,6 +11,10 @@ let authInstance = null; // Auth instance passed from script.js
 let adminUserId = null; // Admin user ID passed from script.js
 let isAdminUser = false; // Is Admin flag passed from script.js
 
+// --- Custom Message Box Functions (placeholders, will be passed from script.js) ---
+let showMessageBox = null;
+let showConfirmBox = null;
+
 // --- DOM elements for Admin Panel ---
 const adminPanelModal = document.getElementById("admin-panel-modal");
 const closeAdminPanelModalBtn = document.getElementById("close-admin-panel-modal");
@@ -59,11 +63,14 @@ const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${use
 
 
 // --- Admin Panel Functions ---
-function initAdminPanel(db, auth, userId, adminFlag) {
+// Modified to accept custom message box functions
+function initAdminPanel(db, auth, userId, adminFlag, messageBoxFunc, confirmBoxFunc) {
     dbInstance = db;
     authInstance = auth;
     adminUserId = userId;
     isAdminUser = adminFlag;
+    showMessageBox = messageBoxFunc; // Assign the custom message box function
+    showConfirmBox = confirmBoxFunc; // Assign the custom confirm box function
 
     // Attach event listener for the admin panel button
     // This button is controlled by script.js's onAuthStateChanged for visibility
@@ -73,9 +80,9 @@ function initAdminPanel(db, auth, userId, adminFlag) {
         if (adminPanelButton._adminListener) {
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         }
-        const listener = () => {
-             if (!isAdminUser) {
-                alert("You are not authorized to access the Admin Panel.");
+        const listener = async () => { // Changed to async to use await with showMessageBox
+            if (!isAdminUser) {
+                await showMessageBox("You are not authorized to access the Admin Panel.");
                 return;
             }
             adminPanelModal.classList.add('show');
@@ -141,11 +148,11 @@ function initAdminPanel(db, auth, userId, adminFlag) {
         };
 
         if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
-            alert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
+            await showMessageBox("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
             return;
         }
         if (isSale && (salePrice === null || isNaN(parseFloat(salePrice.replace('₱', ''))))) {
-            alert("Please enter a valid Sale Price if the product is On Sale.");
+            await showMessageBox("Please enter a valid Sale Price if the product is On Sale.");
             return;
         }
 
@@ -170,7 +177,7 @@ function initAdminPanel(db, auth, userId, adminFlag) {
     // --- MODIFICATION START: The entire update listener is replaced ---
     updateOrderStatusBtn._updateListener = async () => {
         if (!currentEditingOrderId || !currentEditingOrderUserId) {
-            alert("No order selected or user ID is missing. Cannot update status.");
+            await showMessageBox("No order selected or user ID is missing. Cannot update status.");
             return;
         }
 
@@ -186,12 +193,12 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             await updateDoc(allOrdersRef, { status: newStatus });
             await updateDoc(userOrderRef, { status: newStatus });
 
-            alert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
+            await showMessageBox(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
             adminBackToOrderListBtn.click(); // Return to the list view
 
         } catch (e) {
             console.error("Error updating order status in both locations:", e);
-            alert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
+            await showMessageBox("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
         }
     };
     // --- MODIFICATION END ---
@@ -235,7 +242,8 @@ function cleanupAdminPanel() {
 async function saveProductToFirestore(productData) {
     try {
         if (productData.id) {
-            if (!confirm("Are you sure you want to save changes to this product?")) {
+            const confirmed = await showConfirmBox("Are you sure you want to save changes to this product?");
+            if (!confirmed) {
                 return;
             }
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
@@ -247,24 +255,25 @@ async function saveProductToFirestore(productData) {
             console.log("Product added:", productData.name);
         }
         resetProductForm();
-        alert("Product saved successfully!");
+        await showMessageBox("Product saved successfully!");
     } catch (e) {
         console.error("Error saving product:", e);
-        alert("Error saving product: " + e.message);
+        await showMessageBox("Error saving product: " + e.message);
     }
 }
 
 // Deletes a product from Firestore.
 async function deleteProductFromFirestore(productId) {
-    if (confirm("Are you sure you want to delete this product?")) {
+    const confirmed = await showConfirmBox("Are you sure you want to delete this product?");
+    if (confirmed) {
         try {
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
             await deleteDoc(productRef);
             console.log("Product deleted:", productId);
-            alert("Product deleted successfully!");
+            await showMessageBox("Product deleted successfully!");
         } catch (e) {
             console.error("Error deleting product:", e);
-            alert("Error deleting product: " + e.message);
+            await showMessageBox("Error deleting product: " + e.message);
         }
     }
 }
@@ -280,7 +289,7 @@ function renderAdminProducts() {
         });
 
         if (fetchedProducts.length === 0) {
-            adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
+            adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found. Add products using the form above.</td></tr>';
             return;
         }
 
@@ -331,8 +340,9 @@ function renderAdminProducts() {
             button._deleteListener = listener;
         });
     }).catch(error => {
-        console.error("Error rendering admin products:", error);
-        adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">Error loading products.</td></tr>';
+        console.error("Error rendering admin products from Firestore:", error); // Improved error message
+        adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">Error loading products. Check your browser console and Firestore Security Rules.</td></tr>';
+        showMessageBox("Error loading products in Admin Panel. See console for details (e.g., Firestore Security Rules).");
     });
 }
 
@@ -402,6 +412,7 @@ function setupAllOrdersListener() {
         renderAdminOrders();
     }, (error) => {
         console.error("Error listening to all orders (admin):", error);
+        showMessageBox("Error loading orders in Admin Panel. See console for details.");
     });
 }
 
