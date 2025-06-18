@@ -4,26 +4,54 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Tempest Store</title>
-    <!-- Link to external stylesheet -->
     <link rel="stylesheet" href="style.css">
-    <!-- Font Awesome for icons (re-added as it was missing from your provided snippet but present in previous versions) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Firebase SDKs (Modular v9+) -->
+    <!-- You will load the script.js which imports the necessary modules -->
+    <style>
+        /* Basic styling for buttons that are dynamically shown/hidden */
+        #admin-panel-button, #my-orders-button, #logout-button {
+            display: none; /* Hidden by default, JavaScript will show them */
+            margin-left: 10px; /* Add some spacing */
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff; /* Example blue color */
+            color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+        }
+
+        #admin-panel-button:hover, #my-orders-button:hover, #logout-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Adjustments for header layout */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #f8f8f8;
+            border-bottom: 1px solid #eee;
+        }
+
+        .auth-section {
+            display: flex;
+            align-items: center;
+        }
+    </style>
 </head>
 <body>
     <header>
         <div class="logo">🌪️ <strong>Tempest Store</strong></div>
-        <!-- Seller Status was in the previous version, re-added for consistency -->
-        <div class="status-indicator">Seller Status: <span id="seller-status-display" class="offline">Offline</span></div>
+        <div class="status">Seller Status: <span class="offline">Offline</span></div>
         <div class="auth-section">
             <span id="user-display"></span>
-            <button id="login-register-button" class="header-btn">Login / Register</button>
-            <button id="logout-button" class="header-btn" style="display: none;">Logout</button>
-            <button id="my-orders-button" class="header-btn" style="display: none;">My Orders</button>
-            <button id="admin-panel-button" class="header-btn" style="display: none;">Admin Panel</button>
-            <!-- Changed cart-icon-container to cart-icon-btn for consistency with script.js and added Font Awesome icon -->
-            <button id="cart-icon-btn" class="header-btn cart-icon">
-                <i class="fas fa-shopping-cart"></i> Cart (<span id="cart-count">0</span>)
-            </button>
+            <button id="my-orders-button">My Orders</button>
+            <button id="admin-panel-button">Admin Panel</button>
+            <button id="logout-button">Logout</button>
+            <button id="login-register-button">Login/Register</button>
         </div>
     </header>
 
@@ -33,225 +61,193 @@
     </div>
 
     <!-- Login/Register Modal -->
-    <div class="modal" id="auth-modal">
-        <div class="modal-content"> <!-- Changed modal-box to modal-content for consistency with style.css -->
-            <span class="close-button" id="close-auth-modal">&times;</span> <!-- Changed modal-close-btn to close-button -->
-            <h2>Authentication</h2> <!-- Changed h3 to h2 -->
-            <div class="auth-form"> <!-- Added auth-form class for styling -->
-                <input type="email" id="auth-email" placeholder="Email" required /> <!-- Added required attribute -->
-                <input type="password" id="auth-password" placeholder="Password" required /> <!-- Added required attribute -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-auth-modal">&times;</span>
+            <div id="auth-forms">
+                <h3>Register or Login</h3>
+                <input type="email" id="auth-email" placeholder="Email" />
+                <input type="password" id="auth-password" placeholder="Password" />
                 <button id="register-button">Register</button>
                 <button id="login-button">Login</button>
-                <button id="forgot-password-button">Forgot Password?</button> <!-- Removed inline style for consistency -->
-                <p id="auth-message"></p> <!-- Removed inline style for consistency -->
+                <button id="forgot-password-button">Forgot Password?</button>
+                <p id="auth-message" style="color: red; margin-top: 10px;"></p>
             </div>
         </div>
     </div>
 
-    <div class="filters">
-        <button onclick="setFilter('all')" data-cat="all" class="active">All</button>
-        <button onclick="setFilter('pets')" data-cat="pets">Pets</button>
-        <button onclick="setFilter('gears')" data-cat="gears">Gears</button>
-        <button onclick="setFilter('sheckles')" data-cat="sheckles">Sheckles</button>
-        <input type="text" id="searchBox" placeholder="Search..." oninput="applyFilters()" />
-    </div>
-
-    <main id="product-list"></main>
-
-    <!-- Cart/Checkout Modal -->
-    <div class="modal" id="cart-modal">
-        <div class="modal-content"> <!-- Changed modal-box to modal-content -->
-            <span class="close-button" id="close-cart-modal">&times;</span> <!-- Changed modal-close-btn to close-button -->
+    <!-- Cart Modal -->
+    <div id="cart-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-cart-modal">&times;</span>
             <h2>Your Cart</h2>
-            <div id="cart-items-container" class="cart-items-container"> <!-- Added cart-items-container class -->
+            <div id="cart-items-container">
                 <!-- Cart items will be rendered here by JavaScript -->
-                <p class="empty-message">Your cart is empty.</p>
             </div>
-
             <div class="cart-summary">
-                <p>Subtotal: <span id="cart-subtotal">₱0.00</span></p> <!-- Changed div to p for consistency -->
-                <p>Total: <span id="cart-total">₱0.00</span></p> <!-- Changed div.total to p for consistency -->
+                <p>Subtotal: <span id="cart-subtotal">₱0.00</span></p>
+                <p>Total: <span id="cart-total">₱0.00</span></p>
             </div>
+            <input type="text" id="roblox-username-input" placeholder="Enter your Roblox Username" style="display: none; margin-bottom: 10px;"/>
+            
+            <div class="payment-methods">
+                <h4>Payment Method:</h4>
+                <label><input type="radio" name="payment-method" value="GCash" checked> GCash</label>
+                <label><input type="radio" name="payment-method" value="Maya"> Maya</label>
+                <label><input type="radio" name="payment-method" value="PayPal"> PayPal</label>
+            </div>
+            <img id="payment-qr-image" src="" alt="Payment QR Code" style="display: none; max-width: 100%; height: auto; margin-top: 15px; border-radius: 8px;">
+            <p id="payment-qr-message" style="text-align: center; color: #888; margin-top: 10px;">Select a payment method to view QR code.</p>
 
-            <div class="checkout-details"> <!-- Added checkout-details for consistency -->
-                <label for="roblox-username-input">Roblox Username:</label> <!-- Label added -->
-                <!-- New Roblox Username Input -->
-                <input type="text" id="roblox-username-input" placeholder="Enter your Roblox Username" style="display: none;" /> <!-- Removed roblox-username-input class as per latest style.css, placeholder changed -->
-                
-                <div class="payment-methods">
-                    <!-- Removed h3 Payment Method -->
-                    <input type="radio" id="gcash" name="payment-method" value="GCash" checked>
-                    <label for="gcash">GCash</label>
-                    <input type="radio" id="maya" name="payment-method" value="Maya">
-                    <label for="maya">Maya</label>
-                    <input type="radio" id="paypal" name="payment-method" value="PayPal">
-                    <label for="paypal">PayPal</label>
-                </div>
-                <!-- Container for payment images (restored from last working version) -->
-                <div id="payment-qr-display" class="payment-qr-display">
-                    <img id="payment-qr-image" src="" alt="Payment QR Code/Details" style="display: none;" />
-                    <p id="payment-qr-message" style="display: none;">Select a payment method to view details.</p>
-                </div>
-            </div>
-            <button id="place-order-btn">Place Order</button> <!-- Simplified text, update via JS -->
+            <button id="place-order-btn" disabled>Place Order (0 items)</button>
         </div>
     </div>
 
     <!-- Order History Modal -->
-    <div class="modal" id="order-history-modal">
-        <div class="modal-content"> <!-- Changed modal-box to modal-content -->
-            <span class="close-button" id="close-order-history-modal">&times;</span> <!-- Changed modal-close-btn to close-button -->
-            <div id="order-history-content">
-                <h2 id="order-history-title">My Orders</h2>
-                <div id="order-history-list">
+    <div id="order-history-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-order-history-modal">&times;</span>
+            <h2 id="order-history-title">My Orders</h2>
+            <div id="order-history-list">
+                <!-- User's order summaries will be rendered here -->
+            </div>
+            <div id="order-details-view" style="display: none;">
+                <h3>Order Details</h3>
+                <p><strong>Order ID:</strong> <span id="detail-order-id"></span></p>
+                <p><strong>Order Date:</strong> <span id="detail-order-date"></span></p>
+                <p><strong>Status:</strong> <span id="detail-order-status"></span></p>
+                <p><strong>Total Price:</strong> <span id="detail-order-price"></span></p>
+                <p><strong>Payment Method:</strong> <span id="detail-payment-method"></span></p>
+                <p><strong>Roblox Username:</strong> <span id="detail-roblox-username"></span></p>
+                <h4>Items:</h4>
+                <div id="detail-items-list">
                     <!-- Order items will be rendered here -->
-                    <p class="empty-message">No orders found.</p>
                 </div>
-
-                <!-- Order Details View (Initially hidden) -->
-                <div id="order-details-view" style="display:none;"> <!-- Added display:none initially -->
-                    <h3>Order Details</h3>
-                    <div id="order-details-info">
-                        <p><strong>Order ID:</strong> <span id="detail-order-id"></span></p>
-                        <p><strong>Date:</strong> <span id="detail-order-date"></span></p>
-                        <p><strong>Status:</strong> <span id="detail-order-status"></span></p>
-                        <p><strong>Total Price:</strong> <span id="detail-order-price"></span></p>
-                        <p><strong>Payment Method:</strong> <span id="detail-payment-method"></span></p>
-                        <p><strong>Roblox Username:</strong> <span id="detail-roblox-username"></span></p>
-                    </div>
-                    <div id="order-details-items">
-                        <h4>Items:</h4>
-                        <div id="detail-items-list">
-                            <!-- Detailed ordered items will be rendered here -->
-                        </div>
-                    </div>
-                    <button class="back-to-orders-btn" id="back-to-order-list">Back to Orders</button>
-                </div>
+                <button id="back-to-order-list">Back to Orders</button>
             </div>
         </div>
     </div>
 
     <!-- Admin Panel Modal -->
-    <div class="modal" id="admin-panel-modal">
-        <div class="modal-content admin-modal-content"> <!-- Changed modal-box to modal-content and added admin-modal-content -->
-            <span class="close-button" id="close-admin-panel-modal">&times;</span> <!-- Changed modal-close-btn to close-button -->
+    <div id="admin-panel-modal" class="modal">
+        <div class="modal-content admin-modal-content">
+            <span class="close-button" id="close-admin-panel-modal">&times;</span>
             <h2>Admin Panel</h2>
-
             <div class="admin-tabs">
                 <button class="admin-tab-btn active" data-tab="products">Product Management</button>
                 <button class="admin-tab-btn" data-tab="orders">Order Management</button>
-                <button class="admin-tab-btn" data-tab="seller-status">Seller Status</button> <!-- Added seller-status tab -->
+                <button class="admin-tab-btn" data-tab="seller-status">Seller Status</button>
             </div>
 
+            <!-- Product Management Tab -->
             <div id="admin-product-management" class="admin-tab-content">
-                <h3>Add/Edit Product</h3> <!-- Changed h3 to h3 and container removed -->
-                <div class="product-form"> <!-- Added product-form class -->
+                <h3>Product Management</h3>
+                <form id="product-form">
                     <h4 id="product-form-title">Add New Product</h4>
-                    <input type="hidden" id="product-id-input" />
-                    <input type="text" id="product-name" placeholder="Product Name" required />
+                    <input type="hidden" id="product-id-input">
+                    <input type="text" id="product-name" placeholder="Product Name" required>
                     <select id="product-category" required>
                         <option value="pets">Pets</option>
                         <option value="gears">Gears</option>
                         <option value="sheckles">Sheckles</option>
                     </select>
-                    <input type="number" id="product-price" placeholder="Price (e.g., 10.00)" step="0.01" required /> <!-- Added step="0.01" for consistency -->
-                    <!-- New Sale Price input -->
-                    <input type="number" id="product-sale-price" placeholder="Sale Price (Optional)" step="0.01" /> <!-- Added step="0.01" for consistency -->
-                    <input type="number" id="product-stock" placeholder="Stock" required />
-                    <input type="text" id="product-image" placeholder="Image Filename (e.g., example.png)" required /> <!-- Added required attribute -->
-                    <label>
-                        <input type="checkbox" id="product-new" /> New Product
-                    </label>
-                    <label>
-                        <input type="checkbox" id="product-sale" /> On Sale
-                    </label>
-                    <button id="save-product-btn">Add Product</button>
-                    <button id="cancel-edit-product" style="display: none;">Cancel Edit</button>
-                </div>
+                    <input type="number" id="product-price" placeholder="Price (e.g., 10.00)" step="0.01" required>
+                    <input type="number" id="product-sale-price" placeholder="Sale Price (Optional)" step="0.01">
+                    <input type="number" id="product-stock" placeholder="Stock" required>
+                    <input type="text" id="product-image" placeholder="Image Filename (e.g., product.png)" required>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="product-new"> New Arrival</label>
+                        <label><input type="checkbox" id="product-sale"> On Sale</label>
+                    </div>
+                    <button type="button" id="save-product-btn">Add Product</button>
+                    <button type="button" id="cancel-edit-product" style="display: none;">Cancel</button>
+                </form>
 
-                <h3>All Products</h3> <!-- Changed h3 to h3 -->
-                <div class="admin-table-container"> <!-- Added admin-table-container -->
-                    <table class="admin-table"> <!-- Changed admin-product-table to admin-table -->
-                        <thead>
-                            <tr>
-                                <th>Image</th>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                                <th>Status</th> <!-- Changed New/Sale to Status -->
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-products-list">
-                            <!-- Products will be rendered here -->
-                        </tbody>
-                    </table>
-                </div>
+                <h4 style="margin-top: 20px;">Existing Products</h4>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-products-list">
+                        <!-- Admin products will be rendered here by JavaScript -->
+                    </tbody>
+                </table>
             </div>
 
+            <!-- Order Management Tab -->
             <div id="admin-order-management" class="admin-tab-content" style="display: none;">
-                <h3>All Orders</h3>
-                <div class="admin-table-container"> <!-- Added admin-table-container -->
-                    <table class="admin-table"> <!-- Changed admin-order-table to admin-table -->
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>User ID</th>
-                                <th>Date</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-orders-list">
-                            <!-- Orders will be rendered here -->
-                        </tbody>
-                    </table>
-                </div>
+                <h3>Order Management</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>User ID</th>
+                            <th>Date</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-orders-list">
+                        <!-- Admin orders will be rendered here by JavaScript -->
+                    </tbody>
+                </table>
 
-                <!-- Admin Order Details View (Initially hidden) -->
-                <div id="admin-order-details-view" class="admin-order-detail-view" style="display: none;"> <!-- Added admin-order-detail-view class and display:none -->
-                    <h3>Order ID: <span id="admin-detail-order-id"></span></h3> <!-- Changed h3 to h3 and removed "Order Details" -->
-                    <p>User ID: <span id="admin-detail-user-id"></span></p>
-                    <p>Roblox Username: <span id="admin-detail-roblox-username"></span></p>
-                    <p>Date: <span id="admin-detail-order-date"></span></p>
-                    <p>Total Price: <span id="admin-detail-order-price"></span></p>
-                    <p>Payment Method: <span id="admin-detail-payment-method"></span></p>
-                    <p>Current Status: <span id="admin-detail-order-status"></span></p>
-                    <
+                <div id="admin-order-details-view" style="display: none; margin-top: 20px; padding: 15px; border: 1px solid #eee; border-radius: 8px;">
+                    <h3>Order Details (Admin View)</h3>
+                    <p><strong>Order ID:</strong> <span id="admin-detail-order-id"></span></p>
+                    <p><strong>User ID:</strong> <span id="admin-detail-user-id"></span></p>
+                    <p><strong>Roblox Username:</strong> <span id="admin-detail-roblox-username"></span></p>
+                    <p><strong>Order Date:</strong> <span id="admin-detail-order-date"></span></p>
+                    <p><strong>Total Price:</strong> <span id="admin-detail-order-price"></span></p>
+                    <p><strong>Payment Method:</strong> <span id="admin-detail-payment-method"></span></p>
+                    <p><strong>Current Status:</strong> <span id="admin-detail-order-status"></span></p>
                     <h4>Items:</h4>
-                    <div id="admin-detail-items-list" class="admin-order-detail-items"> <!-- Added admin-order-detail-items class -->
-                        <!-- Detailed ordered items will be rendered here -->
+                    <div id="admin-detail-items-list">
+                        <!-- Admin order items will be rendered here -->
                     </div>
-                    <div class="order-status-update"> <!-- Changed order-status-update-section to order-status-update -->
-                        <label for="order-status-select">Update Status:</label> <!-- Changed Change Status to Update Status -->
+                    <div class="order-status-update">
+                        <label for="order-status-select">Update Status:</label>
                         <select id="order-status-select">
                             <option value="Pending">Pending</option>
-                            <option value="Processing">Processing</option> <!-- Changed In Process to Processing -->
-                            <option value="Completed">Completed</option> <!-- Changed Delivered to Completed -->
-                            <option value="Cancelled">Cancelled</option> <!-- Changed Rejected to Cancelled -->
+                            <option value="Processing">Processing</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
                         </select>
-                        <button id="update-order-status-btn">Update Status</button> <!-- Changed Update Order Status to Update Status -->
+                        <button id="update-order-status-btn">Update Status</button>
                     </div>
-                    <button class="admin-back-to-order-list" id="admin-back-to-order-list">Back to All Orders</button>
+                    <button id="admin-back-to-order-list" style="margin-top: 10px;">Back to All Orders</button>
                 </div>
             </div>
 
             <!-- Seller Status Tab -->
-            <div id="admin-seller-status" class="admin-tab-content" style="display:none;">
-                <h3>Manage Seller Status</h3>
-                <div class="seller-status-control">
-                    <p>Current Status: <span id="admin-seller-status-display" class="offline">Offline</span></p>
-                    <button id="toggle-seller-status-btn">Toggle Status</button>
-                    <p class="status-info">This controls the "Seller Status" displayed to all customers.</p>
-                </div>
+            <div id="admin-seller-status" class="admin-tab-content" style="display: none;">
+                <h3>Seller Status Management</h3>
+                <p>Current Seller Status: <span id="admin-seller-status-display" class="offline">Offline</span></p>
+                <button id="toggle-seller-status-btn">Toggle Online/Offline</button>
             </div>
         </div>
     </div>
 
-    <!-- Link to external JavaScript file -->
-    <script type="module" src="script.js"></script>
+
+    <main id="product-list"></main>
+
+    <!-- Shopping Cart Button -->
+    <div class="cart-button">
+        <button id="cart-icon-btn">
+            🛒 Cart <span id="cart-count" class="badge">0</span>
+        </button>
+    </div>
+
+    <!-- Important: defer makes sure the HTML is parsed before script runs -->
+    <script type="module" src="script.js"></script> 
 </body>
 </html>
-
