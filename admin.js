@@ -8,19 +8,13 @@ import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/fireba
 
 // Global variables for admin-specific data and listeners
 let allOrders = []; 
-// allChats variable removed
 let unsubscribeAllOrders = null; 
-// unsubscribeAdminChatList and unsubscribeAdminChatMessages removed
-let unsubscribeAdminSellerStatus = null; // New unsubscribe for admin seller status
+let unsubscribeAdminSellerStatus = null; 
 let dbInstance = null; 
 let authInstance = null; 
 let storageInstance = null; 
 let adminUserId = null; 
 let isAdminUser = false; 
-// currentAdminChatId removed
-
-// Variables for image upload in admin chat (kept for future product image upload in admin, if needed)
-let adminSelectedImageFile = null; 
 
 // --- DOM elements for Admin Panel ---
 const adminPanelModal = document.getElementById("admin-panel-modal");
@@ -28,8 +22,7 @@ const closeAdminPanelModalBtn = document.getElementById("close-admin-panel-modal
 const adminTabButtons = document.querySelectorAll(".admin-tab-btn");
 const adminProductManagement = document.getElementById("admin-product-management");
 const adminOrderManagement = document.getElementById("admin-order-management");
-// adminChatManagement removed
-const adminSellerStatusTab = document.getElementById("admin-seller-status"); // New Seller Status tab content
+const adminSellerStatusTab = document.getElementById("admin-seller-status"); 
 
 // Product Form elements
 const productFormTitle = document.getElementById("product-form-title");
@@ -62,8 +55,6 @@ const updateOrderStatusBtn = document.getElementById("update-order-status-btn");
 const adminBackToOrderListBtn = document.getElementById("admin-back-to-order-list");
 let currentEditingOrderId = null;
 
-// Admin Chat elements removed
-
 // Seller Status elements
 const adminSellerStatusDisplay = document.getElementById("admin-seller-status-display");
 const toggleSellerStatusBtn = document.getElementById("toggle-seller-status-btn");
@@ -74,12 +65,12 @@ const APP_ID = 'tempest-store-app';
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`; 
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`; 
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`; 
-// CHATS_COLLECTION_PATH removed
-const SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New settings collection
+const SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; 
 
 
 // --- Admin Panel Functions ---
 function initAdminPanel(db, auth, storage, userId, adminFlag) {
+    console.log("[Admin Module] initAdminPanel called.");
     dbInstance = db;
     authInstance = auth;
     storageInstance = storage; 
@@ -90,33 +81,41 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
     if (adminPanelButton) {
         if (adminPanelButton._adminListener) {
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
+            console.log("[Admin Module] Removed existing adminPanelButton listener.");
         }
         const listener = () => {
              if (!isAdminUser) {
                 alert("You are not authorized to access the Admin Panel.");
+                console.warn("[Admin Module] Unauthorized access attempt to Admin Panel.");
                 return;
             }
             adminPanelModal.classList.add('show');
-            showAdminTab('products'); 
+            showAdminTab('products'); // Default to products tab on open
+            console.log("[Admin Module] Admin Panel modal shown, defaulting to products tab.");
         };
         adminPanelButton.addEventListener('click', listener);
-        adminPanelButton._adminListener = listener;
+        adminPanelButton._adminListener = listener; 
     }
 
     closeAdminPanelModalBtn.addEventListener('click', () => {
         adminPanelModal.classList.remove('show');
-        // Chat-related cleanup removed
-        if (unsubscribeAdminSellerStatus) { // Unsubscribe seller status
+        if (unsubscribeAllOrders) { // Unsubscribe from all orders when closing admin panel
+            unsubscribeAllOrders();
+            unsubscribeAllOrders = null;
+            console.log("[Admin Module] Unsubscribed from allOrders listener on modal close.");
+        }
+        if (unsubscribeAdminSellerStatus) { 
             unsubscribeAdminSellerStatus();
             unsubscribeAdminSellerStatus = null;
+            console.log("[Admin Module] Unsubscribed from admin seller status listener on modal close.");
         }
-        // currentAdminChatId removed
-        // adminSelectedImageFile and adminImagePreview cleanup removed
+        console.log("[Admin Module] Admin Panel modal closed.");
     });
 
     adminPanelModal.addEventListener('click', (event) => {
         if (event.target === adminPanelModal) {
             adminPanelModal.classList.remove('show');
+            console.log("[Admin Module] Admin Panel modal closed by clicking outside.");
         }
     });
 
@@ -127,9 +126,10 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
         const listener = (e) => {
             const tab = e.target.dataset.tab;
             showAdminTab(tab);
+            console.log("[Admin Module] Switched admin tab to:", tab);
         };
         button.addEventListener('click', listener);
-        button._tabListener = listener;
+        button._tabListener = listener; 
     });
 
     // Remove existing listeners for product form buttons to prevent duplicates
@@ -137,11 +137,11 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
     if (cancelEditProductBtn._cancelListener) cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener);
     if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
     if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
-    // admin chat message sending listeners removed
     if (toggleSellerStatusBtn._toggleListener) toggleSellerStatusBtn.removeEventListener('click', toggleSellerStatusBtn._toggleListener);
 
 
     saveProductBtn._saveListener = async () => { 
+        console.log("[Admin Product] Save Product button clicked.");
         const productId = productIdInput.value;
         const isNew = productNewCheckbox.checked;
         const isSale = productSaleCheckbox.checked;
@@ -167,10 +167,12 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
 
         if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
             alert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
+            console.warn("[Admin Product] Product form validation failed.");
             return;
         }
         if (isSale && (salePrice === null || isNaN(parseFloat(salePrice.replace('₱', ''))))) {
             alert("Please enter a valid Sale Price if the product is On Sale.");
+            console.warn("[Admin Product] Sale price validation failed.");
             return;
         }
 
@@ -188,12 +190,15 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
         adminOrdersList.parentElement.style.display = 'table'; 
         adminOrderDetailsView.style.display = 'none'; 
         currentEditingOrderId = null; 
+        console.log("[Admin Order] Back to order list from details view.");
     };
     adminBackToOrderListBtn.addEventListener('click', adminBackToOrderListBtn._backListener);
 
     updateOrderStatusBtn._updateListener = async () => {
+        console.log("[Admin Order] Update Order Status button clicked.");
         if (!currentEditingOrderId) {
             alert("No order selected for status update.");
+            console.warn("[Admin Order] No order ID for status update.");
             return;
         }
 
@@ -201,56 +206,57 @@ function initAdminPanel(db, auth, storage, userId, adminFlag) {
         try {
             const orderRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
             await updateDoc(orderRef, { status: newStatus });
+            console.log(`[Admin Order] Updated status in allOrders for ${currentEditingOrderId.substring(0, 8)}... to ${newStatus}.`);
+
 
             const orderToUpdate = allOrders.find(o => o.id === currentEditingOrderId);
             if (orderToUpdate && orderToUpdate.userId) {
                 const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(orderToUpdate.userId), currentEditingOrderId);
                 await updateDoc(userOrderRef, { status: newStatus });
+                console.log(`[Admin Order] Updated status in user's order collection for ${orderToUpdate.userId.substring(0,8)}... to ${newStatus}.`);
+            } else {
+                console.warn(`[Admin Order] Could not find user ID for order ${currentEditingOrderId.substring(0, 8)}... to update user's collection.`);
             }
 
             alert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
             adminBackToOrderListBtn.click();
         } catch (e) {
-            console.error("Error updating order status:", e);
+            console.error("[Admin Order] Error updating order status:", e);
             alert("Error updating order status: " + e.message);
         }
     };
     updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
 
-    // Admin Chat Message Sending listeners removed
-
-    // Admin Image Upload handling listeners removed
-
     // Seller Status Toggle Button
     toggleSellerStatusBtn._toggleListener = toggleSellerStatus;
     toggleSellerStatusBtn.addEventListener('click', toggleSellerStatusBtn._toggleListener);
 
-    // Initialize admin listeners if an admin is already logged in
+    // Initial setup of listeners if admin is already logged in
+    console.log("[Admin Module] Setting up initial listeners (allOrders and sellerStatus).");
     setupAllOrdersListener();
-    // setupAdminChatListListener removed
-    setupAdminSellerStatusListener(); // Start listening for seller status in admin panel
+    setupAdminSellerStatusListener(); 
 }
 
-// Cleanup function for admin panel when user logs out
+// Cleanup function for admin panel when user logs out or admin panel modal closes
 function cleanupAdminPanel() {
+    console.log("[Admin Module] Cleaning up admin panel listeners...");
     if (unsubscribeAllOrders) {
         unsubscribeAllOrders();
         unsubscribeAllOrders = null;
+        console.log("[Admin Module] Unsubscribed from allOrders.");
     }
-    // unsubscribeAdminChatList and unsubscribeAdminChatMessages removed
     if (unsubscribeAdminSellerStatus) {
         unsubscribeAdminSellerStatus();
         unsubscribeAdminSellerStatus = null;
+        console.log("[Admin Module] Unsubscribed from admin seller status.");
     }
-    // currentAdminChatId removed
-    // adminSelectedImageFile and adminImagePreview cleanup removed
-    // adminChatMessageInput cleanup removed
-
+    currentEditingOrderId = null; 
 
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton && adminPanelButton._adminListener) {
         adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         adminPanelButton._adminListener = null;
+        console.log("[Admin Module] Removed adminPanelButton listener.");
     }
     adminTabButtons.forEach(button => {
         if (button._tabListener) {
@@ -262,13 +268,11 @@ function cleanupAdminPanel() {
     if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
-    // admin chat message sending listeners removed
-    // admin chat message input keypress listener removed
-    // admin image upload input change listener removed
     if (toggleSellerStatusBtn._toggleListener) { toggleSellerStatusBtn.removeEventListener('click', toggleSellerStatusBtn._toggleListener); toggleSellerStatusBtn._toggleListener = null; }
 
 
     adminPanelModal.classList.remove('show');
+    console.log("[Admin Module] Admin panel modal closed and cleaned up.");
 }
 
 
@@ -277,20 +281,21 @@ async function saveProductToFirestore(productData) {
     try {
         if (productData.id) { 
             if (!confirm("Are you sure you want to save changes to this product?")) {
+                console.log("[Admin Product] Save changes cancelled by user.");
                 return; 
             }
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
             await updateDoc(productRef, productData);
-            console.log("Product updated:", productData.id);
+            console.log("[Admin Product] Product updated in Firestore:", productData.id);
         } else { 
             const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
             await addDoc(productsColRef, productData);
-            console.log("Product added:", productData.name);
+            console.log("[Admin Product] Product added to Firestore:", productData.name);
         }
         resetProductForm(); 
         alert("Product saved successfully!");
     } catch (e) {
-        console.error("Error saving product:", e);
+        console.error("[Admin Product] Error saving product to Firestore:", e);
         alert("Error saving product: " + e.message);
     }
 }
@@ -301,17 +306,20 @@ async function deleteProductFromFirestore(productId) {
         try {
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
             await deleteDoc(productRef);
-            console.log("Product deleted:", productId);
+            console.log("[Admin Product] Product deleted from Firestore:", productId);
             alert("Product deleted successfully!");
         } catch (e) {
-            console.error("Error deleting product:", e);
+            console.error("[Admin Product] Error deleting product from Firestore:", e);
             alert("Error deleting product: " + e.message);
         }
+    } else {
+        console.log("[Admin Product] Product deletion cancelled by user.");
     }
 }
 
 // Renders the list of products in the admin panel's product management table.
 function renderAdminProducts() {
+    console.log("[Admin Product UI] Rendering admin products list.");
     adminProductsList.innerHTML = ''; 
     const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
     getDocs(productsColRef).then((snapshot) => {
@@ -322,6 +330,7 @@ function renderAdminProducts() {
 
         if (fetchedProducts.length === 0) {
             adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
+            console.log("[Admin Product UI] No products found to render.");
             return;
         }
 
@@ -354,10 +363,11 @@ function renderAdminProducts() {
                 const productToEdit = fetchedProducts.find(p => p.id === productId); 
                 if (productToEdit) {
                     editProduct(productToEdit); 
+                    console.log("[Admin Product UI] Edit product button clicked for ID:", productId);
                 }
             };
             button.addEventListener('click', listener);
-            button._editListener = listener;
+            button._editListener = listener; 
         });
 
         adminProductsList.querySelectorAll('.delete').forEach(button => {
@@ -365,24 +375,27 @@ function renderAdminProducts() {
             const listener = (e) => {
                 const productId = e.target.dataset.id;
                 deleteProductFromFirestore(productId); 
+                console.log("[Admin Product UI] Delete product button clicked for ID:", productId);
             };
             button.addEventListener('click', listener);
-            button._deleteListener = listener;
+            button._deleteListener = listener; 
         });
+        console.log(`[Admin Product UI] Rendered ${fetchedProducts.length} products.`);
     }).catch(error => {
-        console.error("Error rendering admin products:", error);
+        console.error("[Admin Product UI] Error rendering admin products:", error);
         adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">Error loading products.</td></tr>';
     });
 }
 
 
 function editProduct(product) {
+    console.log("[Admin Product UI] Populating form for editing product:", product.id);
     productFormTitle.textContent = "Edit Product";
     productIdInput.value = product.id; 
     productNameInput.value = product.name;
     productCategorySelect.value = product.category;
     productPriceInput.value = parseFloat(product.price.replace('₱', '')); 
-    productSalePriceInput.value = product.salePrice ? parseFloat(product.salePrice.replace('₱', '')) : ''; 
+    productSalePriceInput.value = product.salePrice ? parseFloat(product.salePrice.replace('₱', '')).toFixed(2) : ''; 
     productStockInput.value = product.stock;
     productImageInput.value = product.image; 
     productNewCheckbox.checked = product.new || false;
@@ -392,6 +405,7 @@ function editProduct(product) {
 }
 
 function resetProductForm() {
+    console.log("[Admin Product UI] Resetting product form.");
     productFormTitle.textContent = "Add New Product";
     productIdInput.value = ''; 
     productNameInput.value = '';
@@ -407,16 +421,14 @@ function resetProductForm() {
 }
 
 function showAdminTab(tabName) {
+    console.log("[Admin UI] Showing admin tab:", tabName);
     adminTabButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabName);
     });
 
     adminProductManagement.style.display = 'none';
     adminOrderManagement.style.display = 'none';
-    // adminChatManagement removed
-    adminSellerStatusTab.style.display = 'none'; // Hide seller status tab
-
-    // Clean up chat listeners if switching away from chat tab (removed as chat is removed)
+    adminSellerStatusTab.style.display = 'none'; 
 
     if (tabName === 'products') {
         adminProductManagement.style.display = 'block';
@@ -426,35 +438,41 @@ function showAdminTab(tabName) {
         adminOrderManagement.style.display = 'block';
         adminOrderDetailsView.style.display = 'none'; 
         renderAdminOrders(); 
-    } else if (tabName === 'seller-status') { // New seller status tab
+    } else if (tabName === 'seller-status') { 
         adminSellerStatusTab.style.display = 'block';
-        setupAdminSellerStatusListener(); // Ensure listener is active for this tab
+        setupAdminSellerStatusListener(); 
     }
 }
 
 // Sets up a real-time listener for all orders in Firestore (for admin view).
 function setupAllOrdersListener() {
+    console.log("[Admin Orders] Setting up all orders listener.");
     if (unsubscribeAllOrders) {
         unsubscribeAllOrders();
+        console.log("[Admin Orders] Unsubscribed from existing allOrders listener.");
     }
     const allOrdersColRef = collection(dbInstance, ALL_ORDERS_COLLECTION_PATH);
     const q = query(allOrdersColRef, orderBy("orderDate", "desc"));
     unsubscribeAllOrders = onSnapshot(q, (snapshot) => { 
+        console.log("[Admin Orders] All orders listener triggered. Fetching orders...");
         const fetchedOrders = [];
         snapshot.forEach(doc => {
             fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
         allOrders = fetchedOrders; 
+        console.log(`[Admin Orders] Fetched ${allOrders.length} all orders.`);
         renderAdminOrders(); 
     }, (error) => {
-        console.error("Error listening to all orders (admin):", error);
+        console.error("[Admin Orders] Error listening to all orders:", error);
     });
 }
 
 function renderAdminOrders() {
+    console.log("[Admin Orders UI] Rendering admin orders list.");
     adminOrdersList.innerHTML = ''; 
     if (allOrders.length === 0) {
         adminOrdersList.innerHTML = '<tr><td colspan="6" class="empty-message">No orders found.</td></tr>';
+        console.log("[Admin Orders UI] No orders found to render.");
         return;
     }
 
@@ -480,14 +498,17 @@ function renderAdminOrders() {
             const selectedOrder = allOrders.find(order => order.id === orderId);
             if (selectedOrder) {
                 showAdminOrderDetails(selectedOrder); 
+                console.log("[Admin Orders UI] View order details button clicked for ID:", orderId);
             }
         };
         button.addEventListener('click', listener);
-        button._viewListener = listener;
+        button._viewListener = listener; 
     });
+    console.log(`[Admin Orders UI] Rendered ${allOrders.length} orders.`);
 }
 
 function showAdminOrderDetails(order) {
+    console.log("[Admin Orders UI] Showing admin order details for ID:", order.id);
     currentEditingOrderId = order.id; 
     adminOrdersList.parentElement.style.display = 'none'; 
     adminOrderDetailsView.style.display = 'block'; 
@@ -520,37 +541,40 @@ function showAdminOrderDetails(order) {
     }
 }
 
-// --- Chat System (Admin Side) functions removed ---
-
 // --- Seller Status Management (Admin Side) ---
 const SELLER_STATUS_DOC_PATH = doc(dbInstance, SETTINGS_COLLECTION_PATH, 'sellerStatus');
 
 // Sets up a real-time listener for the seller status in the admin panel
 function setupAdminSellerStatusListener() {
+    console.log("[Admin Seller Status] Setting up listener.");
     if (unsubscribeAdminSellerStatus) {
-        unsubscribeAdminSellerStatus(); // Unsubscribe from previous listener if it exists
+        unsubscribeAdminSellerStatus(); 
+        console.log("[Admin Seller Status] Unsubscribed from existing listener.");
     }
     unsubscribeAdminSellerStatus = onSnapshot(SELLER_STATUS_DOC_PATH, (docSnap) => {
+        console.log("[Admin Seller Status] Listener triggered.");
         if (docSnap.exists()) {
             const statusData = docSnap.data();
             const isOnline = statusData.isOnline;
             adminSellerStatusDisplay.textContent = isOnline ? 'Online' : 'Offline';
             adminSellerStatusDisplay.classList.toggle('online', isOnline);
             adminSellerStatusDisplay.classList.toggle('offline', !isOnline);
+            console.log(`[Admin Seller Status] Current status: ${isOnline ? 'Online' : 'Offline'}`);
         } else {
             adminSellerStatusDisplay.textContent = 'Offline';
             adminSellerStatusDisplay.classList.remove('online');
             adminSellerStatusDisplay.classList.add('offline');
-            // Create the default status document if it's missing (should only happen once)
-            setDoc(SELLER_STATUS_DOC_PATH, { isOnline: false }, { merge: true }).catch(e => console.error("Error creating default seller status document:", e));
+            console.log("[Admin Seller Status] Document does not exist. Defaulting to Offline. Attempting to create default.");
+            setDoc(SELLER_STATUS_DOC_PATH, { isOnline: false }, { merge: true }).catch(e => console.error("[Admin Seller Status] Error creating default seller status document:", e));
         }
     }, (error) => {
-        console.error("Error listening to admin seller status:", error);
+        console.error("[Admin Seller Status] Error listening to admin seller status:", error);
     });
 }
 
 // Toggles the seller's online/offline status in Firestore
 async function toggleSellerStatus() {
+    console.log("[Admin Seller Status] Toggle button clicked.");
     try {
         const docSnap = await getDoc(SELLER_STATUS_DOC_PATH);
         let currentStatus = false;
@@ -561,8 +585,9 @@ async function toggleSellerStatus() {
         const newStatus = !currentStatus;
         await setDoc(SELLER_STATUS_DOC_PATH, { isOnline: newStatus }, { merge: true });
         alert(`Seller status updated to: ${newStatus ? 'Online' : 'Offline'}`);
+        console.log(`[Admin Seller Status] Status toggled to: ${newStatus ? 'Online' : 'Offline'}`);
     } catch (e) {
-        console.error("Error toggling seller status:", e);
+        console.error("[Admin Seller Status] Error toggling seller status:", e);
         alert("Failed to toggle seller status. Please check console for details.");
     }
 }
