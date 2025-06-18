@@ -782,7 +782,7 @@
                 return matchesCategory && matchesSearch;
             });
 
-            renderProducts(filtered); 
+            applyFilters(); // Ensures filtering happens after data is loaded 
         }
 
         window.addEventListener("DOMContentLoaded", () => {
