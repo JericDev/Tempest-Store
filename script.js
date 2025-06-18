@@ -305,7 +305,6 @@
             });
         }
 
-
         // Call setupProductsListener once when the script loads to always show products
         unsubscribeProducts = setupProductsListener();
 
