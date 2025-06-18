@@ -1008,3 +1008,46 @@ main#product-list {
         margin-bottom: 10px;
     }
 }
+/* Payment Method Styles */
+.payment-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  cursor: pointer;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.payment-option:hover {
+  background-color: #f2f2f2;
+}
+
+.payment-option input[type="radio"] {
+  accent-color: #007bff;
+}
+
+.payment-option img {
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+}
+
+.payment-preview {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.payment-preview img {
+  border: 1px solid #ccc;
+  padding: 8px;
+  background: #f9f9f9;
+  border-radius: 10px;
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
