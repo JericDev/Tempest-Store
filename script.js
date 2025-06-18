@@ -29,7 +29,6 @@
         let cart = []; // Global cart array
         let userOrders = []; // Global array to store user's orders (for user history)
         let allProducts = []; // Global array to store all products from Firestore
-        let currentCategory = "all";
 
         // Global variables to store unsubscribe functions for real-time listeners
         let unsubscribeUserOrders = null;
