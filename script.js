@@ -819,3 +819,12 @@ function setupProductsListener() {
         });
     });
 });
+// Minimal test to confirm filter works
+setTimeout(() => {
+    allProducts = [
+        { name: "Dog Toy", category: "pets" },
+        { name: "Bike Gear", category: "gears" },
+        { name: "Gold Sheckle", category: "sheckles" }
+    ];
+    applyFilters();
+}, 2000);
