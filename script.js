@@ -1,831 +1,808 @@
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+// script.js
+// This file handles the main client-side logic for the e-commerce store,
+// including Firebase authentication, product display, cart management,
+// order history, and integration with the admin panel.
 
-        // Your web app's Firebase configuration
-        // IMPORTANT: Ensure this configuration matches your Firebase project's config.
-        const firebaseConfig = {
-          apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
-          authDomain: "store-7b9bd.firebaseapp.com",
-          projectId: "store-7b9bd",
-          storageBucket: "store-7b9bd.firebase-storage.app",
-          messagingSenderId: "1015427798898",
-          appId: "1:1015427798898:web:a15c71636506fac128afeb",
-          measurementId: "G-NR4JS3FLWG"
-        };
+// --- Firebase Imports ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+import { 
+    getAuth, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    onAuthStateChanged, 
+    signOut, 
+    sendPasswordResetEmail 
+} from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+import { 
+    getFirestore, 
+    doc, 
+    setDoc, 
+    getDoc, 
+    updateDoc, 
+    onSnapshot, 
+    collection, 
+    query, 
+    orderBy, 
+    addDoc, 
+    deleteDoc,
+    where, // Added for querying specific user's orders
+    serverTimestamp // Added for order date
+} from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app); // Initialize Firestore
+// --- Admin Panel Import ---
+import { initAdminPanel, cleanupAdminPanel } from './admin.js';
 
-        let currentUserId = null; // To store the current authenticated user's ID
-        let isAdmin = false; // Flag to check if the current user is an admin
-        // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
-        // You can find your UID in the Firebase Console -> Authentication -> Users tab.
-        const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
+// --- Firebase Configuration ---
+// IMPORTANT: Ensure this configuration matches your Firebase project's config.
+const firebaseConfig = {
+    apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
+    authDomain: "store-7b9bd.firebaseapp.com",
+    projectId: "store-7b9bd",
+    storageBucket: "store-7b9bd.firebase-storage.app",
+    messagingSenderId: "1015427798898",
+    appId: "1:1015427798898:web:a15c71636506fac128afeb",
+    measurementId: "G-NR4JS3FLWG"
+};
 
-        let cart = []; // Global cart array
-        let userOrders = []; // Global array to store user's orders (for user history)
-        let allProducts = []; // Global array to store all products from Firestore
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-        // Global variables to store unsubscribe functions for real-time listeners
-        let unsubscribeUserOrders = null;
-        let unsubscribeProducts = null;
-        // Unsubscribe for allOrders will be handled in admin.js
+// --- Global Variables ---
+let currentUserId = null; // Stores the current authenticated user's ID
+let isAdmin = false;      // Flag to check if the current user is an admin
+// IMPORTANT: Replace "LigBezoWV9eVo8lglsijoWinKmA2" with the actual UID of your admin user from Firebase Authentication.
+// You can find your UID in the Firebase Console -> Authentication -> Users tab.
+const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Your provided admin UID
 
-        // Reference to the admin panel initialization function from admin.js
-        let initAdminPanelModule = null;
-        let adminCleanupFunction = null;
+let allProducts = []; // Stores all products fetched from Firestore
+let userCart = [];    // Stores items in the user's current session cart
+let userOrders = [];  // Stores orders specific to the current user
+let unsubscribeUserOrders = null; // Unsubscribe function for userOrders listener
 
-
-        // --- DOM elements for Authentication ---
-        const authEmailInput = document.getElementById("auth-email");
-        const authPasswordInput = document.getElementById("auth-password");
-        const registerButton = document.getElementById("register-button");
-        const loginButton = document.getElementById("login-button");
-        const loginRegisterButton = document.getElementById("login-register-button"); 
-        const logoutButton = document.getElementById("logout-button");
-        const myOrdersButton = document.getElementById("my-orders-button");
-        // adminPanelButton is now managed by admin.js, but its visibility by script.js
-        const adminPanelButton = document.getElementById("admin-panel-button"); 
-        const authMessage = document.getElementById("auth-message");
-        const userDisplay = document.getElementById("user-display");
-        const authModal = document.getElementById("auth-modal"); 
-        const closeAuthModalBtn = document.getElementById("close-auth-modal"); 
-        const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
-
-
-        // --- DOM elements for Cart/Checkout ---
-        const cartIconBtn = document.getElementById("cart-icon-btn");
-        const cartCountBadge = document.getElementById("cart-count");
-        const cartModal = document.getElementById("cart-modal");
-        const closeCartModalBtn = document.getElementById("close-cart-modal");
-        const cartItemsContainer = document.getElementById("cart-items-container");
-        const cartSubtotalSpan = document.getElementById("cart-subtotal");
-        const cartTotalSpan = document.getElementById("cart-total"); 
-        const placeOrderBtn = document.getElementById("place-order-btn");
-        const robloxUsernameInput = document.getElementById("roblox-username-input");
-
-        // --- DOM elements for Order History ---
-        const orderHistoryModal = document.getElementById("order-history-modal");
-        const closeOrderHistoryModalBtn = document.getElementById("close-order-history-modal");
-        const orderHistoryList = document.getElementById("order-history-list");
-        const orderHistoryTitle = document.getElementById("order-history-title");
-        const orderDetailsView = document.getElementById("order-details-view");
-        const detailOrderId = document.getElementById("detail-order-id");
-        const detailOrderDate = document.getElementById("detail-order-date");
-        const detailOrderStatus = document.getElementById("detail-order-status");
-        const detailOrderPrice = document.getElementById("detail-order-price");
-        const detailPaymentMethod = document.getElementById("detail-payment-method");
-        const detailRobloxUsername = document.getElementById("detail-roblox-username");
-        const detailItemsList = document.getElementById("detail-items-list");
-        const backToOrderListBtn = document.getElementById("back-to-order-list");
+// --- Firestore Collection Paths ---
+const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in admin.js
+const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
+const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
+const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
 
 
-        // --- Authentication Functions ---
-        registerButton.addEventListener("click", () => {
-            const email = authEmailInput.value;
-            const password = authPasswordInput.value;
-            if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
-            createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    authMessage.textContent = `Registered and logged in as: ${userCredential.user.email}`;
-                    authMessage.style.color = 'green'; 
-                    console.log("User registered:", userCredential.user.email);
-                    authModal.classList.remove('show'); 
-                })
-                .catch((error) => { 
-                    if (error.code === 'auth/email-already-in-use') {
-                        authMessage.textContent = "Registration failed: This email is already in use. Try logging in.";
-                    } else {
-                        authMessage.textContent = `Registration failed: ${error.message}`; 
-                    }
-                    authMessage.style.color = 'red'; 
-                    console.error("Registration error:", error); 
-                });
-        });
+// --- DOM Elements ---
+// Auth Modals
+const authModal = document.getElementById("auth-modal");
+const closeAuthModalBtn = document.getElementById("close-auth-modal");
+const loginRegisterButton = document.getElementById("login-register-button");
+const logoutButton = document.getElementById("logout-button");
+const userDisplay = document.getElementById("user-display");
+const authEmailInput = document.getElementById("auth-email");
+const authPasswordInput = document.getElementById("auth-password");
+const registerButton = document.getElementById("register-button");
+const loginButton = document.getElementById("login-button");
+const forgotPasswordButton = document.getElementById("forgot-password-button");
+const authMessage = document.getElementById("auth-message");
 
-        loginButton.addEventListener("click", () => {
-            const email = authEmailInput.value;
-            const password = authPasswordInput.value;
-            if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
-            signInWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    authMessage.textContent = `Logged in as: ${userCredential.user.email}`;
-                    authMessage.style.color = 'green'; 
-                    console.log("User logged in:", userCredential.user.email);
-                    authModal.classList.remove('show'); 
-                })
-                .catch((error) => { 
-                    switch (error.code) {
-                        case 'auth/user-not-found':
-                        case 'auth/wrong-password':
-                        case 'auth/invalid-credential': 
-                            authMessage.textContent = "Login failed: Invalid email or password.";
-                            break;
-                        case 'auth/invalid-email':
-                            authMessage.textContent = "Login failed: The email address is not valid.";
-                            break;
-                        case 'auth/user-disabled':
-                            authMessage.textContent = "Login failed: This account has been disabled.";
-                            break;
-                        default:
-                            authMessage.textContent = `Login failed: ${error.message}`;
-                    }
-                    authMessage.style.color = 'red'; 
-                    console.error("Login error:", error); 
-                });
-        });
+// Product List
+const productListContainer = document.getElementById("product-list");
+const searchBox = document.getElementById("searchBox");
+const filterButtons = document.querySelectorAll('.filters button');
 
-        logoutButton.addEventListener("click", () => {
-            signOut(auth)
-                .then(() => {
-                    authMessage.textContent = "Logged out successfully.";
-                    authMessage.style.color = 'green'; 
-                    console.log("User logged out.");
-                })
-                .catch((error) => { 
-                    authMessage.textContent = `Logout failed: ${error.message}`; 
-                    authMessage.style.color = 'red'; 
-                    console.error("Logout error:", error); 
-                });
-        });
+// Cart Modals
+const cartModal = document.getElementById("cart-modal");
+const closeCartModalBtn = document.getElementById("close-cart-modal");
+const cartIconBtn = document.getElementById("cart-icon-btn");
+const cartCountBadge = document.getElementById("cart-count");
+const cartItemsContainer = document.getElementById("cart-items-container");
+const cartSubtotalSpan = document.getElementById("cart-subtotal");
+const cartTotalSpan = document.getElementById("cart-total");
+const placeOrderBtn = document.getElementById("place-order-btn");
+const robloxUsernameInput = document.getElementById("roblox-username-input");
+const paymentMethodRadios = document.querySelectorAll('input[name="payment-method"]');
+const paymentPreviewImg = document.getElementById("payment-preview-img");
 
-        loginRegisterButton.addEventListener('click', () => {
-            authModal.classList.add('show');
-            authMessage.textContent = ""; 
-            authMessage.style.color = 'red'; 
-            authEmailInput.value = "";
-            authPasswordInput.value = "";
-        });
 
-        closeAuthModalBtn.addEventListener('click', () => {
+// Order History Modal
+const myOrdersButton = document.getElementById("my-orders-button");
+const orderHistoryModal = document.getElementById("order-history-modal");
+const closeOrderHistoryModalBtn = document.getElementById("close-order-history-modal");
+const orderHistoryList = document.getElementById("order-history-list");
+const orderDetailsView = document.getElementById("order-details-view");
+const backToOrderListBtn = document.getElementById("back-to-order-list");
+const detailOrderId = document.getElementById("detail-order-id");
+const detailOrderDate = document.getElementById("detail-order-date");
+const detailOrderStatus = document.getElementById("detail-order-status");
+const detailOrderPrice = document.getElementById("detail-order-price");
+const detailPaymentMethod = document.getElementById("detail-payment-method");
+const detailRobloxUsername = document.getElementById("detail-roblox-username");
+const detailItemsList = document.getElementById("detail-items-list");
+
+
+// --- Event Listeners Setup ---
+document.addEventListener("DOMContentLoaded", () => {
+    // Auth Modal Listeners
+    loginRegisterButton.addEventListener('click', () => {
+        authModal.classList.add('show');
+        authMessage.textContent = ''; // Clear previous messages
+        authEmailInput.value = ''; // Clear inputs
+        authPasswordInput.value = '';
+    });
+    closeAuthModalBtn.addEventListener('click', () => authModal.classList.remove('show'));
+    authModal.addEventListener('click', (event) => {
+        if (event.target === authModal) {
             authModal.classList.remove('show');
+        }
+    });
+
+    registerButton.addEventListener('click', handleRegister);
+    loginButton.addEventListener('click', handleLogin);
+    logoutButton.addEventListener('click', handleLogout);
+    forgotPasswordButton.addEventListener('click', handleForgotPassword);
+
+    // Cart Modal Listeners
+    cartIconBtn.addEventListener('click', () => {
+        cartModal.classList.add('show');
+        renderCart(); // Re-render cart every time it opens
+        updatePlaceOrderButton();
+        // Show/hide Roblox username input based on cart content
+        robloxUsernameInput.style.display = userCart.length > 0 ? 'block' : 'none';
+    });
+    closeCartModalBtn.addEventListener('click', () => cartModal.classList.remove('show'));
+    cartModal.addEventListener('click', (event) => {
+        if (event.target === cartModal) {
+            cartModal.classList.remove('show');
+        }
+    });
+    placeOrderBtn.addEventListener('click', handlePlaceOrder);
+
+    // Listen for changes in payment method radio buttons
+    paymentMethodRadios.forEach(radio => {
+        radio.addEventListener('change', updatePaymentPreviewImage);
+    });
+    updatePaymentPreviewImage(); // Set initial image
+
+    // Order History Listeners
+    myOrdersButton.addEventListener('click', () => {
+        orderHistoryModal.classList.add('show');
+        // Make sure to show the list view initially
+        orderHistoryList.style.display = 'block';
+        orderDetailsView.style.display = 'none';
+        renderUserOrders(); // Fetch and render user-specific orders
+    });
+    closeOrderHistoryModalBtn.addEventListener('click', () => orderHistoryModal.classList.remove('show'));
+    orderHistoryModal.addEventListener('click', (event) => {
+        if (event.target === orderHistoryModal) {
+            orderHistoryModal.classList.remove('show');
+        }
+    });
+    backToOrderListBtn.addEventListener('click', () => {
+        orderHistoryList.style.display = 'block';
+        orderDetailsView.style.display = 'none';
+    });
+
+    // Initial load functions
+    fetchProducts(); // Fetch products on page load
+});
+
+// --- Firebase Authentication State Listener ---
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUserId = user.uid;
+        userDisplay.textContent = `Welcome, ${user.email}`;
+        loginRegisterButton.style.display = 'none';
+        logoutButton.style.display = 'inline-block';
+        myOrdersButton.style.display = 'inline-block';
+        
+        // Check if the current user is the admin
+        isAdmin = (currentUserId === ADMIN_UID);
+        if (isAdmin) {
+            document.getElementById("admin-panel-button").style.display = 'inline-block';
+            initAdminPanel(db, auth, currentUserId, isAdmin); // Initialize admin panel
+        } else {
+            document.getElementById("admin-panel-button").style.display = 'none';
+            cleanupAdminPanel(); // Ensure admin panel is cleaned up if not admin
+        }
+        
+        // Setup user-specific cart and orders listeners
+        setupUserCartListener(currentUserId);
+        setupUserOrdersListener(currentUserId);
+
+    } else {
+        currentUserId = null;
+        isAdmin = false;
+        userDisplay.textContent = '';
+        loginRegisterButton.style.display = 'inline-block';
+        logoutButton.style.display = 'none';
+        myOrdersButton.style.display = 'none';
+        document.getElementById("admin-panel-button").style.display = 'none';
+        
+        cleanupUserCartAndOrders(); // Clear cart and order data on logout
+        cleanupAdminPanel(); // Ensure admin panel is cleaned up
+    }
+});
+
+
+// --- Authentication Functions ---
+async function handleRegister() {
+    const email = authEmailInput.value;
+    const password = authPasswordInput.value;
+    if (!email || !password) {
+        authMessage.textContent = "Please enter both email and password.";
+        return;
+    }
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        authMessage.textContent = "Registration successful! You are now logged in.";
+        authModal.classList.remove('show');
+        // Optionally, create a user document in Firestore
+        await setDoc(doc(db, `artifacts/${APP_ID}/users/${userCredential.user.uid}`), {
+            email: userCredential.user.email,
+            createdAt: serverTimestamp()
         });
+    } catch (error) {
+        console.error("Registration error:", error);
+        authMessage.textContent = `Registration failed: ${error.message}`;
+    }
+}
 
-        authModal.addEventListener('click', (event) => {
-            if (event.target === authModal) {
-                authModal.classList.remove('show');
-            }
-        });
+async function handleLogin() {
+    const email = authEmailInput.value;
+    const password = authPasswordInput.value;
+    if (!email || !password) {
+        authMessage.textContent = "Please enter both email and password.";
+        return;
+    }
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        authMessage.textContent = "Login successful!";
+        authModal.classList.remove('show');
+    } catch (error) {
+        console.error("Login error:", error);
+        authMessage.textContent = `Login failed: ${error.message}`;
+    }
+}
 
-        // --- Forgot Password Functionality ---
-        forgotPasswordButton.addEventListener('click', () => {
-            const email = authEmailInput.value.trim();
-            if (!email) {
-                authMessage.textContent = "Please enter your email to reset your password.";
-                authMessage.style.color = 'red';
-                return;
-            }
+async function handleLogout() {
+    try {
+        await signOut(auth);
+        console.log("User logged out");
+        // onAuthStateChanged will handle UI updates
+    } catch (error) {
+        console.error("Logout error:", error);
+        alert("Error logging out: " + error.message); // Using alert here for simplicity, custom modal preferred
+    }
+}
 
-            sendPasswordResetEmail(auth, email)
-                .then(() => {
-                    authMessage.textContent = `Password reset email sent to ${email}. Check your inbox!`;
-                    authMessage.style.color = 'green';
-                    authEmailInput.value = ""; 
-                    authPasswordInput.value = ""; 
-                })
-                .catch((error) => {
-                    switch (error.code) {
-                        case 'auth/invalid-email':
-                            authMessage.textContent = "Password reset failed: The email address is not valid.";
-                            break;
-                        case 'auth/user-not-found':
-                            authMessage.textContent = "Password reset failed: No user found with that email address.";
-                            break;
-                        default:
-                            authMessage.textContent = `Password reset failed: ${error.message}`;
-                    }
-                    authMessage.style.color = 'red';
-                    console.error("Password reset error:", error);
-                });
-        });
+async function handleForgotPassword() {
+    const email = authEmailInput.value;
+    if (!email) {
+        authMessage.textContent = "Please enter your email to reset password.";
+        return;
+    }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        authMessage.textContent = "Password reset email sent! Check your inbox.";
+    } catch (error) {
+        console.error("Forgot password error:", error);
+        authMessage.textContent = `Failed to send reset email: ${error.message}`;
+    }
+}
 
 
-        // --- Authentication State Observer (Crucial for loading user data) ---
-        onAuthStateChanged(auth, async (user) => {
-            // Unsubscribe from any existing listeners that are managed here
-            if (unsubscribeUserOrders) {
-                unsubscribeUserOrders();
-                unsubscribeUserOrders = null;
-            }
-            // Product listener is always active, no need to unsubscribe here.
-            
-            // Clean up admin panel if currently active
-            if (adminCleanupFunction) {
-                adminCleanupFunction();
-                adminCleanupFunction = null;
-            }
+// --- Product Display Functions ---
+let unsubscribeProducts = null; // Listener for products
 
-            if (user) {
-                currentUserId = user.uid; // Set current user ID
-                isAdmin = (currentUserId === ADMIN_UID); // Check if current user is admin
+function fetchProducts() {
+    // Detach previous listener if exists
+    if (unsubscribeProducts) {
+        unsubscribeProducts();
+    }
 
-                userDisplay.textContent = `Welcome, ${user.email}`;
-                loginRegisterButton.style.display = "none"; 
-                logoutButton.style.display = "inline-block";
-                myOrdersButton.style.display = "inline-block"; 
-
-                if (isAdmin) {
-                    adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
-                    // Dynamically import and initialize admin module
-                    if (!initAdminPanelModule) {
-                        try {
-                            // Ensure the path is correct relative to script.js
-                            const adminModule = await import('./admin.js'); 
-                            initAdminPanelModule = adminModule.initAdminPanel;
-                            adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
-                        } catch (error) {
-                            console.error("Error loading admin.js:", error);
-                            // Hide admin button if load fails
-                            adminPanelButton.style.display = "none"; 
-                        }
-                    }
-                    if (initAdminPanelModule) {
-                        // Pass Firestore and Auth instances, plus user info to admin module
-                        initAdminPanelModule(db, auth, currentUserId, isAdmin);
-                    }
-                } else {
-                    adminPanelButton.style.display = "none";
-                }
-                
-                robloxUsernameInput.style.display = "block"; 
-                
-                await loadCartFromFirestore(currentUserId); 
-                await syncCartOnLogin(currentUserId); 
-
-                unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
-
-            } else {
-                currentUserId = null; 
-                isAdmin = false; 
-
-                userDisplay.textContent = "";
-                loginRegisterButton.style.display = "inline-block"; 
-                logoutButton.style.display = "none";
-                myOrdersButton.style.display = "none"; 
-                adminPanelButton.style.display = "none"; 
-                
-                robloxUsernameInput.style.display = "none"; 
-
-                cart = loadCartFromLocalStorage(); 
-                userOrders = []; 
-            }
-            authEmailInput.value = "";
-            authPasswordInput.value = "";
-            authMessage.textContent = "";
-            authMessage.style.color = 'red'; 
-            renderCart(); 
-            // Products are always rendered via the setupProductsListener called globally.
-        });
-
-        // --- Firestore Collection Paths ---
-        const APP_ID = 'tempest-store-app'; 
-        const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`; 
-        const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
-        const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
-        const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`; 
-
-        // --- Product Display (Accessible to all) ---
-        // --- Product Display (Accessible to all) ---
-function setupProductsListener() {
     const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-    return onSnapshot(productsColRef, (snapshot) => { 
-        const fetchedProducts = [];
+    // Order products by name for consistent display
+    const q = query(productsColRef, orderBy("name"));
+
+    unsubscribeProducts = onSnapshot(q, (snapshot) => {
+        allProducts = [];
         snapshot.forEach(doc => {
-            fetchedProducts.push({ id: doc.id, ...doc.data() });
+            allProducts.push({ id: doc.id, ...doc.data() });
         });
-        allProducts = fetchedProducts; 
-
-        // Apply current filter and re-render products
-        applyFilters();
-
-        // Re-render cart on product changes to update prices
-        renderCart();
+        applyFilters(); // Re-render products after fetching/updating
     }, (error) => {
-        console.error("Error listening to products:", error);
+        console.error("Error fetching products:", error);
+        productListContainer.innerHTML = '<p class="empty-message">Error loading products.</p>';
+    });
+}
+
+// Global filter state
+let currentFilterCategory = 'all';
+let currentSearchTerm = '';
+
+function setFilter(category) {
+    currentFilterCategory = category;
+    // Update active state on filter buttons
+    filterButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.cat === category) {
+            btn.classList.add('active');
+        }
+    });
+    applyFilters();
+}
+
+function applyFilters() {
+    currentSearchTerm = searchBox.value.toLowerCase().trim();
+
+    const filteredProducts = allProducts.filter(product => {
+        const matchesCategory = currentFilterCategory === 'all' || product.category === currentFilterCategory;
+        const matchesSearch = product.name.toLowerCase().includes(currentSearchTerm) ||
+                              product.category.toLowerCase().includes(currentSearchTerm);
+        return matchesCategory && matchesSearch;
+    });
+
+    renderProducts(filteredProducts);
+}
+
+function renderProducts(productsToRender) {
+    productListContainer.innerHTML = ''; // Clear current products
+
+    if (productsToRender.length === 0) {
+        productListContainer.innerHTML = '<p class="empty-message">No products found matching your criteria.</p>';
+        return;
+    }
+
+    productsToRender.forEach(product => {
+        const productCard = document.createElement('div');
+        productCard.className = 'product-card';
+
+        const imageUrl = `images/${product.image}`;
+        let priceHtml = '';
+
+        if (product.sale && product.salePrice) {
+            priceHtml = `<span class="original-price">${product.price}</span> <span class="sale-price">${product.salePrice}</span>`;
+        } else {
+            priceHtml = `<span class="price">${product.price}</span>`;
+        }
+
+        const newBadge = product.new ? '<span class="badge new">New</span>' : '';
+        const saleBadge = product.sale ? '<span class="badge sale">Sale</span>' : '';
+
+        productCard.innerHTML = `
+            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/200x200/f0f0f0/888?text=Image+N/A';" />
+            <h3>${product.name}</h3>
+            <p class="category">${product.category}</p>
+            <p class="price">${priceHtml}</p>
+            <p class="stock">Stock: ${product.stock}</p>
+            <div class="status-badges">${newBadge}${saleBadge}</div>
+            <button class="add-to-cart-btn" data-id="${product.id}" ${product.stock <= 0 ? 'disabled' : ''}>
+                ${product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
+            </button>
+        `;
+        productListContainer.appendChild(productCard);
+    });
+
+    // Add event listeners for "Add to Cart" buttons
+    productListContainer.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const productId = e.target.dataset.id;
+            const productToAdd = allProducts.find(p => p.id === productId);
+            if (productToAdd) {
+                addToCart(productToAdd);
+            }
+        });
     });
 }
 
 
-        // Call setupProductsListener once when the script loads to always show products
-        unsubscribeProducts = setupProductsListener();
-
-        // --- Cart Persistence (Customer-side) ---
-        async function saveCartToFirestore(userId, cartData) {
-            try {
-                const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
-                await setDoc(userCartRef, { items: JSON.stringify(cartData) }); 
-                console.log("Cart saved to Firestore for user:", userId);
-            } catch (e) {
-                console.error("Error saving cart to Firestore:", e);
-            }
-        }
-
-        async function loadCartFromFirestore(userId) {
-            try {
-                const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
-                const docSnap = await getDoc(userCartRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    cart = JSON.parse(data.items || '[]'); 
-                    console.log("Cart loaded from Firestore for user:", userId, cart);
-                } else {
-                    cart = []; 
-                    console.log("No cart found in Firestore for user:", userId);
-                }
-            } catch (e) {
-                console.error("Error loading cart from Firestore:", e);
-                cart = []; 
-            }
-        }
-
-        function saveCartToLocalStorage(cartData) {
-            localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
-        }
-
-        function loadCartFromLocalStorage() {
-            const storedCart = localStorage.getItem('tempestStoreCart');
-            return storedCart ? JSON.parse(storedCart) : [];
-        }
-
-        async function syncCartOnLogin(userId) {
-            const localCart = loadCartFromLocalStorage();
-            if (localCart.length > 0) {
-                const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
-                const docSnap = await getDoc(userCartRef);
-                let firestoreCart = [];
-                if (docSnap.exists()) {
-                    firestoreCart = JSON.parse(docSnap.data().items || '[]');
-                }
-
-                localCart.forEach(localItem => {
-                    const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
-                    if (existingItemIndex > -1) {
-                        firestoreCart[existingItemIndex].quantity += localItem.quantity;
-                    } else {
-                        // When syncing, ensure effectivePrice is correctly set based on current product data.
-                        const productDetails = allProducts.find(p => p.id === localItem.id);
-                        if (productDetails) {
-                            const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                            firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
-                        } else {
-                            // Fallback if product not found (e.g., deleted by admin)
-                            firestoreCart.push(localItem);
-                        }
-                    }
-                });
-                cart = firestoreCart; 
-                await saveCartToFirestore(userId, cart); 
-                localStorage.removeItem('tempestStoreCart'); 
-                renderCart(); 
-            }
-        }
-
-        // --- Customer Order History (User-side) ---
-        function setupUserOrderHistoryListener(userId) {
-            const ordersCollectionRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
-            const q = query(ordersCollectionRef, orderBy("orderDate", "desc"));
-            return onSnapshot(q, (snapshot) => { 
-                const fetchedOrders = [];
-                snapshot.forEach(doc => {
-                    fetchedOrders.push({ id: doc.id, ...doc.data() });
-                });
-                userOrders = fetchedOrders; 
-                renderOrderHistory(); 
-            }, (error) => {
-                console.error("Error listening to user order history:", error);
-            });
-        }
-
-        // --- Cart Management Functions ---
-        function addToCart(product) {
-            const existingItem = cart.find(item => item.id === product.id);
-            if (existingItem) {
-                existingItem.quantity++;
-            } else {
-                // Ensure effectivePrice is based on product's current sale status/price
-                const productDetails = allProducts.find(p => p.id === product.id);
-                const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                cart.push({ ...product, quantity: 1, effectivePrice: priceToUse }); 
-            }
-            saveCart(); 
-            renderCart(); 
-            console.log("Cart contents:", cart);
-        }
-
-        function removeFromCart(productId) {
-            cart = cart.filter(item => item.id !== productId);
-            saveCart(); 
-            renderCart(); 
-        }
-
-        function updateCartQuantity(productId, newQuantity) {
-            const item = cart.find(item => item.id === productId);
-            if (item) {
-                item.quantity = Math.max(1, newQuantity); 
-                saveCart(); 
-                renderCart(); 
-            }
-        }
-
-        function saveCart() {
-            if (currentUserId) {
-                saveCartToFirestore(currentUserId, cart);
-            } else {
-                saveCartToLocalStorage(cart);
-            }
-            updateCartCountBadge(); 
-        }
-
-        function updateCartCountBadge() {
-            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-            cartCountBadge.textContent = totalItems;
-            cartCountBadge.style.display = totalItems > 0 ? 'inline-block' : 'none'; 
-
-            const { total } = calculateCartTotals();
-            placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
-            
-            placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '');
-        }
-
-        function renderCart() {
-            cartItemsContainer.innerHTML = ''; 
-
-            if (cart.length === 0) {
-                cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
-            } else {
-                cart.forEach(item => {
-                    // Find the latest product details from allProducts
-                    const productDetails = allProducts.find(p => p.id === item.id);
-                    let priceToDisplay;
-                    if (productDetails) {
-                        priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                        // Update item's effectivePrice in cart to match latest
-                        item.effectivePrice = priceToDisplay; 
-                    } else {
-                        // Fallback if product is no longer found (e.g., deleted by admin)
-                        priceToDisplay = item.effectivePrice || item.price;
-                    }
-
-                    const imageUrl = `images/${item.image}`;
-                    const cartItemDiv = document.createElement('div'); 
-                    cartItemDiv.className = 'cart-item';
-                    cartItemDiv.innerHTML = `
-                        <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
-                        <div class="cart-item-details">
-                            <h4>${item.name}</h4>
-                            <div class="cart-item-price">${priceToDisplay}</div>
-                        </div>
-                        <div class="cart-item-quantity-control">
-                            <button data-id="${item.id}" data-action="decrease">-</button>
-                            <input type="number" value="${item.quantity}" min="1" data-id="${item.id}">
-                            <button data-id="${item.id}" data-action="increase">+</button>
-                        </div>
-                        <button class="cart-item-remove" data-id="${item.id}">&times;</button>
-                    `;
-                    cartItemsContainer.appendChild(cartItemDiv);
-                });
-
-                cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
-                    button.addEventListener('click', (event) => {
-                        const productId = event.target.dataset.id;
-                        const action = event.target.dataset.action;
-                        const input = event.target.parentElement.querySelector('input');
-                        let newQuantity = parseInt(input.value);
-
-                        if (action === 'increase') {
-                            newQuantity++;
-                        } else if (action === 'decrease') {
-                            newQuantity--;
-                        }
-                        updateCartQuantity(productId, newQuantity);
-                    });
-                });
-
-                cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
-                    button.addEventListener('click', (event) => {
-                        const productId = event.target.dataset.id;
-                        removeFromCart(productId);
-                    });
-                });
-            }
-
-            calculateCartTotals(); 
-            updateCartCountBadge(); 
-        }
-
-        function calculateCartTotals() {
-            let subtotal = 0;
-            let totalItemsInCart = 0;
-            cart.forEach(item => {
-                // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
-                // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
-                const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', '')); 
-                subtotal += priceValue * item.quantity;
-                totalItemsInCart += item.quantity;
-            });
-
-            const total = subtotal; 
-
-            cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
-            cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
-
-            return { subtotal, total, totalItemsInCart }; 
-        }
-
-        // --- Cart Modal Event Listeners ---
-        cartIconBtn.addEventListener('click', () => {
-            cartModal.classList.add('show');
-            renderCart();
-            robloxUsernameInput.style.display = currentUserId ? 'block' : 'none'; 
-            updateCartCountBadge();
-        });
-
-        closeCartModalBtn.addEventListener('click', () => {
-            cartModal.classList.remove('show');
-        });
-
-        cartModal.addEventListener('click', (event) => {
-            if (event.target === cartModal) {
-                cartModal.classList.remove('show');
-            }
-        });
-
-        robloxUsernameInput.addEventListener('input', updateCartCountBadge);
-
-        // Handles the process of placing an order.
-        placeOrderBtn.addEventListener('click', async () => {
-            if (cart.length === 0) {
-                alert("Your cart is empty. Please add items before placing an order.");
-                return;
-            }
-
-            const robloxUsername = robloxUsernameInput.value.trim();
-
-            placeOrderBtn.disabled = true;
-
-            try {
-                if (!currentUserId) {
-                    authModal.classList.add('show');
-                    authMessage.textContent = "Please login or register to complete your order.";
-                    authEmailInput.value = ""; 
-                    authPasswordInput.value = ""; 
-                    placeOrderBtn.disabled = false; 
-                    return; 
-                }
-                
-                if (robloxUsername === '') {
-                    alert("Please enter your Roblox Username to proceed with the order.");
-                    placeOrderBtn.disabled = false; 
-                    return; 
-                }
-
-                // Recalculate totals right before placing order with latest effective prices
-                const { subtotal, total } = calculateCartTotals(); 
-                const orderDetails = {
-                    userId: currentUserId,
-                    // Deep copy cart items to ensure order details are immutable if cart changes later
-                    // Items in cart will have updated effectivePrice from renderCart()
-                    items: JSON.parse(JSON.stringify(cart)), 
-                    subtotal: subtotal,
-                    total: total,
-                    orderDate: new Date().toISOString(), 
-                    status: 'Pending', 
-                    paymentMethod: document.querySelector('input[name="payment-method"]:checked').value, 
-                    robloxUsername: robloxUsername 
-                };
-
-                console.log("Placing Order:", orderDetails);
-
-                const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
-                const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
-
-                const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
-                // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
-                await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails); 
-
-                alert("Successfully Placed Order!"); 
-                console.log("Order saved to Firestore!");
-                
-                cart = [];
-                saveCart();
-                renderCart();
-                cartModal.classList.remove('show');
-                robloxUsernameInput.value = ''; 
-
-            } catch (e) {
-                console.error("Error placing order to Firestore:", e);
-                alert("There was an error placing your order. Please try again.");
-            } finally {
-                placeOrderBtn.disabled = false; 
-            }
-        });
-
-
-        // --- Order History Functions (User-side) ---
-        myOrdersButton.addEventListener('click', () => {
-            if (!currentUserId) {
-                alert("Please log in to view your order history."); 
-                return;
-            }
-            orderHistoryModal.classList.add('show');
-            orderHistoryTitle.textContent = "My Orders";
-            orderHistoryList.style.display = 'block'; 
-            orderDetailsView.style.display = 'none'; 
-            renderOrderHistory(); 
-        });
-
-        closeOrderHistoryModalBtn.addEventListener('click', () => {
-            orderHistoryModal.classList.remove('show');
-        });
-
-        orderHistoryModal.addEventListener('click', (event) => {
-            if (event.target === orderHistoryModal) {
-                orderHistoryModal.classList.remove('show'); 
-            }
-        });
-
-        backToOrderListBtn.addEventListener('click', () => {
-            orderHistoryList.style.display = 'block';
-            orderDetailsView.style.display = 'none';
-            orderHistoryTitle.textContent = "My Orders";
-            renderOrderHistory();
-        });
-
-        function renderOrderHistory() {
-            orderHistoryList.innerHTML = ''; 
-
-            if (userOrders.length === 0) {
-                orderHistoryList.innerHTML = '<p class="empty-message">No orders found.</p>';
-                return;
-            }
-
-            userOrders.forEach(order => {
-                const orderItemDiv = document.createElement('div');
-                orderItemDiv.className = 'order-item';
-                orderItemDiv.innerHTML = `
-                    <div class="order-item-info">
-                        <strong>Order ID: ${order.id.substring(0, 8)}...</strong>
-                        <span>Date: ${new Date(order.orderDate).toLocaleDateString()}</span>
-                        <span>Price: ₱${order.total.toFixed(2)}</span>
-                    </div>
-                    <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span>
-                    <button class="view-details-btn" data-order-id="${order.id}">View Details</button>
-                `;
-                orderHistoryList.appendChild(orderItemDiv);
-            });
-
-            orderHistoryList.querySelectorAll('.view-details-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const orderId = event.target.dataset.orderId;
-                    const selectedOrder = userOrders.find(order => order.id === orderId);
-                    if (selectedOrder) {
-                        showOrderDetails(selectedOrder); 
-                    }
-                });
-            });
-        }
-
-        function showOrderDetails(order) {
-            orderHistoryTitle.textContent = "Order Details";
-            orderHistoryList.style.display = 'none'; 
-            orderDetailsView.style.display = 'block'; 
-
-            detailOrderId.textContent = order.id;
-            detailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
-            detailOrderStatus.textContent = order.status;
-            detailOrderStatus.className = `status-info order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`;
-            detailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
-            detailPaymentMethod.textContent = order.paymentMethod;
-            detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
-
-            detailItemsList.innerHTML = ''; 
-            if (order.items && order.items.length > 0) {
-                order.items.forEach(item => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'order-detail-item';
-                    const imageUrl = `images/${item.image}`; 
-                    itemDiv.innerHTML = `
-                        <span class="order-detail-item-name">${item.name}</span>
-                        <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
-                    `;
-                    detailItemsList.appendChild(itemDiv);
-                });
-            } else {
-                detailItemsList.innerHTML = '<p>No items found for this order.</p>';
-            }
-        }
-
-
-        // --- Product Display Functions (Main Store Page) ---
-        function renderProducts(items) {
-            const list = document.getElementById("product-list");
-            list.innerHTML = ""; 
-
-            if (items.length === 0) {
-                 list.innerHTML = '<p class="empty-message" style="width: 100%;">No products available. Please add some from the Admin Panel!</p>';
-                 return;
-            }
-
-            items.forEach(product => {
-                const card = document.createElement("div");
-                card.className = "card";
-                const isOutOfStock = !product.stock || product.stock <= 0;
-                if (isOutOfStock) card.classList.add("out-of-stock"); 
-
-                const displayPrice = product.sale && product.salePrice ? 
-                                     `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` : 
-                                     product.price;
-                const imageUrl = `images/${product.image}`;
-                card.innerHTML = `
-                    ${product.new ? `<span class="badge">NEW</span>` : ""}
-                    ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
-                    <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
-                    <h4>${product.name}</h4>
-                    <div class="price">${displayPrice}</div>
-                    <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
-                        ${isOutOfStock ? 'Out of Stock' : `Stock: ${product.stock}`}
-                    </div>
-                    <button class="add-to-cart-btn" ${isOutOfStock ? 'disabled' : ''} data-product-id="${product.id}">
-                        ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-                    </button>
-                `;
-                list.appendChild(card);
-            });
-
-            document.querySelectorAll('.add-to-cart-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const productId = event.target.dataset.productId;
-                    const productToAdd = allProducts.find(p => p.id === productId); 
-                    if (productToAdd) {
-                        addToCart(productToAdd); 
-                    }
-                });
-            });
-        }
-// Minimal test to confirm filter works
-setTimeout(() => {
-    allProducts = [
-        { name: "Dog Toy", category: "pets" },
-        { name: "Bike Gear", category: "gears" },
-        { name: "Gold Sheckle", category: "sheckles" }
-    ];
-    applyFilters();
-}, 2000);
-
-        function setFilter(category) {
-            currentCategory = category;
-
-            document.querySelectorAll(".filters button").forEach(btn => {
-                btn.classList.toggle("active", btn.dataset.cat === category);
-            });
-
-            applyFilters(); 
-        }
-
-        function applyFilters() {
-            const query = document.getElementById("searchBox").value.toLowerCase();
-
-            const filtered = allProducts.filter(product => { 
-                const matchesCategory = currentCategory === "all" || product.category === currentCategory;
-                const matchesSearch = product.name.toLowerCase().includes(query);
-                return matchesCategory && matchesSearch;
-            });
-
-            applyFilters(); // Ensures filtering happens after data is loaded 
-        }
-
-       window.addEventListener("DOMContentLoaded", () => {
-    updateCartCountBadge();
-
-    const searchBox = document.getElementById("searchBox");
-    if (searchBox) {
-        searchBox.addEventListener("input", applyFilters);
+// --- Cart Functions ---
+let unsubscribeUserCart = null; // Listener for user's cart
+
+function setupUserCartListener(userId) {
+    if (unsubscribeUserCart) {
+        unsubscribeUserCart(); // Detach previous listener
+    }
+    if (!userId) {
+        userCart = [];
+        updateCartDisplay();
+        return;
     }
 
-    document.querySelectorAll(".filters button").forEach(button => {
-        button.addEventListener("click", (e) => {
-            const category = e.target.dataset.cat;
-            if (category) {
-                setFilter(category);
-                applyFilters();
+    const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/cart/current`);
+    unsubscribeUserCart = onSnapshot(cartDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            userCart = docSnap.data().items || [];
+        } else {
+            userCart = [];
+        }
+        updateCartDisplay();
+    }, (error) => {
+        console.error("Error listening to user cart:", error);
+    });
+}
+
+function cleanupUserCartAndOrders() {
+    if (unsubscribeUserCart) {
+        unsubscribeUserCart();
+        unsubscribeUserCart = null;
+    }
+    if (unsubscribeUserOrders) {
+        unsubscribeUserOrders();
+        unsubscribeUserOrders = null;
+    }
+    userCart = [];
+    userOrders = [];
+    updateCartDisplay(); // Clear cart display
+    orderHistoryList.innerHTML = '<p class="empty-message">No orders found.</p>'; // Clear order history display
+}
+
+
+async function addToCart(product) {
+    if (!currentUserId) {
+        alert("Please log in to add items to your cart.");
+        authModal.classList.add('show'); // Show login modal
+        return;
+    }
+
+    const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
+    
+    // Check if product is already in cart
+    const existingItemIndex = userCart.findIndex(item => item.id === product.id);
+
+    if (existingItemIndex > -1) {
+        // Item exists, update quantity
+        const currentQty = userCart[existingItemIndex].quantity;
+        if (currentQty < product.stock) {
+            userCart[existingItemIndex].quantity += 1;
+        } else {
+            alert(`Cannot add more "${product.name}". Maximum stock reached.`);
+            return;
+        }
+    } else {
+        // Item does not exist, add new item
+        if (product.stock > 0) {
+            userCart.push({ 
+                id: product.id, 
+                name: product.name, 
+                image: product.image, 
+                price: product.price, // Original price string
+                salePrice: product.salePrice, // Sale price string
+                effectivePrice: product.sale && product.salePrice ? product.salePrice : product.price, // The price used for calculation
+                stock: product.stock, // Current stock for reference
+                quantity: 1 
+            });
+        } else {
+            alert(`"${product.name}" is out of stock.`);
+            return;
+        }
+    }
+
+    try {
+        await setDoc(cartDocRef, { items: userCart });
+        // The onSnapshot listener will update the UI
+        console.log(`Added "${product.name}" to cart.`);
+    } catch (e) {
+        console.error("Error adding to cart:", e);
+        alert("Failed to add to cart: " + e.message);
+    }
+}
+
+async function updateCartItemQuantity(productId, newQuantity) {
+    if (!currentUserId) return; // Should not happen if user is logged in
+    
+    const itemIndex = userCart.findIndex(item => item.id === productId);
+    if (itemIndex > -1) {
+        const product = allProducts.find(p => p.id === productId); // Get full product data for stock check
+        if (!product) {
+            console.error("Product not found in allProducts:", productId);
+            return;
+        }
+
+        if (newQuantity > 0 && newQuantity <= product.stock) {
+            userCart[itemIndex].quantity = newQuantity;
+        } else if (newQuantity <= 0) {
+            // If quantity is 0 or less, remove item
+            userCart.splice(itemIndex, 1);
+        } else {
+            // newQuantity > product.stock
+            alert(`Cannot set quantity to ${newQuantity} for "${product.name}". Only ${product.stock} in stock.`);
+            // Reset to max available stock
+            userCart[itemIndex].quantity = product.stock; 
+        }
+
+        try {
+            const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
+            await setDoc(cartDocRef, { items: userCart });
+            // UI will update via onSnapshot
+        } catch (e) {
+            console.error("Error updating cart quantity:", e);
+            alert("Failed to update cart quantity: " + e.message);
+        }
+    }
+}
+
+async function removeCartItem(productId) {
+    if (!currentUserId) return;
+
+    const itemIndex = userCart.findIndex(item => item.id === productId);
+    if (itemIndex > -1) {
+        userCart.splice(itemIndex, 1);
+        try {
+            const cartDocRef = doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`);
+            await setDoc(cartDocRef, { items: userCart });
+            // UI will update via onSnapshot
+        } catch (e) {
+            console.error("Error removing cart item:", e);
+            alert("Failed to remove item from cart: " + e.message);
+        }
+    }
+}
+
+function updateCartDisplay() {
+    cartItemsContainer.innerHTML = ''; // Clear existing items
+    let subtotal = 0;
+    let totalItems = 0;
+
+    if (userCart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
+        robloxUsernameInput.style.display = 'none'; // Hide Roblox username input if cart is empty
+    } else {
+        robloxUsernameInput.style.display = 'block'; // Show Roblox username input if cart has items
+        userCart.forEach(item => {
+            // Ensure effectivePrice is a number before calculation
+            const priceValue = parseFloat(item.effectivePrice.replace('₱', ''));
+            const itemTotal = priceValue * item.quantity;
+            subtotal += itemTotal;
+            totalItems += item.quantity;
+
+            const cartItemDiv = document.createElement('div');
+            cartItemDiv.className = 'cart-item';
+            const imageUrl = `images/${item.image}`;
+            cartItemDiv.innerHTML = `
+                <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/60x60/f0f0f0/888?text=N/A';"/>
+                <div class="cart-item-details">
+                    <h4>${item.name}</h4>
+                    <p class="price">${item.effectivePrice}</p>
+                </div>
+                <div class="cart-item-quantity">
+                    <button class="qty-minus" data-id="${item.id}">-</button>
+                    <input type="number" value="${item.quantity}" min="1" max="${item.stock}" data-id="${item.id}" />
+                    <button class="qty-plus" data-id="${item.id}">+</button>
+                </div>
+                <button class="cart-item-remove" data-id="${item.id}">Remove</button>
+            `;
+            cartItemsContainer.appendChild(cartItemDiv);
+        });
+
+        // Add event listeners for quantity buttons and remove buttons
+        cartItemsContainer.querySelectorAll('.qty-minus').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = e.target.dataset.id;
+                const input = e.target.nextElementSibling;
+                const newQty = parseInt(input.value) - 1;
+                updateCartItemQuantity(productId, newQty);
+            });
+        });
+
+        cartItemsContainer.querySelectorAll('.qty-plus').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = e.target.dataset.id;
+                const input = e.target.previousElementSibling;
+                const newQty = parseInt(input.value) + 1;
+                updateCartItemQuantity(productId, newQty);
+            });
+        });
+
+        cartItemsContainer.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const productId = e.target.dataset.id;
+                const newQty = parseInt(e.target.value);
+                updateCartItemQuantity(productId, newQty);
+            });
+        });
+
+        cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = e.target.dataset.id;
+                removeCartItem(productId);
+            });
+        });
+    }
+
+    cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
+    cartTotalSpan.textContent = `₱${subtotal.toFixed(2)}`; // Assuming no tax/shipping for now
+    cartCountBadge.textContent = totalItems;
+    updatePlaceOrderButton(subtotal, totalItems);
+}
+
+function updatePlaceOrderButton(total = 0, itemCount = 0) {
+    if (total === 0 || itemCount === 0) {
+        placeOrderBtn.textContent = `Place Order (0 items) ₱0.00`;
+        placeOrderBtn.disabled = true;
+    } else {
+        placeOrderBtn.textContent = `Place Order (${itemCount} items) ₱${total.toFixed(2)}`;
+        placeOrderBtn.disabled = false;
+    }
+}
+
+function updatePaymentPreviewImage() {
+    const selectedMethod = document.querySelector('input[name="payment-method"]:checked').value;
+    let imagePath = '';
+    switch (selectedMethod) {
+        case 'GCash':
+            imagePath = 'images/gcash.png';
+            break;
+        case 'Maya':
+            imagePath = 'images/maya.png';
+            break;
+        case 'Paypal':
+            imagePath = 'images/paypal.png';
+            break;
+        default:
+            imagePath = 'https://placehold.co/200x200/f0f0f0/888?text=Payment'; // Fallback
+    }
+    paymentPreviewImg.src = imagePath;
+}
+
+async function handlePlaceOrder() {
+    if (userCart.length === 0) {
+        alert("Your cart is empty. Please add items before placing an order.");
+        return;
+    }
+    if (!currentUserId) {
+        alert("You must be logged in to place an order.");
+        authModal.classList.add('show');
+        return;
+    }
+
+    const robloxUsername = robloxUsernameInput.value.trim();
+    if (!robloxUsername) {
+        alert("Please enter your Roblox Username to complete the order.");
+        robloxUsernameInput.focus();
+        return;
+    }
+
+    const total = parseFloat(cartTotalSpan.textContent.replace('₱', ''));
+    const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
+
+    const orderData = {
+        userId: currentUserId,
+        robloxUsername: robloxUsername,
+        items: userCart.map(item => ({
+            id: item.id,
+            name: item.name,
+            image: item.image,
+            price: item.price, // Original string price
+            salePrice: item.salePrice, // Original sale price string
+            effectivePrice: item.effectivePrice, // The string price used for this order
+            quantity: item.quantity
+        })),
+        total: total,
+        paymentMethod: paymentMethod,
+        orderDate: Date.now(), // Store as a timestamp
+        status: "Pending" // Initial status
+    };
+
+    try {
+        // 1. Add order to user-specific subcollection
+        const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
+        const userOrderDocRef = await addDoc(userOrdersColRef, orderData);
+        console.log("Order added to user's history:", userOrderDocRef.id);
+
+        // 2. Add order to a central 'allOrders' collection for admin view
+        const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
+        // Use the same ID for the central order document for easier cross-referencing
+        await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderData);
+        console.log("Order mirrored to allOrders for admin view:", userOrderDocRef.id);
+
+        // 3. Clear user's cart in Firestore
+        await deleteDoc(doc(db, `artifacts/${APP_ID}/users/${currentUserId}/cart/current`));
+        userCart = []; // Clear local cart
+        updateCartDisplay(); // Update UI to reflect empty cart
+
+        alert("Order placed successfully! Your order ID is: " + userOrderDocRef.id.substring(0, 8) + '...');
+        cartModal.classList.remove('show'); // Close cart modal
+        robloxUsernameInput.value = ''; // Clear Roblox username input
+        
+    } catch (e) {
+        console.error("Error placing order:", e);
+        alert("Failed to place order: " + e.message);
+    }
+}
+
+
+// --- Order History Functions (User View) ---
+function setupUserOrdersListener(userId) {
+    if (unsubscribeUserOrders) {
+        unsubscribeUserOrders(); // Detach previous listener
+    }
+    if (!userId) {
+        userOrders = [];
+        renderUserOrders(); // Clear display
+        return;
+    }
+
+    const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
+    const q = query(userOrdersColRef, orderBy("orderDate", "desc"));
+
+    unsubscribeUserOrders = onSnapshot(q, (snapshot) => {
+        userOrders = [];
+        snapshot.forEach(doc => {
+            userOrders.push({ id: doc.id, ...doc.data() });
+        });
+        renderUserOrders();
+    }, (error) => {
+        console.error("Error listening to user orders:", error);
+    });
+}
+
+function renderUserOrders() {
+    orderHistoryList.innerHTML = '';
+    if (userOrders.length === 0) {
+        orderHistoryList.innerHTML = '<p class="empty-message">No orders found.</p>';
+        return;
+    }
+
+    userOrders.forEach(order => {
+        const orderItemDiv = document.createElement('div');
+        orderItemDiv.className = 'order-item';
+        orderItemDiv.innerHTML = `
+            <div class="order-item-info">
+                <p><strong>Order ID:</strong> ${order.id.substring(0, 8)}...</p>
+                <p><strong>Date:</strong> ${new Date(order.orderDate).toLocaleDateString()}</p>
+                <p><strong>Total:</strong> ₱${order.total.toFixed(2)}</p>
+                <p><strong>Status:</strong> <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span></p>
+            </div>
+            <div class="order-item-actions">
+                <button class="view-order-details" data-id="${order.id}">View Details</button>
+            </div>
+        `;
+        orderHistoryList.appendChild(orderItemDiv);
+    });
+
+    orderHistoryList.querySelectorAll('.view-order-details').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const orderId = e.target.dataset.id;
+            const selectedOrder = userOrders.find(order => order.id === orderId);
+            if (selectedOrder) {
+                showOrderDetails(selectedOrder);
             }
         });
     });
+}
 
-    setFilter("all");
-    applyFilters();
+function showOrderDetails(order) {
+    orderHistoryList.style.display = 'none';
+    orderDetailsView.style.display = 'block';
 
-    // Payment method preview image change
-    document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
-            const img = document.getElementById('payment-preview-img');
-            img.src = `images/${selected}.png`;
+    detailOrderId.textContent = order.id;
+    detailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
+    detailOrderStatus.textContent = order.status;
+    detailOrderStatus.className = `status-info order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`;
+    detailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
+    detailPaymentMethod.textContent = order.paymentMethod;
+    detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
+
+    detailItemsList.innerHTML = '';
+    if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'order-detail-item';
+            itemDiv.innerHTML = `
+                <span>${item.name} (x${item.quantity})</span>
+                <span>${item.effectivePrice}</span>
+            `;
+            detailItemsList.appendChild(itemDiv);
         });
-    });
-});
+    } else {
+        detailItemsList.innerHTML = '<p>No items found for this order.</p>';
+    }
+}
+
+
+// --- Export functions for global access if needed (e.g., for inline HTML onClick attributes) ---
+// This ensures functions called directly from HTML (like setFilter, applyFilters) are accessible.
+// In a more modern setup, all event listeners would be added via JS, removing the need for global exposure.
+window.setFilter = setFilter;
+window.applyFilters = applyFilters;
+// Any other functions referenced in index.html's onclick should be exposed here.
+
 
