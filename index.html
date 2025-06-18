@@ -5,47 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Tempest Store</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDKs (Modular v9+) -->
-    <!-- You will load the script.js which imports the necessary modules -->
-    <style>
-        /* Basic styling for buttons that are dynamically shown/hidden */
-        #admin-panel-button, #my-orders-button, #logout-button {
-            display: none; /* Hidden by default, JavaScript will show them */
-            margin-left: 10px; /* Add some spacing */
-            padding: 8px 12px;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff; /* Example blue color */
-            color: white;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: background-color 0.3s ease;
-        }
-
-        #admin-panel-button:hover, #my-orders-button:hover, #logout-button:hover {
-            background-color: #0056b3;
-        }
-
-        /* Adjustments for header layout */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            background-color: #f8f8f8;
-            border-bottom: 1px solid #eee;
-        }
-
-        .auth-section {
-            display: flex;
-            align-items: center;
-        }
-    </style>
 </head>
 <body>
     <header>
         <div class="logo">🌪️ <strong>Tempest Store</strong></div>
-        <div class="status">Seller Status: <span class="offline">Offline</span></div>
+        <div class="status">Seller Status: <span id="seller-status-display" class="offline">Offline</span></div>
         <div class="auth-section">
             <span id="user-display"></span>
             <button id="my-orders-button">My Orders</button>
@@ -60,18 +24,39 @@
         <a href="https://discord.com/users/938483476670337195" target="_blank">Discord</a>
     </div>
 
+    <!-- Filter and Search Section -->
+    <div class="filter-search-container">
+        <div class="filters">
+            <button data-cat="all" class="active" onclick="setFilter('all')">All</button>
+            <button data-cat="pets" onclick="setFilter('pets')">Pets</button>
+            <button data-cat="gears" onclick="setFilter('gears')">Gears</button>
+            <button data-cat="sheckles" onclick="setFilter('sheckles')">Sheckles</button>
+        </div>
+        <input type="text" id="searchBox" placeholder="Search products..." oninput="applyFilters()">
+    </div>
+
+    <!-- Main product display area -->
+    <main id="product-list"></main>
+
+    <!-- Shopping Cart Button -->
+    <div class="cart-button">
+        <button id="cart-icon-btn">
+            🛒 Cart <span id="cart-count" class="badge">0</span>
+        </button>
+    </div>
+
     <!-- Login/Register Modal -->
     <div id="auth-modal" class="modal">
         <div class="modal-content">
             <span class="close-button" id="close-auth-modal">&times;</span>
             <div id="auth-forms">
                 <h3>Register or Login</h3>
-                <input type="email" id="auth-email" placeholder="Email" />
-                <input type="password" id="auth-password" placeholder="Password" />
+                <input type="email" id="auth-email" placeholder="Email" autocomplete="username" />
+                <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
                 <button id="register-button">Register</button>
                 <button id="login-button">Login</button>
                 <button id="forgot-password-button">Forgot Password?</button>
-                <p id="auth-message" style="color: red; margin-top: 10px;"></p>
+                <p id="auth-message"></p>
             </div>
         </div>
     </div>
@@ -88,7 +73,7 @@
                 <p>Subtotal: <span id="cart-subtotal">₱0.00</span></p>
                 <p>Total: <span id="cart-total">₱0.00</span></p>
             </div>
-            <input type="text" id="roblox-username-input" placeholder="Enter your Roblox Username" style="display: none; margin-bottom: 10px;"/>
+            <input type="text" id="roblox-username-input" placeholder="Enter your Roblox Username (required for delivery)" style="display: none;" autocomplete="nickname" />
             
             <div class="payment-methods">
                 <h4>Payment Method:</h4>
@@ -235,16 +220,6 @@
                 <button id="toggle-seller-status-btn">Toggle Online/Offline</button>
             </div>
         </div>
-    </div>
-
-
-    <main id="product-list"></main>
-
-    <!-- Shopping Cart Button -->
-    <div class="cart-button">
-        <button id="cart-icon-btn">
-            🛒 Cart <span id="cart-count" class="badge">0</span>
-        </button>
     </div>
 
     <!-- Important: defer makes sure the HTML is parsed before script runs -->
