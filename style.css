@@ -109,12 +109,16 @@ button:disabled {
 /* Specific Auth Button Styles (Overrides default button style if needed) */
 #admin-panel-button, #my-orders-button, #logout-button, #login-register-button {
     background-color: #007bff; /* A distinct blue for these header buttons */
-    display: none; /* Initially hidden, JS will control visibility */
 }
 
 #login-register-button {
     display: inline-block; /* Always visible by default if not logged in */
 }
+
+#admin-panel-button, #my-orders-button, #logout-button {
+    display: none; /* Initially hidden, JS will control visibility */
+}
+
 
 #admin-panel-button:hover, #my-orders-button:hover, #logout-button:hover, #login-register-button:hover {
     background-color: #0056b3;
@@ -143,6 +147,60 @@ button:disabled {
     color: #2980b9;
 }
 
+
+/* Filter and Search Styles */
+.filter-search-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding: 20px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    flex-wrap: wrap;
+    margin-top: 10px;
+    border-radius: 8px;
+    max-width: 1200px;
+    margin: 10px auto;
+}
+
+.filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.filters button {
+    background-color: #f0f0f0;
+    color: #555;
+    border: 1px solid #ddd;
+    padding: 8px 15px;
+    font-size: 0.9em;
+    box-shadow: none; /* Remove default button shadow for filters */
+}
+
+.filters button.active {
+    background-color: #3498db;
+    color: white;
+    border-color: #3498db;
+    font-weight: bold;
+}
+
+#searchBox {
+    padding: 8px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9em;
+    width: 250px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#searchBox:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
 
 /* Main Product List Styles */
 main#product-list {
@@ -248,52 +306,6 @@ main#product-list {
     padding: 12px;
     font-size: 1.1em;
     border-radius: 8px;
-}
-
-/* Filter and Search Styles */
-.filter-search-container {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    padding: 20px;
-    background-color: #ffffff;
-    border-bottom: 1px solid #e0e0e0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
-    flex-wrap: wrap;
-    margin-top: 10px;
-    border-radius: 8px;
-    max-width: 1200px;
-    margin: 10px auto;
-}
-
-.filters button {
-    background-color: #f0f0f0;
-    color: #555;
-    border: 1px solid #ddd;
-    padding: 8px 15px;
-    font-size: 0.9em;
-}
-
-.filters button.active {
-    background-color: #3498db;
-    color: white;
-    border-color: #3498db;
-    font-weight: bold;
-}
-
-#searchBox {
-    padding: 8px 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 0.9em;
-    width: 250px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-#searchBox:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-    outline: none;
 }
 
 
@@ -1075,14 +1087,21 @@ main#product-list {
         flex-direction: column;
         align-items: center;
         gap: 10px;
+        padding: 15px; /* Adjust padding for smaller screens */
+    }
+    
+    .filters {
+        width: 100%;
+        justify-content: center; /* Center filter buttons */
     }
 
     #searchBox {
-        width: 80%;
+        width: 90%; /* Wider search box on mobile */
+        max-width: 300px; /* Limit max width */
     }
 
     main#product-list {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Smaller min-width for cards */
         padding: 15px;
         gap: 15px;
     }
@@ -1096,9 +1115,11 @@ main#product-list {
         padding: 20px;
     }
 
-    #auth-forms input[type="email"],
-    #auth-forms input[type="password"] {
+    #auth-forms input:not([type="checkbox"]),
+    #auth-forms select,
+    #roblox-username-input { /* Apply to roblox username input as well */
         width: 100%;
+        box-sizing: border-box; /* Crucial for full width inputs */
     }
 
     .admin-table, .admin-table tbody, .admin-table th, .admin-table td, .admin-table tr {
@@ -1172,6 +1193,10 @@ main#product-list {
         flex-direction: column;
         align-items: stretch;
     }
+    
+    .payment-methods label {
+        font-size: 0.95em; /* Slightly smaller font for clarity */
+    }
 }
 
 @media (max-width: 480px) {
@@ -1197,5 +1222,10 @@ main#product-list {
         font-size: 1.2em;
         width: 25px;
         height: 25px;
+    }
+
+    .filters button {
+        padding: 6px 10px; /* Smaller padding for filter buttons */
+        font-size: 0.8em;
     }
 }
