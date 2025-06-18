@@ -1,31 +1,24 @@
 // admin.js
 // This file contains all logic and DOM manipulations specific to the admin panel.
-// It is designed to be dynamically imported by script.js when an admin user logs in.
 
-import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
-import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
-// Global variables for admin-specific data and Firebase instances
-let allOrders = []; // Stores all orders fetched from Firestore for admin view
-let unsubscribeAllOrders = null; // Unsubscribe function for the all orders listener
-let unsubscribeAdminSellerStatus = null; // Unsubscribe for admin seller status listener
+// Global variables for admin-specific data and listeners
+let allOrders = []; // Global array to store all orders for admin view
+let unsubscribeAllOrders = null; // Unsubscribe function for allOrders listener
+let dbInstance = null; // Firestore instance passed from script.js
+let authInstance = null; // Auth instance passed from script.js
+let adminUserId = null; // Admin user ID passed from script.js
+let isAdminUser = false; // Is Admin flag passed from script.js
 
-// Firebase instances will be passed from script.js during initialization
-let dbInstance = null;
-let authInstance = null;
-let storageInstance = null;
-let adminUserId = null;
-let isAdminUser = false; // Flag to confirm admin status within this module
-
-// --- DOM elements for Admin Panel (Referenced from index.html) ---
+// --- DOM elements for Admin Panel ---
 const adminPanelModal = document.getElementById("admin-panel-modal");
 const closeAdminPanelModalBtn = document.getElementById("close-admin-panel-modal");
 const adminTabButtons = document.querySelectorAll(".admin-tab-btn");
 const adminProductManagement = document.getElementById("admin-product-management");
 const adminOrderManagement = document.getElementById("admin-order-management");
-const adminSellerStatusTab = document.getElementById("admin-seller-status");
 
-// Product Management elements
+// Product Form elements
 const productFormTitle = document.getElementById("product-form-title");
 const productIdInput = document.getElementById("product-id-input");
 const productNameInput = document.getElementById("product-name");
@@ -54,214 +47,297 @@ const adminDetailItemsList = document.getElementById("admin-detail-items-list");
 const orderStatusSelect = document.getElementById("order-status-select");
 const updateOrderStatusBtn = document.getElementById("update-order-status-btn");
 const adminBackToOrderListBtn = document.getElementById("admin-back-to-order-list");
-let currentEditingOrderId = null; // Stores the ID of the order currently being viewed/edited
+let currentEditingOrderId = null;
+let currentEditingOrderUserId = null; // <-- MODIFICATION: Added to store the user ID of the order being edited
 
-// Seller Status elements
-const adminSellerStatusDisplay = document.getElementById("admin-seller-status-display");
-const toggleSellerStatusBtn = document.getElementById("toggle-seller-status-btn");
 
-// --- Firestore Collection Paths (Centralized and consistent with script.js) ---
-const APP_ID = 'tempest-store-app';
+// --- Firestore Collection Paths (These are defined locally in admin.js for clarity) ---
+const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in script.js
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
-const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
-const SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`;
+const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`; // <-- MODIFICATION: This path is now needed
 
-// --- Initialization Function (Called by script.js) ---
-function initAdminPanel(db, auth, storage, userId, adminFlag) {
-    console.log("[Admin Module] initAdminPanel called. Initializing admin features.");
-    // Assign passed Firebase instances and user info to local module variables
+
+// --- Admin Panel Functions ---
+function initAdminPanel(db, auth, userId, adminFlag) {
     dbInstance = db;
     authInstance = auth;
-    storageInstance = storage;
     adminUserId = userId;
     isAdminUser = adminFlag;
 
-    // Ensure listeners are only attached once for buttons
+    // Attach event listener for the admin panel button
+    // This button is controlled by script.js's onAuthStateChanged for visibility
     const adminPanelButton = document.getElementById("admin-panel-button");
-    if (adminPanelButton && !adminPanelButton._adminListenerAttached) {
-        adminPanelButton._adminListenerAttached = true; // Mark as attached
-        adminPanelButton.addEventListener('click', () => {
-            if (!isAdminUser) {
+    if (adminPanelButton) {
+        // Remove existing listener to prevent duplicates on re-init
+        if (adminPanelButton._adminListener) {
+            adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
+        }
+        const listener = () => {
+             if (!isAdminUser) {
                 alert("You are not authorized to access the Admin Panel.");
-                console.warn("[Admin Module] Unauthorized access attempt to Admin Panel.");
                 return;
             }
             adminPanelModal.classList.add('show');
-            showAdminTab('products'); // Default to products tab on open
-            console.log("[Admin Module] Admin Panel modal shown, defaulting to products tab.");
-        });
+            // Default to product management tab when opening
+            showAdminTab('products');
+        };
+        adminPanelButton.addEventListener('click', listener);
+        adminPanelButton._adminListener = listener; // Store reference to listener for removal
     }
 
-    // Attach listeners for modal close and tab switching
-    if (!closeAdminPanelModalBtn._listenerAttached) {
-        closeAdminPanelModalBtn._listenerAttached = true;
-        closeAdminPanelModalBtn.addEventListener('click', () => {
+    closeAdminPanelModalBtn.addEventListener('click', () => {
+        adminPanelModal.classList.remove('show');
+    });
+
+    adminPanelModal.addEventListener('click', (event) => {
+        if (event.target === adminPanelModal) {
             adminPanelModal.classList.remove('show');
-            cleanupAdminPanelListeners(); // Clean up specific listeners on modal close
-            console.log("[Admin Module] Admin Panel modal closed by button.");
-        });
-
-        adminPanelModal._overlayListenerAttached = true; // For clicking outside
-        adminPanelModal.addEventListener('click', (event) => {
-            if (event.target === adminPanelModal) {
-                adminPanelModal.classList.remove('show');
-                cleanupAdminPanelListeners();
-                console.log("[Admin Module] Admin Panel modal closed by clicking outside.");
-            }
-        });
-    }
-
-    adminTabButtons.forEach(button => {
-        if (!button._tabListenerAttached) {
-            button._tabListenerAttached = true;
-            button.addEventListener('click', (e) => {
-                const tab = e.target.dataset.tab;
-                showAdminTab(tab);
-                console.log("[Admin Module] Switched admin tab to:", tab);
-            });
         }
     });
 
-    // Attach form/action button listeners if not already attached
-    if (!saveProductBtn._listenerAttached) {
-        saveProductBtn._listenerAttached = true;
-        saveProductBtn.addEventListener('click', saveProduct);
-    }
-    if (!cancelEditProductBtn._listenerAttached) {
-        cancelEditProductBtn._listenerAttached = true;
-        cancelEditProductBtn.addEventListener('click', resetProductForm);
-    }
-    if (!adminBackToOrderListBtn._listenerAttached) {
-        adminBackToOrderListBtn._listenerAttached = true;
-        adminBackToOrderListBtn.addEventListener('click', () => {
-            adminOrdersList.parentElement.style.display = 'table';
-            adminOrderDetailsView.style.display = 'none';
-            currentEditingOrderId = null;
-            console.log("[Admin Order] Back to order list from details view.");
-        });
-    }
-    if (!updateOrderStatusBtn._listenerAttached) {
-        updateOrderStatusBtn._listenerAttached = true;
-        updateOrderStatusBtn.addEventListener('click', updateOrderStatus);
-    }
-    if (!toggleSellerStatusBtn._listenerAttached) {
-        toggleSellerStatusBtn._listenerAttached = true;
-        toggleSellerStatusBtn.addEventListener('click', toggleSellerStatus);
-    }
+    adminTabButtons.forEach(button => {
+        // Remove existing listeners to prevent duplicates on re-init
+        if (button._tabListener) {
+            button.removeEventListener('click', button._tabListener);
+        }
+        const listener = (e) => {
+            const tab = e.target.dataset.tab;
+            showAdminTab(tab);
+        };
+        button.addEventListener('click', listener);
+        button._tabListener = listener; // Store reference to listener
+    });
 
-    // Set up initial real-time listeners for admin data
-    console.log("[Admin Module] Setting up real-time listeners for all orders and seller status.");
+    // Remove existing listeners for product form buttons to prevent duplicates
+    if (saveProductBtn._saveListener) saveProductBtn.removeEventListener('click', saveProductBtn._saveListener);
+    if (cancelEditProductBtn._cancelListener) cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener);
+    if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
+    if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
+
+
+    saveProductBtn._saveListener = async () => {
+        const productId = productIdInput.value;
+        const isNew = productNewCheckbox.checked;
+        const isSale = productSaleCheckbox.checked;
+        let salePrice = null;
+        let productImage = productImageInput.value.trim();
+
+        if (isSale && productSalePriceInput.value.trim() !== '') {
+            salePrice = `₱${parseFloat(productSalePriceInput.value).toFixed(2)}`;
+        } else {
+            salePrice = null;
+        }
+
+        const newProduct = {
+            name: productNameInput.value.trim(),
+            category: productCategorySelect.value,
+            price: `₱${parseFloat(productPriceInput.value).toFixed(2)}`,
+            salePrice: salePrice,
+            stock: parseInt(productStockInput.value),
+            image: productImage,
+            new: isNew,
+            sale: isSale
+        };
+
+        if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
+            alert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
+            return;
+        }
+        if (isSale && (salePrice === null || isNaN(parseFloat(salePrice.replace('₱', ''))))) {
+            alert("Please enter a valid Sale Price if the product is On Sale.");
+            return;
+        }
+
+        if (productId) {
+            newProduct.id = productId;
+        }
+        saveProductToFirestore(newProduct);
+    };
+    saveProductBtn.addEventListener('click', saveProductBtn._saveListener);
+
+    cancelEditProductBtn._cancelListener = resetProductForm;
+    cancelEditProductBtn.addEventListener('click', cancelEditProductBtn._cancelListener);
+
+    adminBackToOrderListBtn._backListener = () => {
+        adminOrdersList.parentElement.style.display = 'table';
+        adminOrderDetailsView.style.display = 'none';
+        currentEditingOrderId = null;
+        currentEditingOrderUserId = null; // <-- MODIFICATION: Clear the stored user ID
+    };
+    adminBackToOrderListBtn.addEventListener('click', adminBackToOrderListBtn._backListener);
+
+    // --- MODIFICATION START: The entire update listener is replaced ---
+    updateOrderStatusBtn._updateListener = async () => {
+        if (!currentEditingOrderId || !currentEditingOrderUserId) {
+            alert("No order selected or user ID is missing. Cannot update status.");
+            return;
+        }
+
+        const newStatus = orderStatusSelect.value;
+        try {
+            // Path to the order in the central 'allOrders' collection
+            const allOrdersRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
+            
+            // Path to the order in the user-specific subcollection
+            const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(currentEditingOrderUserId), currentEditingOrderId);
+
+            // Update the status in BOTH locations
+            await updateDoc(allOrdersRef, { status: newStatus });
+            await updateDoc(userOrderRef, { status: newStatus });
+
+            alert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
+            adminBackToOrderListBtn.click(); // Return to the list view
+
+        } catch (e) {
+            console.error("Error updating order status in both locations:", e);
+            alert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
+        }
+    };
+    // --- MODIFICATION END ---
+    updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
+
+
+    // Initialize admin listeners if an admin is already logged in
     setupAllOrdersListener();
-    setupAdminSellerStatusListener();
 }
 
-// --- Cleanup Function (Called by script.js on logout or modal close) ---
+// Cleanup function for admin panel when user logs out
 function cleanupAdminPanel() {
-    console.log("[Admin Module] Initiating full admin panel cleanup.");
-    cleanupAdminPanelListeners(); // Clean up specific Firebase listeners
-    // Reset any state or UI elements that should not persist after admin session ends
-    currentEditingOrderId = null;
-    adminPanelModal.classList.remove('show');
-    // For general button listeners, they are often left on the element if they don't leak memory,
-    // but the logic inside them should check `isAdminUser` or `currentUserId`.
-    // Since initAdminPanel adds check for `_adminListenerAttached`, they won't duplicate.
-    console.log("[Admin Module] Admin panel cleanup complete.");
-}
-
-// Function to unsubscribe Firestore listeners within the admin module
-function cleanupAdminPanelListeners() {
     if (unsubscribeAllOrders) {
         unsubscribeAllOrders();
         unsubscribeAllOrders = null;
-        console.log("[Admin Module] Unsubscribed from allOrders listener.");
     }
-    if (unsubscribeAdminSellerStatus) {
-        unsubscribeAdminSellerStatus();
-        unsubscribeAdminSellerStatus = null;
-        console.log("[Admin Module] Unsubscribed from admin seller status listener.");
+    // Remove specific event listeners to prevent memory leaks/duplicate calls
+    const adminPanelButton = document.getElementById("admin-panel-button");
+    if (adminPanelButton && adminPanelButton._adminListener) {
+        adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
+        adminPanelButton._adminListener = null;
     }
+    adminTabButtons.forEach(button => {
+        if (button._tabListener) {
+            button.removeEventListener('click', button._tabListener);
+            button._tabListener = null;
+        }
+    });
+    if (saveProductBtn._saveListener) { saveProductBtn.removeEventListener('click', saveProductBtn._saveListener); saveProductBtn._saveListener = null; }
+    if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
+    if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
+    if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
+
+
+    // Any other cleanup for admin UI goes here
+    adminPanelModal.classList.remove('show'); // Ensure admin modal is closed
 }
 
-// --- Product Management Functions ---
-// Handles saving a new product or updating an existing one.
-async function saveProduct() {
-    console.log("[Admin Product] Save Product button clicked.");
-    const productId = productIdInput.value;
-    const name = productNameInput.value.trim();
-    const category = productCategorySelect.value;
-    const price = parseFloat(productPriceInput.value);
-    const salePrice = productSalePriceInput.value.trim() === '' ? null : parseFloat(productSalePriceInput.value);
-    const stock = parseInt(productStockInput.value);
-    const image = productImageInput.value.trim();
-    const isNew = productNewCheckbox.checked;
-    const isSale = productSaleCheckbox.checked;
 
-    // Basic validation
-    if (!name || !image || isNaN(price) || isNaN(stock) || stock < 0) {
-        alert("Please fill in all product fields correctly (Name, Image Filename, Price, Stock).");
-        console.warn("[Admin Product] Product form validation failed: missing/invalid basic fields.");
-        return;
-    }
-    if (isSale && (isNaN(salePrice) || salePrice === null || salePrice >= price)) {
-        alert("Please enter a valid Sale Price lower than the regular price if 'On Sale' is checked.");
-        console.warn("[Admin Product] Product form validation failed: invalid sale price.");
-        return;
-    }
-
-    const productData = {
-        name: name,
-        category: category,
-        price: `₱${price.toFixed(2)}`,
-        salePrice: salePrice !== null ? `₱${salePrice.toFixed(2)}` : null,
-        stock: stock,
-        image: image,
-        new: isNew,
-        sale: isSale
-    };
-
+// Saves a product (new or existing) to Firestore.
+async function saveProductToFirestore(productData) {
     try {
-        if (productId) {
+        if (productData.id) {
             if (!confirm("Are you sure you want to save changes to this product?")) {
-                console.log("[Admin Product] Save changes cancelled by user.");
                 return;
             }
-            const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
+            const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
             await updateDoc(productRef, productData);
-            console.log("[Admin Product] Product updated in Firestore:", productId);
+            console.log("Product updated:", productData.id);
         } else {
             const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
             await addDoc(productsColRef, productData);
-            console.log("[Admin Product] New product added to Firestore:", productData.name);
+            console.log("Product added:", productData.name);
         }
         resetProductForm();
         alert("Product saved successfully!");
     } catch (e) {
-        console.error("[Admin Product] Error saving product to Firestore:", e);
+        console.error("Error saving product:", e);
         alert("Error saving product: " + e.message);
     }
 }
 
 // Deletes a product from Firestore.
 async function deleteProductFromFirestore(productId) {
-    if (confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+    if (confirm("Are you sure you want to delete this product?")) {
         try {
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
             await deleteDoc(productRef);
-            console.log("[Admin Product] Product deleted from Firestore:", productId);
+            console.log("Product deleted:", productId);
             alert("Product deleted successfully!");
         } catch (e) {
-            console.error("[Admin Product] Error deleting product from Firestore:", e);
+            console.error("Error deleting product:", e);
             alert("Error deleting product: " + e.message);
         }
-    } else {
-        console.log("[Admin Product] Product deletion cancelled by user.");
     }
 }
 
-// Populates the product form with data of a selected product for editing.
+// Renders the list of products in the admin panel's product management table.
+function renderAdminProducts() {
+    adminProductsList.innerHTML = '';
+    const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
+    getDocs(productsColRef).then((snapshot) => {
+        const fetchedProducts = [];
+        snapshot.forEach(doc => {
+            fetchedProducts.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (fetchedProducts.length === 0) {
+            adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
+            return;
+        }
+
+        fetchedProducts.forEach(product => {
+            const row = document.createElement('tr');
+            const imageUrl = `images/${product.image}`;
+            row.innerHTML = `
+                <td data-label="Image"><img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/50x50/f0f0f0/888?text=N/A';" /></td>
+                <td data-label="Name">${product.name}</td>
+                <td data-label="Category">${product.category}</td>
+                <td data-label="Price">
+                    ${product.sale && product.salePrice ?
+                        `<span style="text-decoration: line-through; color: #888;">${product.price}</span> ${product.salePrice}` :
+                        product.price}
+                </td>
+                <td data-label="Stock">${product.stock}</td>
+                <td data-label="Status">${product.new ? 'NEW ' : ''}${product.sale ? 'SALE' : ''}</td>
+                <td data-label="Actions" class="admin-product-actions">
+                    <button class="edit" data-id="${product.id}">Edit</button>
+                    <button class="delete" data-id="${product.id}">Delete</button>
+                </td>
+            `;
+            adminProductsList.appendChild(row);
+        });
+
+        adminProductsList.querySelectorAll('.edit').forEach(button => {
+            // Remove existing listeners to prevent duplicates
+            if (button._editListener) button.removeEventListener('click', button._editListener);
+            const listener = (e) => {
+                const productId = e.target.dataset.id;
+                const productToEdit = fetchedProducts.find(p => p.id === productId);
+                if (productToEdit) {
+                    editProduct(productToEdit);
+                }
+            };
+            button.addEventListener('click', listener);
+            button._editListener = listener;
+        });
+
+        adminProductsList.querySelectorAll('.delete').forEach(button => {
+            // Remove existing listeners to prevent duplicates
+            if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
+            const listener = (e) => {
+                const productId = e.target.dataset.id;
+                deleteProductFromFirestore(productId);
+            };
+            button.addEventListener('click', listener);
+            button._deleteListener = listener;
+        });
+    }).catch(error => {
+        console.error("Error rendering admin products:", error);
+        adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">Error loading products.</td></tr>';
+    });
+}
+
+
 function editProduct(product) {
-    console.log("[Admin Product UI] Populating form for editing product:", product.id);
     productFormTitle.textContent = "Edit Product";
     productIdInput.value = product.id;
     productNameInput.value = product.name;
@@ -276,9 +352,7 @@ function editProduct(product) {
     cancelEditProductBtn.style.display = "inline-block";
 }
 
-// Resets the product form to its default "Add New Product" state.
 function resetProductForm() {
-    console.log("[Admin Product UI] Resetting product form.");
     productFormTitle.textContent = "Add New Product";
     productIdInput.value = '';
     productNameInput.value = '';
@@ -293,124 +367,46 @@ function resetProductForm() {
     cancelEditProductBtn.style.display = "none";
 }
 
-// Renders the list of products in the admin panel's product management table.
-// This function assumes `allProducts` (from script.js) is kept up-to-date by its own listener.
-function renderAdminProducts() {
-    console.log("[Admin Product UI] Rendering admin products list. Total products:", window.allProducts ? window.allProducts.length : 0);
-    adminProductsList.innerHTML = ''; // Clear existing list
-
-    // Access allProducts from the global scope (managed by script.js)
-    const productsToRender = window.allProducts || [];
-
-    if (productsToRender.length === 0) {
-        adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
-        return;
-    }
-
-    productsToRender.forEach(product => {
-        const row = document.createElement('tr');
-        const imageUrl = `images/${product.image}`;
-        const displayPrice = product.sale && product.salePrice ?
-                             `<span style="text-decoration: line-through; color: #888;">${product.price}</span> ${product.salePrice}` :
-                             product.price;
-        row.innerHTML = `
-            <td data-label="Image"><img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/50x50/f0f0f0/888?text=N/A';" /></td>
-            <td data-label="Name">${product.name}</td>
-            <td data-label="Category">${product.category}</td>
-            <td data-label="Price">${displayPrice}</td>
-            <td data-label="Stock">${product.stock}</td>
-            <td data-label="Status">${product.new ? 'NEW ' : ''}${product.sale ? 'SALE' : ''}</td>
-            <td data-label="Actions" class="admin-product-actions">
-                <button class="edit" data-id="${product.id}">Edit</button>
-                <button class="delete" data-id="${product.id}">Delete</button>
-            </td>
-        `;
-        adminProductsList.appendChild(row);
-    });
-
-    // Attach event listeners for dynamically created buttons
-    adminProductsList.querySelectorAll('.edit').forEach(button => {
-        // Remove existing listener to prevent duplicates if function is called multiple times
-        if (button._editListener) button.removeEventListener('click', button._editListener);
-        const listener = (e) => {
-            const productId = e.target.dataset.id;
-            const productToEdit = productsToRender.find(p => p.id === productId);
-            if (productToEdit) {
-                editProduct(productToEdit);
-            }
-        };
-        button.addEventListener('click', listener);
-        button._editListener = listener; // Store listener reference
-    });
-
-    adminProductsList.querySelectorAll('.delete').forEach(button => {
-        if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
-        const listener = (e) => {
-            const productId = e.target.dataset.id;
-            deleteProductFromFirestore(productId);
-        };
-        button.addEventListener('click', listener);
-        button._deleteListener = listener;
-    });
-    console.log("[Admin Product UI] Products list rendered successfully.");
-}
-
-// --- Admin Panel Tab Switching ---
 function showAdminTab(tabName) {
-    console.log("[Admin UI] Switching to admin tab:", tabName);
     adminTabButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabName);
     });
 
-    // Hide all tab contents first
     adminProductManagement.style.display = 'none';
     adminOrderManagement.style.display = 'none';
-    adminSellerStatusTab.style.display = 'none';
 
-    // Show the selected tab and perform specific actions for it
     if (tabName === 'products') {
         adminProductManagement.style.display = 'block';
-        resetProductForm(); // Clear form when navigating to product tab
-        renderAdminProducts(); // Ensure products list is up-to-date
+        resetProductForm();
+        renderAdminProducts();
     } else if (tabName === 'orders') {
         adminOrderManagement.style.display = 'block';
-        adminOrderDetailsView.style.display = 'none'; // Always start on list view
-        renderAdminOrders(); // Ensure orders list is up-to-date
-    } else if (tabName === 'seller-status') {
-        adminSellerStatusTab.style.display = 'block';
-        // The listener is already set up in initAdminPanel, it will update automatically
+        adminOrderDetailsView.style.display = 'none';
+        renderAdminOrders();
     }
 }
 
-// --- Order Management Functions (Admin-side) ---
-// Sets up a real-time listener for all orders in Firestore for the admin view.
+// Sets up a real-time listener for all orders in Firestore (for admin view).
 function setupAllOrdersListener() {
-    console.log("[Admin Orders] Setting up all orders listener.");
     if (unsubscribeAllOrders) {
-        unsubscribeAllOrders(); // Unsubscribe from previous listener if it exists
-        console.log("[Admin Orders] Unsubscribed from existing allOrders listener.");
+        unsubscribeAllOrders();
     }
     const allOrdersColRef = collection(dbInstance, ALL_ORDERS_COLLECTION_PATH);
-    const q = query(allOrdersColRef, orderBy("orderDate", "desc")); // Order by most recent orders
-
+    const q = query(allOrdersColRef, orderBy("orderDate", "desc"));
     unsubscribeAllOrders = onSnapshot(q, (snapshot) => {
-        console.log("[Admin Orders] All orders listener triggered. Fetching data...");
         const fetchedOrders = [];
         snapshot.forEach(doc => {
             fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
-        allOrders = fetchedOrders; // Update the global allOrders array
-        console.log(`[Admin Orders] Fetched ${allOrders.length} orders.`);
-        renderAdminOrders(); // Re-render the orders list in the admin panel
+        allOrders = fetchedOrders;
+        renderAdminOrders();
     }, (error) => {
-        console.error("[Admin Orders] Error listening to all orders:", error);
+        console.error("Error listening to all orders (admin):", error);
     });
 }
 
-// Renders the list of all orders in the admin panel's order management table.
 function renderAdminOrders() {
-    console.log("[Admin Orders UI] Rendering admin orders list.");
-    adminOrdersList.innerHTML = ''; // Clear existing list
+    adminOrdersList.innerHTML = '';
     if (allOrders.length === 0) {
         adminOrdersList.innerHTML = '<tr><td colspan="6" class="empty-message">No orders found.</td></tr>';
         return;
@@ -423,7 +419,7 @@ function renderAdminOrders() {
             <td data-label="User ID">${order.userId ? order.userId.substring(0, 8) + '...' : 'N/A'}</td>
             <td data-label="Date">${new Date(order.orderDate).toLocaleDateString()}</td>
             <td data-label="Total">₱${order.total.toFixed(2)}</td>
-            <td data-label="Status"><span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span></td>
+            <td data-label="Status"><span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span></td>
             <td data-label="Actions" class="admin-order-actions">
                 <button class="view" data-id="${order.id}">View</button>
             </td>
@@ -432,6 +428,7 @@ function renderAdminOrders() {
     });
 
     adminOrdersList.querySelectorAll('.view').forEach(button => {
+        // Remove existing listeners to prevent duplicates
         if (button._viewListener) button.removeEventListener('click', button._viewListener);
         const listener = (e) => {
             const orderId = e.target.dataset.id;
@@ -441,17 +438,16 @@ function renderAdminOrders() {
             }
         };
         button.addEventListener('click', listener);
-        button._viewListener = listener; // Store listener reference
+        button._viewListener = listener;
     });
-    console.log(`[Admin Orders UI] Rendered ${allOrders.length} orders.`);
 }
 
-// Displays the detailed information of a selected order for admin review and modification.
+// --- MODIFICATION: This function now also stores the userId of the selected order ---
 function showAdminOrderDetails(order) {
-    console.log("[Admin Orders UI] Showing admin order details for ID:", order.id);
-    currentEditingOrderId = order.id; // Store ID for status update
-    adminOrdersList.parentElement.style.display = 'none'; // Hide table
-    adminOrderDetailsView.style.display = 'block'; // Show details
+    currentEditingOrderId = order.id;
+    currentEditingOrderUserId = order.userId; // Store the user ID for the update function
+    adminOrdersList.parentElement.style.display = 'none';
+    adminOrderDetailsView.style.display = 'block';
 
     adminDetailOrderId.textContent = order.id;
     adminDetailUserId.textContent = order.userId || 'N/A';
@@ -462,159 +458,24 @@ function showAdminOrderDetails(order) {
     adminDetailOrderStatus.textContent = order.status;
     adminDetailOrderStatus.className = `status-info order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`;
 
-    orderStatusSelect.value = order.status; // Set dropdown to current status
+    orderStatusSelect.value = order.status;
 
     adminDetailItemsList.innerHTML = '';
     if (order.items && order.items.length > 0) {
         order.items.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'admin-order-detail-item';
-            // Use effectivePrice from the order item, as that's what was recorded at time of purchase
-            const itemPriceToDisplay = item.effectivePrice || item.price;
+            const imageUrl = `images/${item.image}`;
             itemDiv.innerHTML = `
                 <span class="admin-order-detail-item-name">${item.name}</span>
-                <span class="admin-order-detail-item-qty-price">Qty: ${item.quantity} - ${itemPriceToDisplay}</span>
+                <span class="admin-order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
             `;
             adminDetailItemsList.appendChild(itemDiv);
         });
     } else {
         adminDetailItemsList.innerHTML = '<p>No items found for this order.</p>';
     }
-    console.log("[Admin Orders UI] Order details populated for ID:", order.id);
 }
 
-// Updates the status of an order in Firestore.
-async function updateOrderStatus() {
-    console.log("[Admin Order] Update Order Status button clicked.");
-    if (!currentEditingOrderId) {
-        alert("No order selected for status update.");
-        console.warn("[Admin Order] No order ID for status update.");
-        return;
-    }
-
-    const newStatus = orderStatusSelect.value;
-    const orderDocRef = doc(dbInstance, ALL_ORDERS_COLLECTION_PATH, currentEditingOrderId);
-
-    try {
-        const orderSnap = await getDoc(orderDocRef);
-        if (!orderSnap.exists()) {
-            alert("Error: Order not found.");
-            console.error("[Admin Order] Order document not found for ID:", currentEditingOrderId);
-            return;
-        }
-        const oldOrderData = orderSnap.data();
-        const oldStatus = oldOrderData.status;
-
-        // Create a batch for atomic updates
-        const batch = writeBatch(dbInstance);
-
-        // Update in central `allOrders` collection
-        batch.update(orderDocRef, { status: newStatus });
-        console.log(`[Admin Order] Batch: Marking order ${currentEditingOrderId.substring(0, 8)}... status to ${newStatus} in allOrders.`);
-
-        // Also update in the specific user's order collection
-        if (oldOrderData.userId) {
-            const userOrderRef = doc(dbInstance, USER_ORDERS_COLLECTION_PATH(oldOrderData.userId), currentEditingOrderId);
-            batch.update(userOrderRef, { status: newStatus });
-            console.log(`[Admin Order] Batch: Marking order ${currentEditingOrderId.substring(0, 8)}... status to ${newStatus} in user ${oldOrderData.userId.substring(0, 8)}... collection.`);
-        } else {
-            console.warn(`[Admin Order] User ID not found for order ${currentEditingOrderId.substring(0, 8)}... Skipping update in user's collection.`);
-        }
-
-        // Deduct stock ONLY if status is changing TO 'Completed' and WAS NOT already 'Completed'
-        if (newStatus === 'Completed' && oldStatus !== 'Completed') {
-            console.log(`[Admin Order] Order ${currentEditingOrderId.substring(0, 8)}... is transitioning to 'Completed'. Initiating stock deduction.`);
-            if (oldOrderData.items && oldOrderData.items.length > 0) {
-                for (const item of oldOrderData.items) {
-                    const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, item.id);
-                    // Use a transaction or get current stock for safety, but with current Firestore
-                    // listener approach, window.allProducts should be reasonably up-to-date.
-                    // For a robust system, you might fetch product doc directly here.
-                    const currentProductSnap = await getDoc(productRef); // Fetch latest product state
-                    if (currentProductSnap.exists()) {
-                        const currentProductData = currentProductSnap.data();
-                        const newStock = currentProductData.stock - item.quantity;
-                        if (newStock >= 0) {
-                            batch.update(productRef, { stock: newStock });
-                            console.log(`[Admin Order] Batch: Deducted ${item.quantity} from product ${item.name}. New stock: ${newStock}`);
-                        } else {
-                            console.warn(`[Admin Order] Attempted to deduct stock for ${item.name} (ID: ${item.id}), but would result in negative stock. Current: ${currentProductData.stock}, Deduct: ${item.quantity}.`);
-                            // This scenario implies a race condition or manual stock error.
-                            // You might want to revert the batch or handle this more aggressively.
-                            alert(`Warning: Not enough stock for ${item.name} to fulfill order ${currentEditingOrderId.substring(0,8)}... after deduction.`);
-                        }
-                    } else {
-                        console.warn(`[Admin Order] Product ${item.name} (ID: ${item.id}) not found for stock deduction for order ${currentEditingOrderId.substring(0,8)}...`);
-                    }
-                }
-            } else {
-                console.warn(`[Admin Order] Order ${currentEditingOrderId.substring(0, 8)}... has no items for stock deduction.`);
-            }
-        }
-
-        await batch.commit(); // Commit all batch operations atomically
-        alert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
-        console.log(`[Admin Order] Order ${currentEditingOrderId.substring(0, 8)}... batch commit successful.`);
-
-        adminBackToOrderListBtn.click(); // Go back to list after update
-    } catch (e) {
-        console.error("[Admin Order] Error updating order status or deducting stock:", e);
-        alert("Error updating order status: " + e.message + " Please check console for details.");
-    }
-}
-
-// --- Seller Status Management (Admin Side) ---
-const SELLER_STATUS_DOC_PATH = doc(dbInstance, SETTINGS_COLLECTION_PATH, 'sellerStatus');
-
-// Sets up a real-time listener for the seller status within the admin panel.
-function setupAdminSellerStatusListener() {
-    console.log("[Admin Seller Status] Setting up listener.");
-    if (unsubscribeAdminSellerStatus) {
-        unsubscribeAdminSellerStatus(); // Ensure only one listener
-    }
-    const sellerStatusDocRef = doc(dbInstance, SETTINGS_COLLECTION_PATH, 'sellerStatus');
-    unsubscribeAdminSellerStatus = onSnapshot(sellerStatusDocRef, (docSnap) => {
-        console.log("[Admin Seller Status] Listener triggered.");
-        if (docSnap.exists()) {
-            const statusData = docSnap.data();
-            const isOnline = statusData.isOnline;
-            adminSellerStatusDisplay.textContent = isOnline ? 'Online' : 'Offline';
-            adminSellerStatusDisplay.classList.toggle('online', isOnline);
-            adminSellerStatusDisplay.classList.toggle('offline', !isOnline);
-            console.log(`[Admin Seller Status] Current status: ${isOnline ? 'Online' : 'Offline'}`);
-        } else {
-            adminSellerStatusDisplay.textContent = 'Offline';
-            adminSellerStatusDisplay.classList.remove('online');
-            adminSellerStatusDisplay.classList.add('offline');
-            console.warn("[Admin Seller Status] Document does not exist. Defaulting to Offline. Attempting to create default.");
-            // Create the default status document if it's missing
-            setDoc(sellerStatusDocRef, { isOnline: false }, { merge: true })
-                .catch(e => console.error("[Admin Seller Status] Error creating default seller status document:", e));
-        }
-    }, (error) => {
-        console.error("[Admin Seller Status] Error listening to admin seller status:", error);
-    });
-}
-
-// Toggles the seller's online/offline status in Firestore.
-async function toggleSellerStatus() {
-    console.log("[Admin Seller Status] Toggle button clicked.");
-    try {
-        const docSnap = await getDoc(doc(dbInstance, SETTINGS_COLLECTION_PATH, 'sellerStatus'));
-        let currentStatus = false;
-        if (docSnap.exists()) {
-            currentStatus = docSnap.data().isOnline;
-        }
-
-        const newStatus = !currentStatus;
-        await setDoc(doc(dbInstance, SETTINGS_COLLECTION_PATH, 'sellerStatus'), { isOnline: newStatus }, { merge: true });
-        alert(`Seller status updated to: ${newStatus ? 'Online' : 'Offline'}`);
-        console.log(`[Admin Seller Status] Status toggled to: ${newStatus ? 'Online' : 'Offline'}`);
-    } catch (e) {
-        console.error("[Admin Seller Status] Error toggling seller status:", e);
-        alert("Failed to toggle seller status. Please check console for details.");
-    }
-}
-
-// Export the initialization and cleanup functions for script.js to use
+// Export the initialization function for script.js to call
 export { initAdminPanel, cleanupAdminPanel };
