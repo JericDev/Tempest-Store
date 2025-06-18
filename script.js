@@ -985,4 +985,6 @@ function showOrderDetails(order) {
 // --- Export functions for global access if needed (e.g., for inline HTML onClick attributes) ---
 // This ensures functions called directly from HTML (like setFilter, applyFilters) are accessible.
 // In a more modern setup, all event listeners would be added via JS, removing the need for global exposure.
-windo
+window.setFilter = setFilter;
+window.applyFilters = applyFilters;
+// Any other functions referenced in index.html's onclick should be exposed here.
