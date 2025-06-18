@@ -47,7 +47,7 @@
         const loginButton = document.getElementById("login-button");
         const loginRegisterButton = document.getElementById("login-register-button"); 
         const logoutButton = document.getElementById("logout-button");
-        const myOrdersButton = document.getElementById("my-orders-button"); // New My Orders button
+        const myOrdersButton = document.getElementById("my-orders-button"); // My Orders button
         const adminPanelButton = document.getElementById("admin-panel-button"); 
         const authMessage = document.getElementById("auth-message");
         const userDisplay = document.getElementById("user-display");
@@ -234,37 +234,25 @@
                 myOrdersButton.style.display = "inline-block"; // Show My Orders button
 
                 if (isAdmin) {
-                    console.log("User is admin. ADMIN_UID matched.");
-                    console.log("Admin Panel Button display BEFORE setting:", adminPanelButton.style.display);
                     adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
-                    console.log("Admin Panel Button display AFTER setting:", adminPanelButton.style.display);
-                    
                     // Dynamically import and initialize admin module
                     if (!initAdminPanelModule) {
-                        console.log("admin.js module not yet loaded. Attempting dynamic import...");
                         try {
                             // Ensure the path is correct relative to script.js
                             const adminModule = await import('./admin.js'); 
                             initAdminPanelModule = adminModule.initAdminPanel;
                             adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
-                            console.log("admin.js loaded successfully. initAdminPanelModule set.");
                         } catch (error) {
                             console.error("Error loading admin.js:", error);
                             // Hide admin button if load fails
                             adminPanelButton.style.display = "none"; 
-                            console.log("Admin panel button hidden due to admin.js load error.");
                         }
                     }
                     if (initAdminPanelModule) {
-                        console.log("Calling initAdminPanelModule now.");
                         // Pass Firestore and Auth instances, plus user info to admin module
                         initAdminPanelModule(db, auth, storage, currentUserId, isAdmin); // Pass storage instance
-                        console.log("initAdminPanelModule call attempted.");
-                    } else {
-                        console.log("initAdminPanelModule is null after attempted load. Admin panel won't function.");
                     }
                 } else {
-                    console.log("User is NOT admin (currentUserId: " + currentUserId + "). Hiding admin panel button.");
                     adminPanelButton.style.display = "none";
                 }
                 
@@ -275,7 +263,6 @@
                 loadOrdersFromFirestore(currentUserId); // Load orders for authenticated user
 
             } else {
-                console.log("User is logged out. Hiding admin panel button.");
                 currentUserId = null; 
                 isAdmin = false; 
 
@@ -897,4 +884,3 @@
                 displayPaymentQrCode(checkedPaymentMethod.value);
             }
         });
-
