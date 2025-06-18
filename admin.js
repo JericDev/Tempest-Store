@@ -595,3 +595,4 @@ async function toggleSellerStatus() {
 
 // Export the initialization function and cleanup for script.js to call
 export { initAdminPanel, cleanupAdminPanel };
+
