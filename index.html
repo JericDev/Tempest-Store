@@ -151,6 +151,7 @@
             <div class="admin-tabs">
                 <button class="admin-tab-btn active" data-tab="products">Product Management</button>
                 <button class="admin-tab-btn" data-tab="orders">Order Management</button>
+                <button class="admin-tab-btn" data-tab="settings">Store Settings</button>
             </div>
 
             <div id="admin-product-management" class="admin-tab-content">
@@ -254,6 +255,16 @@
                         <button id="update-order-status-btn">Update Order Status</button>
                     </div>
                     <button class="admin-back-to-orders-btn" id="admin-back-to-order-list">Back to All Orders</button>
+                </div>
+            </div>
+
+            <!-- New Store Settings tab content -->
+            <div id="admin-store-settings" class="admin-tab-content" style="display: none;">
+                <h3>Store Settings</h3>
+                <div class="settings-group">
+                    <label for="seller-status-toggle">Seller Status:</label>
+                    <span id="admin-seller-status-display">Online</span>
+                    <button id="toggle-seller-status-btn">Toggle Status</button>
                 </div>
             </div>
         </div>
