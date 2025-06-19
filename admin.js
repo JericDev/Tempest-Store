@@ -10,6 +10,8 @@ let dbInstance = null; // Firestore instance passed from script.js
 let authInstance = null; // Auth instance passed from script.js
 let adminUserId = null; // Admin user ID passed from script.js
 let isAdminUser = false; // Is Admin flag passed from script.js
+let toggleSellerStatusCallback = null; // Callback function to update seller status in script.js
+let initialSellerStatus = false; // Initial seller status from script.js
 
 // --- DOM elements for Admin Panel ---
 const adminPanelModal = document.getElementById("admin-panel-modal");
@@ -17,6 +19,7 @@ const closeAdminPanelModalBtn = document.getElementById("close-admin-panel-modal
 const adminTabButtons = document.querySelectorAll(".admin-tab-btn");
 const adminProductManagement = document.getElementById("admin-product-management");
 const adminOrderManagement = document.getElementById("admin-order-management");
+const adminSiteSettings = document.getElementById("admin-site-settings"); // New: Site Settings container
 
 // Product Form elements
 const productFormTitle = document.getElementById("product-form-title");
@@ -48,22 +51,28 @@ const orderStatusSelect = document.getElementById("order-status-select");
 const updateOrderStatusBtn = document.getElementById("update-order-status-btn");
 const adminBackToOrderListBtn = document.getElementById("admin-back-to-order-list");
 let currentEditingOrderId = null;
-let currentEditingOrderUserId = null; // <-- MODIFICATION: Added to store the user ID of the order being edited
+let currentEditingOrderUserId = null;
 
+// New: Seller Status Toggle elements
+const sellerOnlineToggle = document.getElementById("seller-online-toggle");
+const sellerStatusText = document.getElementById("seller-status-text");
 
 // --- Firestore Collection Paths (These are defined locally in admin.js for clarity) ---
 const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in script.js
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
-const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`; // <-- MODIFICATION: This path is now needed
+const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
+const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New: Path for site settings
 
 
 // --- Admin Panel Functions ---
-function initAdminPanel(db, auth, userId, adminFlag) {
+function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStatus) {
     dbInstance = db;
     authInstance = auth;
     adminUserId = userId;
     isAdminUser = adminFlag;
+    toggleSellerStatusCallback = toggleStatusFn; // Store the callback function
+    initialSellerStatus = initialStatus; // Store the initial status
 
     // Attach event listener for the admin panel button
     // This button is controlled by script.js's onAuthStateChanged for visibility
@@ -74,7 +83,7 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         }
         const listener = () => {
-             if (!isAdminUser) {
+            if (!isAdminUser) {
                 alert("You are not authorized to access the Admin Panel.");
                 return;
             }
@@ -114,6 +123,7 @@ function initAdminPanel(db, auth, userId, adminFlag) {
     if (cancelEditProductBtn._cancelListener) cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener);
     if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
     if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
+    if (sellerOnlineToggle._toggleListener) sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener); // New: Remove old toggle listener
 
 
     saveProductBtn._saveListener = async () => {
@@ -163,11 +173,10 @@ function initAdminPanel(db, auth, userId, adminFlag) {
         adminOrdersList.parentElement.style.display = 'table';
         adminOrderDetailsView.style.display = 'none';
         currentEditingOrderId = null;
-        currentEditingOrderUserId = null; // <-- MODIFICATION: Clear the stored user ID
+        currentEditingOrderUserId = null;
     };
     adminBackToOrderListBtn.addEventListener('click', adminBackToOrderListBtn._backListener);
 
-    // --- MODIFICATION START: The entire update listener is replaced ---
     updateOrderStatusBtn._updateListener = async () => {
         if (!currentEditingOrderId || !currentEditingOrderUserId) {
             alert("No order selected or user ID is missing. Cannot update status.");
@@ -194,8 +203,17 @@ function initAdminPanel(db, auth, userId, adminFlag) {
             alert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
         }
     };
-    // --- MODIFICATION END ---
     updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
+
+    // New: Event listener for the seller online toggle
+    sellerOnlineToggle._toggleListener = (event) => {
+        const isChecked = event.target.checked;
+        if (toggleSellerStatusCallback) {
+            toggleSellerStatusCallback(isChecked);
+        }
+        renderSellerStatusToggle(isChecked); // Update UI immediately
+    };
+    sellerOnlineToggle.addEventListener('change', sellerOnlineToggle._toggleListener);
 
 
     // Initialize admin listeners if an admin is already logged in
@@ -224,6 +242,7 @@ function cleanupAdminPanel() {
     if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
+    if (sellerOnlineToggle._toggleListener) { sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener); sellerOnlineToggle._toggleListener = null; } // New: Cleanup toggle listener
 
 
     // Any other cleanup for admin UI goes here
@@ -235,38 +254,41 @@ function cleanupAdminPanel() {
 async function saveProductToFirestore(productData) {
     try {
         if (productData.id) {
-            if (!confirm("Are you sure you want to save changes to this product?")) {
-                return;
-            }
-            const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
-            await updateDoc(productRef, productData);
-            console.log("Product updated:", productData.id);
+            // Using a custom modal/dialog for confirmation instead of alert/confirm
+            showCustomConfirm("Are you sure you want to save changes to this product?", async () => {
+                const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
+                await updateDoc(productRef, productData);
+                console.log("Product updated:", productData.id);
+                resetProductForm();
+                showCustomAlert("Product saved successfully!");
+            });
         } else {
             const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
             await addDoc(productsColRef, productData);
             console.log("Product added:", productData.name);
+            resetProductForm();
+            showCustomAlert("Product saved successfully!");
         }
-        resetProductForm();
-        alert("Product saved successfully!");
     } catch (e) {
         console.error("Error saving product:", e);
-        alert("Error saving product: " + e.message);
+        showCustomAlert("Error saving product: " + e.message);
     }
 }
 
 // Deletes a product from Firestore.
 async function deleteProductFromFirestore(productId) {
-    if (confirm("Are you sure you want to delete this product?")) {
+    // Using a custom modal/dialog for confirmation instead of alert/confirm
+    showCustomConfirm("Are you sure you want to delete this product?", async () => {
         try {
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
             await deleteDoc(productRef);
             console.log("Product deleted:", productId);
-            alert("Product deleted successfully!");
+            showCustomAlert("Product deleted successfully!");
         } catch (e) {
             console.error("Error deleting product:", e);
-            alert("Error deleting product: " + e.message);
+            showCustomAlert("Error deleting product: " + e.message);
         }
-    }
+    });
 }
 
 // Renders the list of products in the admin panel's product management table.
@@ -374,6 +396,7 @@ function showAdminTab(tabName) {
 
     adminProductManagement.style.display = 'none';
     adminOrderManagement.style.display = 'none';
+    adminSiteSettings.style.display = 'none'; // New: Hide site settings by default
 
     if (tabName === 'products') {
         adminProductManagement.style.display = 'block';
@@ -383,6 +406,10 @@ function showAdminTab(tabName) {
         adminOrderManagement.style.display = 'block';
         adminOrderDetailsView.style.display = 'none';
         renderAdminOrders();
+    } else if (tabName === 'settings') { // New: Handle 'settings' tab
+        adminSiteSettings.style.display = 'block';
+        // Initialize the toggle state based on the current sellerIsOnline status from script.js
+        renderSellerStatusToggle(initialSellerStatus);
     }
 }
 
@@ -476,6 +503,89 @@ function showAdminOrderDetails(order) {
         adminDetailItemsList.innerHTML = '<p>No items found for this order.</p>';
     }
 }
+
+// New: Function to render the seller status toggle and text
+function renderSellerStatusToggle(isOnline) {
+    sellerOnlineToggle.checked = isOnline;
+    sellerStatusText.textContent = isOnline ? "Online" : "Offline";
+    sellerStatusText.classList.toggle('status-online', isOnline);
+    sellerStatusText.classList.toggle('status-offline', !isOnline);
+}
+
+// Custom Alert/Confirm functions to replace native ones
+// (These are basic implementations, you might want to style them further)
+function showCustomAlert(message) {
+    const alertModal = document.createElement('div');
+    alertModal.className = 'custom-modal';
+    alertModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <button class="custom-modal-ok-btn">OK</button>
+        </div>
+    `;
+    document.body.appendChild(alertModal);
+
+    const closeBtn = alertModal.querySelector('.custom-modal-close-btn');
+    const okBtn = alertModal.querySelector('.custom-modal-ok-btn');
+
+    const closeModal = () => {
+        alertModal.classList.remove('show');
+        setTimeout(() => alertModal.remove(), 300); // Remove after transition
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    okBtn.addEventListener('click', closeModal);
+    alertModal.addEventListener('click', (event) => {
+        if (event.target === alertModal) {
+            closeModal();
+        }
+    });
+
+    // Animate in
+    setTimeout(() => alertModal.classList.add('show'), 10);
+}
+
+function showCustomConfirm(message, onConfirm) {
+    const confirmModal = document.createElement('div');
+    confirmModal.className = 'custom-modal';
+    confirmModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <div class="custom-modal-buttons">
+                <button class="custom-modal-confirm-btn">Yes</button>
+                <button class="custom-modal-cancel-btn">No</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmModal);
+
+    const closeBtn = confirmModal.querySelector('.custom-modal-close-btn');
+    const confirmBtn = confirmModal.querySelector('.custom-modal-confirm-btn');
+    const cancelBtn = confirmModal.querySelector('.custom-modal-cancel-btn');
+
+    const closeModal = () => {
+        confirmModal.classList.remove('show');
+        setTimeout(() => confirmModal.remove(), 300); // Remove after transition
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    confirmBtn.addEventListener('click', () => {
+        onConfirm();
+        closeModal();
+    });
+    confirmModal.addEventListener('click', (event) => {
+        if (event.target === confirmModal) {
+            closeModal();
+        }
+    });
+
+    // Animate in
+    setTimeout(() => confirmModal.classList.add('show'), 10);
+}
+
 
 // Export the initialization function for script.js to call
 export { initAdminPanel, cleanupAdminPanel };
