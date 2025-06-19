@@ -22,9 +22,12 @@ import {
     onSnapshot,
     query,
     where,
-    orderBy, // Re-added orderBy for admin orders where it's explicitly needed and can trigger index suggestions
+    orderBy,
     serverTimestamp // Import serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+// Import admin-specific functions from admin.js
+import { initAdminPanel, cleanupAdminPanel } from './admin.js';
 
 // --- Firebase Initialization and Global Variables ---
 let app;
@@ -33,7 +36,7 @@ let auth;
 let currentUserId = null; // To store the authenticated user's ID
 let unsubscribeProductListener; // To store the unsubscribe function for products
 let unsubscribeUserOrderListener; // To store the unsubscribe function for user-specific orders
-let unsubscribeAdminOrderListener; // To store the unsubscribe function for admin-specific orders
+let unsubscribeCartListener; // New: Unsubscribe function for user's cart
 let unsubscribeStoreSettingsListener; // To store the unsubscribe function for store settings
 
 // Explicitly define appId to match Firebase rules' getAppId() function
@@ -87,23 +90,24 @@ onAuthStateChanged(auth, (user) => {
         checkAdminStatus(user.uid).then(isAdmin => {
             if (isAdmin) {
                 adminPanelButton.style.display = 'inline-block';
-                // Start listening for store settings and admin orders only for admins
+                // Initialize admin panel functions from admin.js
+                initAdminPanel(db, auth, user.uid, isAdmin, updateStoreSettings, getStoreSettingsValue);
+                // Also listen for store settings here for the main display
                 listenForStoreSettings();
-                listenForAdminOrders(); // Start admin order listener
             } else {
                 adminPanelButton.style.display = 'none';
+                // Cleanup admin panel if no longer admin or logged out
+                cleanupAdminPanel();
                 if (unsubscribeStoreSettingsListener) {
-                    unsubscribeStoreSettingsListener(); // Unsubscribe if not admin
-                }
-                if (unsubscribeAdminOrderListener) {
-                    unsubscribeAdminOrderListener(); // Unsubscribe if not admin
+                    unsubscribeStoreSettingsListener();
                 }
             }
         });
 
-        // Start real-time listeners for products and user-specific orders for all logged-in users
+        // Start real-time listeners for products, user-specific orders, and user cart
         listenForProducts();
         listenForUserOrders(user.uid);
+        listenForCart(user.uid); // New: Listen for user's cart in Firestore
     } else {
         currentUserId = null;
         userDisplay.textContent = '';
@@ -114,26 +118,27 @@ onAuthStateChanged(auth, (user) => {
 
         // Clear products and orders display when logged out
         renderProducts([]);
-        document.getElementById('admin-products-list').innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
         document.getElementById('order-history-list').innerHTML = '<p class="empty-message">No orders found.</p>';
-        document.getElementById('admin-orders-list').innerHTML = '<tr><td colspan="6" class="empty-message">No orders found.</td></tr>';
-
+        
         // Unsubscribe from real-time updates when logged out
         if (unsubscribeProductListener) {
             unsubscribeProductListener();
         }
-        if (unsubscribeUserOrderListener) { // Corrected variable name
+        if (unsubscribeUserOrderListener) {
             unsubscribeUserOrderListener();
         }
-        if (unsubscribeAdminOrderListener) {
-            unsubscribeAdminOrderListener();
+        if (unsubscribeCartListener) { // New: Unsubscribe from cart listener
+            unsubscribeCartListener();
         }
         if (unsubscribeStoreSettingsListener) {
             unsubscribeStoreSettingsListener();
         }
 
-        // Reset cart display when logged out
-        saveCartItems([]); // Clear cart in local storage
+        // Cleanup admin panel if user logs out
+        cleanupAdminPanel();
+
+        // Clear local cart state and update display
+        cartItems = []; // Clear in-memory cart
         updateCartDisplay();
         document.getElementById('place-order-btn').textContent = 'Place Order (0 items) ₱0.00';
     }
@@ -141,18 +146,11 @@ onAuthStateChanged(auth, (user) => {
 
 // --- Admin Status Check ---
 async function checkAdminStatus(uid) {
-    try {
-        // Admin ID is hardcoded in rules, so we can just check against that.
-        // For a more dynamic admin system, you might fetch from a 'admins' collection.
-        // Based on the rules, "LigBezoWV9eVo8lglsijoWinKmA2" is the admin.
-        return uid === "LigBezoWV9eVo8lglsijoWinKmA2";
-    } catch (error) {
-        console.error("Error checking admin status:", error);
-        return false;
-    }
+    // Admin ID is hardcoded in rules for simplicity
+    return uid === "LigBezoWV9eVo8lglsijoWinKmA2";
 }
 
-// --- Modals and UI Elements ---
+// --- Modals and UI Elements (Only those used directly by script.js) ---
 const authModal = document.getElementById('auth-modal');
 const closeAuthModalBtn = document.getElementById('close-auth-modal');
 const loginRegisterButton = document.getElementById('login-register-button');
@@ -181,37 +179,6 @@ const orderHistoryList = document.getElementById('order-history-list');
 const orderDetailsView = document.getElementById('order-details-view');
 const backToOrderListBtn = document.getElementById('back-to-order-list');
 
-const adminPanelModal = document.getElementById('admin-panel-modal');
-const adminPanelButton = document.getElementById('admin-panel-button');
-const closeAdminPanelModalBtn = document.getElementById('close-admin-panel-modal');
-const adminTabs = document.querySelector('.admin-tabs');
-const adminProductManagement = document.getElementById('admin-product-management');
-const adminOrderManagement = document.getElementById('admin-order-management');
-const adminSiteSettings = document.getElementById('admin-site-settings');
-
-const productFormContainer = document.getElementById('product-form-container');
-const productIdInput = document.getElementById('product-id-input');
-const productNameInput = document.getElementById('product-name');
-const productCategorySelect = document.getElementById('product-category');
-const productPriceInput = document.getElementById('product-price');
-const productSalePriceInput = document.getElementById('product-sale-price'); // New
-const productStockInput = document.getElementById('product-stock');
-const productImageInput = document.getElementById('product-image');
-const productNewCheckbox = document.getElementById('product-new'); // New
-const productSaleCheckbox = document.getElementById('product-sale'); // New
-const saveProductBtn = document.getElementById('save-product-btn');
-const cancelEditProductBtn = document.getElementById('cancel-edit-product');
-const productFormTitle = document.getElementById('product-form-title');
-const adminProductsList = document.getElementById('admin-products-list');
-
-const adminOrdersList = document.getElementById('admin-orders-list');
-const adminOrderDetailsView = document.getElementById('admin-order-details-view');
-const adminBackToOrderListBtn = document.getElementById('admin-back-to-order-list');
-const orderStatusSelect = document.getElementById('order-status-select');
-const updateOrderStatusBtn = document.getElementById('update-order-status-btn');
-
-const sellerOnlineToggle = document.getElementById('seller-online-toggle');
-const sellerStatusText = document.getElementById('seller-status-text');
 const sellerStatusDisplay = document.getElementById('seller-status-display'); // For the main page display
 
 
@@ -229,7 +196,7 @@ forgotPasswordButton.addEventListener('click', handleForgotPassword);
 
 cartIconButton.addEventListener('click', () => {
     cartModal.classList.add('show');
-    updateCartDisplay();
+    updateCartDisplay(); // Refresh cart display whenever modal is opened
 });
 closeCartModalBtn.addEventListener('click', () => cartModal.classList.remove('show'));
 
@@ -237,7 +204,7 @@ placeOrderBtn.addEventListener('click', placeOrder);
 
 myOrdersButton.addEventListener('click', () => {
     orderHistoryModal.classList.add('show');
-    displayUserOrders();
+    displayUserOrders(); // Display user's orders when modal is opened
 });
 closeOrderHistoryModalBtn.addEventListener('click', () => {
     orderHistoryModal.classList.remove('show');
@@ -251,59 +218,6 @@ backToOrderListBtn.addEventListener('click', () => {
     orderHistoryList.style.display = 'block';
     document.getElementById('order-history-title').textContent = 'My Orders';
 });
-
-adminPanelButton.addEventListener('click', () => {
-    adminPanelModal.classList.add('show');
-    // Ensure product management is the default view
-    showAdminTab('products');
-});
-closeAdminPanelModalBtn.addEventListener('click', () => {
-    adminPanelModal.classList.remove('show');
-    adminOrderDetailsView.style.display = 'none'; // Hide order details on close
-});
-
-adminTabs.addEventListener('click', (event) => {
-    if (event.target.classList.contains('admin-tab-btn')) {
-        const tab = event.target.dataset.tab;
-        showAdminTab(tab);
-    }
-});
-
-saveProductBtn.addEventListener('click', handleSaveProduct);
-cancelEditProductBtn.addEventListener('click', () => {
-    resetProductForm();
-    cancelEditProductBtn.style.display = 'none';
-});
-
-// Event listener for product table actions (edit/delete)
-adminProductsList.addEventListener('click', (event) => {
-    const target = event.target;
-    if (target.classList.contains('edit')) {
-        const productId = target.closest('tr').dataset.productId;
-        editProduct(productId);
-    } else if (target.classList.contains('delete')) {
-        const productId = target.closest('tr').dataset.productId;
-        showConfirmModal('Are you sure you want to delete this product?', () => deleteProduct(productId));
-    }
-});
-
-// Event listener for order table actions (view)
-adminOrdersList.addEventListener('click', (event) => {
-    const target = event.target;
-    if (target.classList.contains('view')) {
-        const orderId = target.closest('tr').dataset.orderId;
-        viewAdminOrderDetails(orderId);
-    }
-    // Prevent default anchor behavior
-    event.preventDefault();
-});
-
-adminBackToOrderListBtn.addEventListener('click', () => {
-    adminOrderDetailsView.style.display = 'none';
-    adminOrderManagement.style.display = 'block';
-});
-
-updateOrderStatusBtn.addEventListener('click', handleUpdateOrderStatus);
 
 // Payment method image update
 document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
@@ -331,15 +245,6 @@ document.querySelectorAll('.filters button').forEach(button => {
         filterProducts();
     });
 });
-
-// Seller status toggle listener
-if (sellerOnlineToggle) {
-    sellerOnlineToggle.addEventListener('change', async function() {
-        const newStatus = this.checked;
-        await updateStoreSettings({ isSellerOnline: newStatus });
-    });
-}
-
 
 // --- Authentication Functions ---
 async function handleRegister() {
@@ -407,7 +312,7 @@ async function handleForgotPassword() {
     }
 }
 
-// --- Product Listing and Cart Functions ---
+// --- Product Listing Functions ---
 let allProducts = []; // Cache for all products
 let currentFilters = { category: 'all', searchTerm: '' };
 
@@ -417,14 +322,13 @@ function listenForProducts() {
         unsubscribeProductListener();
     }
 
-    // Updated path to match Firestore rules
+    // Updated path to match Firebase rules: /artifacts/{appId}/products
     const productsCollectionRef = collection(db, "artifacts", appId, "products");
     unsubscribeProductListener = onSnapshot(productsCollectionRef, (snapshot) => {
         allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         // Sort products in memory, e.g., by name
         allProducts.sort((a, b) => a.name.localeCompare(b.name));
         filterProducts(); // Re-filter and render products whenever data changes
-        renderAdminProducts(allProducts); // Also update admin panel product list
     }, (error) => {
         console.error("Error fetching products:", error);
     });
@@ -446,9 +350,13 @@ function renderProducts(productsToRender) {
             card.classList.add('out-of-stock');
         }
 
-        const priceDisplay = product.onSale && product.salePrice !== undefined && product.salePrice < product.price
-            ? `<span style="text-decoration: line-through; color: #888;">₱${product.price.toFixed(2)}</span> <span class="price">₱${product.salePrice.toFixed(2)}</span>`
-            : `<span class="price">₱${product.price.toFixed(2)}</span>`;
+        // Ensure price and salePrice are numbers before formatting
+        const priceValue = parseFloat(product.price);
+        const salePriceValue = product.salePrice !== undefined && product.salePrice !== null ? parseFloat(product.salePrice) : null;
+
+        const priceDisplay = product.onSale && salePriceValue !== null && salePriceValue < priceValue
+            ? `<span style="text-decoration: line-through; color: #888;">₱${priceValue.toFixed(2)}</span> <span class="price">₱${salePriceValue.toFixed(2)}</span>`
+            : `<span class="price">₱${priceValue.toFixed(2)}</span>`;
 
         const stockInfoClass = product.stock > 0 ? 'in-stock' : 'out-of-stock-text';
         const stockInfoText = product.stock > 0 ? `${product.stock} in stock` : 'Out of Stock';
@@ -493,88 +401,115 @@ function filterProducts() {
     renderProducts(filtered);
 }
 
-function getCartItems() {
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-    return cart;
+// --- Cart Functions (Now Firestore-based) ---
+let cartItems = []; // In-memory cache of cart items
+
+// New: Listen for real-time updates to the user's cart in Firestore
+function listenForCart(uid) {
+    if (unsubscribeCartListener) {
+        unsubscribeCartListener(); // Unsubscribe from previous listener if exists
+    }
+
+    // Path to user's cart document: /artifacts/{appId}/users/{userId}/carts/userCart
+    const cartDocRef = doc(db, "artifacts", appId, "users", uid, "carts", "userCart");
+
+    unsubscribeCartListener = onSnapshot(cartDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            cartItems = docSnap.data().items || [];
+            console.log("Cart fetched from Firestore:", cartItems);
+        } else {
+            console.log("No cart found for user, initializing empty cart.");
+            cartItems = [];
+            // Create an empty cart document if it doesn't exist
+            setDoc(cartDocRef, { items: [] }).catch(e => console.error("Error creating empty cart doc:", e));
+        }
+        updateCartDisplay(); // Always update UI when cart data changes
+    }, (error) => {
+        console.error("Error listening to cart:", error);
+    });
 }
 
-function saveCartItems(cart) {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    updateCartDisplay();
+// Save cart items to Firestore
+async function saveCartItemsToFirestore(cart) {
+    if (!currentUserId) {
+        console.error("Cannot save cart: User not logged in.");
+        return;
+    }
+    try {
+        const cartDocRef = doc(db, "artifacts", appId, "users", currentUserId, "carts", "userCart");
+        await setDoc(cartDocRef, { items: cart });
+        console.log("Cart saved to Firestore.");
+        // UI update will happen via the onSnapshot listener for the cart
+    } catch (error) {
+        console.error("Error saving cart to Firestore:", error);
+        showCustomAlert("Failed to save cart. Please try again.");
+    }
 }
 
-function addToCart(productId) {
+async function addToCart(productId) {
     const product = allProducts.find(p => p.id === productId);
     if (!product) {
         console.error('Product not found:', productId);
         return;
     }
 
-    let cart = getCartItems();
-    const existingItem = cart.find(item => item.id === productId);
+    const existingItem = cartItems.find(item => item.id === productId);
 
     if (existingItem) {
-        // Check if adding more would exceed stock
         if (existingItem.quantity + 1 > product.stock) {
             showCustomAlert(`Cannot add more "${product.name}". Only ${product.stock} left in stock.`);
             return;
         }
         existingItem.quantity++;
     } else {
-        // Check if initial add exceeds stock (should be handled by disabled button, but good to double check)
         if (product.stock === 0) {
             showCustomAlert(`"${product.name}" is out of stock and cannot be added to cart.`);
             return;
         }
-        cart.push({
+        cartItems.push({
             id: product.id,
             name: product.name,
-            price: product.onSale && product.salePrice !== undefined && product.salePrice < product.price ? product.salePrice : product.price,
+            price: product.onSale && product.salePrice !== undefined && product.salePrice !== null && product.salePrice < product.price ? product.salePrice : product.price,
             quantity: 1,
             image: product.image,
-            category: product.category // Include category for order processing
+            category: product.category
         });
     }
-    saveCartItems(cart);
+    await saveCartItemsToFirestore(cartItems);
 }
 
-function updateCartItemQuantity(productId, newQuantity) {
-    let cart = getCartItems();
+async function updateCartItemQuantity(productId, newQuantity) {
     const product = allProducts.find(p => p.id === productId);
-    const itemIndex = cart.findIndex(item => item.id === productId);
+    const itemIndex = cartItems.findIndex(item => item.id === productId);
 
     if (itemIndex > -1 && product) {
         if (newQuantity <= 0) {
-            // Remove item if quantity is 0 or less
-            cart.splice(itemIndex, 1);
+            cartItems.splice(itemIndex, 1);
         } else if (newQuantity > product.stock) {
-            // Prevent increasing quantity beyond stock
             showCustomAlert(`Cannot set quantity to ${newQuantity} for "${product.name}". Only ${product.stock} left in stock.`);
-            cart[itemIndex].quantity = product.stock; // Set to max available stock
+            cartItems[itemIndex].quantity = product.stock;
         } else {
-            cart[itemIndex].quantity = newQuantity;
+            cartItems[itemIndex].quantity = newQuantity;
         }
     }
-    saveCartItems(cart);
+    await saveCartItemsToFirestore(cartItems);
 }
 
-function removeCartItem(productId) {
-    let cart = getCartItems();
-    cart = cart.filter(item => item.id !== productId);
-    saveCartItems(cart);
+async function removeCartItem(productId) {
+    cartItems = cartItems.filter(item => item.id !== productId);
+    await saveCartItemsToFirestore(cartItems);
 }
 
 function updateCartDisplay() {
-    const cart = getCartItems();
     cartItemsContainer.innerHTML = ''; // Clear current display
     let subtotal = 0;
 
-    if (cart.length === 0) {
+    if (cartItems.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
         robloxUsernameInput.style.display = 'none'; // Hide Roblox username input if cart is empty
     } else {
         robloxUsernameInput.style.display = 'block'; // Show Roblox username input if cart has items
-        cart.forEach(item => {
+        cartItems.forEach(item => {
             const cartItemDiv = document.createElement('div');
             cartItemDiv.classList.add('cart-item');
             const itemTotalPrice = item.price * item.quantity;
@@ -637,22 +572,19 @@ function updateCartDisplay() {
     const total = subtotal; // For now, total is same as subtotal, add taxes/shipping later if needed
     cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
     cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
-    cartCountBadge.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+    cartCountBadge.textContent = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-    placeOrderBtn.textContent = `Place Order (${cart.reduce((sum, item) => sum + item.quantity, 0)} items) ₱${total.toFixed(2)}`;
+    placeOrderBtn.textContent = `Place Order (${cartItems.reduce((sum, item) => sum + item.quantity, 0)} items) ₱${total.toFixed(2)}`;
 }
 
 // --- Stock Deduction Function ---
 async function deductProductStock(productId, quantityOrdered) {
     try {
-        // Updated path to match Firestore rules
         const productRef = doc(db, "artifacts", appId, "products", productId);
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
             const currentStock = productSnap.data().stock;
-            // This check should ideally be redundant due to the pre-check in placeOrder,
-            // but it acts as a safeguard.
             if (currentStock >= quantityOrdered) {
                 const newStock = currentStock - quantityOrdered;
                 await updateDoc(productRef, {
@@ -661,7 +593,6 @@ async function deductProductStock(productId, quantityOrdered) {
                 console.log(`Stock for product ${productId} updated to ${newStock}`);
             } else {
                 console.warn(`Attempted to deduct stock for product ${productId} but insufficient stock. Current: ${currentStock}, Ordered: ${quantityOrdered}`);
-                // This shouldn't happen if the pre-check works, but good to log.
             }
         } else {
             console.error(`Product with ID ${productId} not found for stock deduction.`);
@@ -674,7 +605,6 @@ async function deductProductStock(productId, quantityOrdered) {
 
 // --- Place Order Function ---
 async function placeOrder() {
-    const cartItems = getCartItems();
     const robloxUsername = robloxUsernameInput.value.trim();
     const selectedPaymentMethod = document.querySelector('input[name="payment-method"]:checked');
 
@@ -698,7 +628,7 @@ async function placeOrder() {
         return;
     }
 
-    // --- NEW: Pre-order stock validation ---
+    // Pre-order stock validation (uses current `allProducts` cache)
     for (const item of cartItems) {
         const productInCache = allProducts.find(p => p.id === item.id);
         if (!productInCache) {
@@ -714,8 +644,6 @@ async function placeOrder() {
             return;
         }
     }
-    // --- END NEW: Pre-order stock validation ---
-
 
     // Show confirmation modal before placing the order
     showConfirmModal('Are you sure you want to place this order?', async () => {
@@ -743,21 +671,18 @@ async function placeOrder() {
             const orderId = userOrderDocRef.id; // Get the ID generated by Firestore
 
             // Add the same order to the allOrders collection for admin view
-            // Using setDoc with doc() to ensure the same ID is used for both
             await setDoc(doc(db, "artifacts", appId, "allOrders", orderId), {
                 ...orderData, // Spread existing order data
                 orderId: orderId // Explicitly add orderId to the allOrders document
             });
 
-
-            // Deduct stock for each item in the order
-            // This is done AFTER the order is successfully saved to ensure data integrity
+            // Deduct stock for each item in the order AFTER order is saved
             for (const item of cartItems) {
                 await deductProductStock(item.id, item.quantity);
             }
 
-            // Clear the cart after successful order
-            saveCartItems([]);
+            // Clear the cart in Firestore after successful order
+            await saveCartItemsToFirestore([]);
             robloxUsernameInput.value = ''; // Clear username input
 
             showCustomAlert('Order placed successfully!');
@@ -772,7 +697,7 @@ async function placeOrder() {
 
 // --- Order History Functions (User View) ---
 function listenForUserOrders(uid) {
-    if (unsubscribeUserOrderListener) { // Corrected variable name
+    if (unsubscribeUserOrderListener) {
         unsubscribeUserOrderListener();
     }
 
@@ -780,7 +705,7 @@ function listenForUserOrders(uid) {
         collection(db, "artifacts", appId, "users", uid, "orders")
     );
 
-    unsubscribeUserOrderListener = onSnapshot(q, (snapshot) => { // Corrected variable name
+    unsubscribeUserOrderListener = onSnapshot(q, (snapshot) => {
         let orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         // Sort orders in memory by timestamp in descending order (newest first)
         orders.sort((a, b) => {
@@ -790,7 +715,6 @@ function listenForUserOrders(uid) {
         });
 
         displayUserOrders(orders); // Re-render orders when data changes
-        // Admin orders are now rendered by listenForAdminOrders, not here
     }, (error) => {
         console.error("Error fetching user orders:", error);
     });
@@ -874,296 +798,19 @@ async function viewOrderDetails(orderId) {
     }
 }
 
-
-// --- Admin Panel Functions ---
-function showAdminTab(tabName) {
-    // Hide all tab contents
-    adminProductManagement.style.display = 'none';
-    adminOrderManagement.style.display = 'none';
-    adminSiteSettings.style.display = 'none';
-
-    // Remove active class from all buttons
-    document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
-
-    // Show the selected tab content and add active class to its button
-    if (tabName === 'products') {
-        adminProductManagement.style.display = 'block';
-        document.querySelector('.admin-tab-btn[data-tab="products"]').classList.add('active');
-    } else if (tabName === 'orders') {
-        adminOrderManagement.style.display = 'block';
-        document.querySelector('.admin-tab-btn[data-tab="orders"]').classList.add('active');
-        // Ensure admin order details view is hidden when switching to order list
-        adminOrderDetailsView.style.display = 'none';
-        listenForAdminOrders(); // Start listening for admin orders when tab is active
-    } else if (tabName === 'settings') {
-        adminSiteSettings.style.display = 'block';
-        document.querySelector('.admin-tab-btn[data-tab="settings"]').classList.add('active');
-    }
-}
-
-// Product Management
-function resetProductForm() {
-    productIdInput.value = '';
-    productNameInput.value = '';
-    productCategorySelect.value = 'pets';
-    productPriceInput.value = '';
-    productSalePriceInput.value = '';
-    productStockInput.value = '';
-    productImageInput.value = '';
-    productNewCheckbox.checked = false;
-    productSaleCheckbox.checked = false;
-    saveProductBtn.textContent = 'Add Product';
-    productFormTitle.textContent = 'Add New Product';
-    cancelEditProductBtn.style.display = 'none';
-}
-
-async function handleSaveProduct() {
-    const id = productIdInput.value;
-    const name = productNameInput.value.trim();
-    const category = productCategorySelect.value;
-    const price = parseFloat(productPriceInput.value);
-    const salePrice = productSalePriceInput.value ? parseFloat(productSalePriceInput.value) : null;
-    const stock = parseInt(productStockInput.value);
-    const image = productImageInput.value.trim();
-    const isNew = productNewCheckbox.checked;
-    const onSale = productSaleCheckbox.checked;
-
-    if (!name || !category || isNaN(price) || isNaN(stock) || !image) {
-        showCustomAlert('Please fill in all required product fields (Name, Category, Price, Stock, Image).');
-        return;
-    }
-    if (salePrice !== null && isNaN(salePrice)) {
-        showCustomAlert('Please enter a valid number for Sale Price.');
-        return;
-    }
-
-    try {
-        const productData = { name, category, price, stock, image, isNew, onSale };
-        if (salePrice !== null) {
-            productData.salePrice = salePrice;
-        }
-
-        if (id) {
-            // Updated path to match Firestore rules
-            await updateDoc(doc(db, "artifacts", appId, "products", id), productData);
-            showCustomAlert('Product updated successfully!');
-        } else {
-            // Updated path to match Firestore rules
-            await addDoc(collection(db, "artifacts", appId, "products"), productData);
-            showCustomAlert('Product added successfully!');
-        }
-        resetProductForm();
-    } catch (error) {
-        console.error("Error saving product:", error);
-        showCustomAlert('Failed to save product. Please try again.');
-    }
-}
-
-function renderAdminProducts(products) {
-    adminProductsList.innerHTML = '';
-    if (products.length === 0) {
-        adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
-        return;
-    }
-
-    products.forEach(product => {
-        const row = document.createElement('tr');
-        row.dataset.productId = product.id;
-        row.innerHTML = `
-            <td><img src="images/${product.image}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/60x60/cccccc/000000?text=No+Image';"></td>
-            <td>${product.name}</td>
-            <td>${product.category}</td>
-            <td>₱${product.price.toFixed(2)} ${product.onSale && product.salePrice ? ` (Sale: ₱${product.salePrice.toFixed(2)})` : ''}</td>
-            <td>${product.stock}</td>
-            <td>${product.isNew ? 'New' : ''}${product.isNew && product.onSale ? '/' : ''}${product.onSale ? 'Sale' : ''}</td>
-            <td class="admin-product-actions">
-                <button class="edit">Edit</button>
-                <button class="delete">Delete</button>
-            </td>
-        `;
-        adminProductsList.appendChild(row);
-    });
-}
-
-async function editProduct(productId) {
-    try {
-        // Updated path to match Firestore rules
-        const productDocRef = doc(db, "artifacts", appId, "products", productId);
-        const productDocSnap = await getDoc(productDocRef);
-
-        if (productDocSnap.exists()) {
-            const product = { id: productDocSnap.id, ...productDocSnap.data() };
-            productIdInput.value = product.id;
-            productNameInput.value = product.name;
-            productCategorySelect.value = product.category;
-            productPriceInput.value = product.price;
-            productSalePriceInput.value = product.salePrice || ''; // Set to empty string if no sale price
-            productStockInput.value = product.stock;
-            productImageInput.value = product.image;
-            productNewCheckbox.checked = product.isNew || false;
-            productSaleCheckbox.checked = product.onSale || false;
-
-            saveProductBtn.textContent = 'Update Product';
-            productFormTitle.textContent = 'Edit Product';
-            cancelEditProductBtn.style.display = 'inline-block';
-        } else {
-            showCustomAlert('Product not found for editing.');
-        }
-    } catch (error) {
-        console.error("Error fetching product for edit:", error);
-        showCustomAlert('Failed to load product for editing.');
-    }
-}
-
-async function deleteProduct(productId) {
-    try {
-        // Updated path to match Firestore rules
-        await deleteDoc(doc(db, "artifacts", appId, "products", productId));
-        showCustomAlert('Product deleted successfully!');
-    } catch (error) {
-        console.error("Error deleting product:", error);
-        showCustomAlert('Failed to delete product. Please try again.');
-    }
-}
-
-// --- Admin Order Management ---
-function listenForAdminOrders() {
-    if (unsubscribeAdminOrderListener) {
-        unsubscribeAdminOrderListener();
-    }
-    // Listen to the allOrders collection as per new rules
-    const q = query(
-        collection(db, "artifacts", appId, "allOrders"),
-        orderBy("timestamp", "desc") // Order by timestamp, newest first
-    );
-
-    unsubscribeAdminOrderListener = onSnapshot(q, (snapshot) => {
-        const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderAdminOrders(orders); // Render these orders in the admin table
-    }, (error) => {
-        console.error("Error fetching admin orders:", error);
-    });
-}
-
-function renderAdminOrders(orders) {
-    adminOrdersList.innerHTML = '';
-    if (orders.length === 0) {
-        adminOrdersList.innerHTML = '<tr><td colspan="6" class="empty-message">No orders found.</td></tr>';
-        return;
-    }
-
-    orders.forEach(order => {
-        const row = document.createElement('tr');
-        // Use the orderId from the document itself, as it's consistent with user orders
-        row.dataset.orderId = order.id;
-
-        const timestampDate = order.timestamp ? new Date(order.timestamp.toDate()) : new Date();
-        const formattedDate = timestampDate.toLocaleString();
-        const statusClass = order.status.toLowerCase().replace(/\s/g, '-');
-
-        row.innerHTML = `
-            <td>${order.id.substring(0, 8)}...</td>
-            <td>${order.userId ? order.userId.substring(0, 8) + '...' : 'N/A'}</td>
-            <td>${formattedDate}</td>
-            <td>₱${order.totalPrice.toFixed(2)}</td>
-            <td><span class="order-item-status status-${statusClass}">${order.status}</span></td>
-            <td class="admin-order-actions">
-                <button class="view">View</button>
-            </td>
-        `;
-        adminOrdersList.appendChild(row);
-    });
-}
-
-async function viewAdminOrderDetails(orderId) {
-    try {
-        // Fetch directly from allOrders collection
-        const orderDocRef = doc(db, "artifacts", appId, "allOrders", orderId);
-        const orderDocSnap = await getDoc(orderDocRef);
-
-        if (orderDocSnap.exists()) {
-            const order = { id: orderDocSnap.id, ...orderDocSnap.data() };
-            document.getElementById('admin-detail-order-id').textContent = order.id;
-            document.getElementById('admin-detail-user-id').textContent = order.userId || 'N/A';
-            document.getElementById('admin-detail-roblox-username').textContent = order.robloxUsername || 'Not provided';
-            document.getElementById('admin-detail-order-date').textContent = order.timestamp ? new Date(order.timestamp.toDate()).toLocaleString() : 'N/A';
-            document.getElementById('admin-detail-order-price').textContent = `₱${order.totalPrice.toFixed(2)}`;
-            document.getElementById('admin-detail-payment-method').textContent = order.paymentMethod;
-            document.getElementById('admin-detail-order-status').textContent = order.status; // Display current status
-            orderStatusSelect.value = order.status; // Set dropdown to current status
-            orderStatusSelect.dataset.currentOrderId = order.id; // Store order ID on select for update
-            orderStatusSelect.dataset.currentOrderUserId = order.userId; // Store user ID too for updating user-specific order
-
-            const adminDetailItemsList = document.getElementById('admin-detail-items-list');
-            adminDetailItemsList.innerHTML = '';
-            order.items.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.classList.add('admin-order-detail-item');
-                itemDiv.innerHTML = `
-                    <span class="admin-order-detail-item-name">${item.name}</span>
-                    <span class="admin-order-detail-item-qty-price">${item.quantity} x ₱${item.price.toFixed(2)}</span>
-                `;
-                adminDetailItemsList.appendChild(itemDiv);
-            });
-
-            adminOrderManagement.style.display = 'none';
-            adminOrderDetailsView.style.display = 'block';
-
-        } else {
-            console.log("No such order found for admin view!");
-            showCustomAlert("Order details not found for admin view.");
-        }
-    } catch (error) {
-        console.error("Error fetching admin order details:", error);
-        showCustomAlert("Failed to load admin order details.");
-    }
-}
-
-async function handleUpdateOrderStatus() {
-    const orderId = orderStatusSelect.dataset.currentOrderId;
-    const orderOwnerUserId = orderStatusSelect.dataset.currentOrderUserId; // Get user ID
-    const newStatus = orderStatusSelect.value;
-
-    if (!orderId || !orderOwnerUserId) {
-        showCustomAlert('No order or user ID selected for status update.');
-        return;
-    }
-
-    try {
-        // Update order in allOrders collection
-        const allOrdersDocRef = doc(db, "artifacts", appId, "allOrders", orderId);
-        await updateDoc(allOrdersDocRef, {
-            status: newStatus
-        });
-
-        // Update order in user's specific orders collection
-        const userOrderDocRef = doc(db, "artifacts", appId, "users", orderOwnerUserId, "orders", orderId);
-        await updateDoc(userOrderDocRef, {
-            status: newStatus
-        });
-
-        showCustomAlert(`Order ${orderId.substring(0,8)}... status updated to ${newStatus}!`);
-
-    } catch (error) {
-        console.error('Error updating order status:', error);
-        showCustomAlert('Failed to update order status. Please try again.');
-    }
-}
-
-
-// --- Store Settings Functions (Admin Only) ---
+// --- Store Settings Functions ---
+// This function is for the main page seller status display and general site settings
 async function listenForStoreSettings() {
     if (unsubscribeStoreSettingsListener) {
         unsubscribeStoreSettingsListener();
     }
 
-    // Updated path to match Firestore rules
+    // Updated path to match Firebase rules: /artifacts/{appId}/settings/global
     const storeSettingsDocRef = doc(db, "artifacts", appId, "settings", "global");
 
     unsubscribeStoreSettingsListener = onSnapshot(storeSettingsDocRef, (docSnap) => {
         if (docSnap.exists()) {
             const settings = docSnap.data();
-            // Update seller status display on main page
             if (sellerStatusDisplay) {
                 if (settings.isSellerOnline) {
                     sellerStatusDisplay.textContent = 'Seller Status: Online';
@@ -1175,30 +822,42 @@ async function listenForStoreSettings() {
                     sellerStatusDisplay.classList.add('status-offline');
                 }
             }
-            // Update toggle in admin panel
-            if (sellerOnlineToggle) {
-                sellerOnlineToggle.checked = settings.isSellerOnline;
-                sellerStatusText.textContent = settings.isSellerOnline ? 'Online' : 'Offline';
-            }
         } else {
             console.log("No store settings found, initializing default.");
             // Initialize default settings if not present
-            setDoc(storeSettingsDocRef, { isSellerOnline: false });
+            setDoc(storeSettingsDocRef, { isSellerOnline: false }).catch(e => console.error("Error setting default store settings:", e));
         }
     }, (error) => {
         console.error("Error listening to store settings:", error);
     });
 }
 
+// Function to get current store settings value (for admin.js to read)
+function getStoreSettingsValue() {
+    // This is a synchronous getter for the *current* state known by this script.
+    // The actual source of truth is the Firestore listener, which updates the UI.
+    // For the admin panel, it's better to read directly from Firestore if precise up-to-the-second data is needed,
+    // but this serves as a simple way to pass the *current state* from the main script.
+    const currentStatus = sellerStatusDisplay.classList.contains('status-online');
+    return currentStatus;
+}
+
+
+// Function to update store settings (called by admin.js)
 async function updateStoreSettings(settingsData) {
+    if (!currentUserId || currentUserId !== "LigBezoWV9eVo8lglsijoWinKmA2") { // Ensure only admin can update
+        showCustomAlert("You are not authorized to update store settings.");
+        return;
+    }
     try {
-        // Updated path to match Firestore rules
+        // Updated path to match Firebase rules: /artifacts/{appId}/settings/global
         const storeSettingsDocRef = doc(db, "artifacts", appId, "settings", "global");
-        await setDoc(storeSettingsDocRef, settingsData, { merge: true });
+        await updateDoc(storeSettingsDocRef, settingsData); // Use updateDoc for existing fields
         console.log("Store settings updated.");
+        showCustomAlert("Store settings updated successfully!");
     } catch (error) {
         console.error("Error updating store settings:", error);
-        showCustomAlert("Failed to update store settings.");
+        showCustomAlert("Failed to update store settings. Please try again.");
     }
 }
 
@@ -1269,4 +928,3 @@ function showConfirmModal(message, onConfirmCallback) {
     modal.querySelector('#custom-confirm-message').textContent = message;
     modal.classList.add('show');
 }
-
