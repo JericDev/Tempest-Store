@@ -42,11 +42,13 @@
     </div>
 
        <div class="filters">
-            <button onclick="setFilter('all')" data-cat="all" class="active">All</button>
-            <button onclick="setFilter('pets')" data-cat="pets">Pets</button>
-            <button onclick="setFilter('gears')" data-cat="gears">Gears</button>
-            <button onclick="setFilter('sheckles')" data-cat="sheckles">Sheckles</button>
-            <input type="text" id="searchBox" placeholder="Search..." oninput="applyFilters()" />
+            <!-- Removed onclick attributes here, listeners will be added in script.js -->
+            <button data-cat="all" class="active">All</button>
+            <button data-cat="pets">Pets</button>
+            <button data-cat="gears">Gears</button>
+            <button data-cat="sheckles">Sheckles</button>
+            <!-- Removed oninput attribute here, listener will be added in script.js -->
+            <input type="text" id="searchBox" placeholder="Search..." />
        </div>
 
     <main id="product-list"></main>
@@ -91,7 +93,7 @@
                    src="images/gcash.png"
                    alt="Payment Preview"
                    style="max-width: 200px; border-radius: 10px;"
-                    />
+                   />
             </div>
 
 
@@ -193,11 +195,11 @@
                             <th>New/Sale</th>
                             <th>Actions</th>
                         </tr>
+                        <tbody id="admin-products-list">
+                            <!-- Products will be rendered here -->
+                            <tr><td colspan="7" class="empty-message">No products found.</td></tr>
+                        </tbody>
                     </thead>
-                    <tbody id="admin-products-list">
-                        <!-- Products will be rendered here -->
-                        <tr><td colspan="7" class="empty-message">No products found.</td></tr>
-                    </tbody>
                 </table>
             </div>
 
