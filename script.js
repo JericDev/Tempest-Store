@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+// Removed signInAnonymously from import
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
 // Your web app's Firebase configuration
@@ -108,7 +109,7 @@ const cartCountBadge = document.getElementById("cart-count");
 const cartModal = document.getElementById("cart-modal");
 const closeCartModalBtn = document.getElementById("close-cart-modal");
 const cartItemsContainer = document.getElementById("cart-items-container");
-const cartSubtotalSpan = document.getElementById("cart-subtotal");
+const cartSubtotalSpan = document = document.getElementById("cart-subtotal");
 const cartTotalSpan = document.getElementById("cart-total");
 const placeOrderBtn = document.getElementById("place-order-btn");
 const robloxUsernameInput = document.getElementById("roblox-username-input");
@@ -267,8 +268,8 @@ onAuthStateChanged(auth, async (user) => {
         currentUserId = user.uid; // Set current user ID
         isAdmin = (currentUserId === ADMIN_UID); // Check if current user is admin
 
-        // MODIFIED: Handle null/undefined user.email for anonymous users
-        userDisplay.textContent = user.email ? `Welcome, ${user.email}` : `Welcome, Guest (${user.uid.substring(0, 8)}...)`;
+        // Only display email for non-anonymous users
+        userDisplay.textContent = user.email ? `Welcome, ${user.email}` : `Welcome, User (${user.uid.substring(0, 8)}...)`;
         
         loginRegisterButton.style.display = "none";
         logoutButton.style.display = "inline-block";
@@ -316,7 +317,9 @@ onAuthStateChanged(auth, async (user) => {
 
         robloxUsernameInput.style.display = "none";
 
-        cart = loadCartFromLocalStorage();
+        // When not logged in (including not anonymously), cart stays in local storage.
+        // As localStorage is restricted in Canvas, cart will effectively reset on refresh.
+        cart = loadCartFromLocalStorage(); 
         userOrders = [];
     }
     authEmailInput.value = "";
@@ -328,17 +331,16 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // --- Canvas Initial Authentication ---
-// This block ensures Firebase authentication is handled correctly for Canvas environment.
-// It uses __initial_auth_token for custom token sign-in or signs in anonymously.
-// This needs to run once when the script loads.
+// Removed anonymous sign-in, now relies only on __initial_auth_token for custom login.
+// If __initial_auth_token is not provided or fails, no user will be automatically logged in.
 (async () => {
     try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
             await signInWithCustomToken(auth, __initial_auth_token);
             console.log("Signed in with custom token from Canvas environment.");
         } else {
-            await signInAnonymously(auth);
-            console.log("Signed in anonymously because no custom token was provided.");
+            console.log("No custom authentication token provided. User will need to login manually.");
+            // No anonymous sign-in here. User remains unauthenticated unless they explicitly log in.
         }
     } catch (error) {
         console.error("Firebase initial authentication failed:", error);
@@ -397,10 +399,9 @@ function setupSiteSettingsListener() {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status. This write needs admin rights.
             // A more robust solution would be to create this document via a server-side script or admin panel setup.
-            // Attempt to set if current user is admin, or if it's the initial (anonymous) sign-in.
-            // The `onAuthStateChanged` handler might run after this, setting `isAdmin` properly.
-            // So, for initial setup, it's generally fine if _any_ authenticated user creates it.
-            if (auth.currentUser) { // Check if any user is authenticated (even anonymously)
+            // Only attempt to set if there is a current user (i.e., not null, so an explicit login has occurred or custom token worked)
+            // AND that user is an admin.
+            if (auth.currentUser && isAdmin) { 
                  try {
                     await setDoc(settingsDocRef, { sellerOnline: false });
                     console.log("Initialized 'global' settings document.");
@@ -650,10 +651,14 @@ function updateCartCountBadge() {
     placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
 
     // Disable place order button if cart is empty or seller is offline (if logged in)
-    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline;
+    // If not logged in, currentUserId is null, so the robloxUsernameInput check is skipped for anonymous users.
+    // However, since anonymous is removed, if currentUserId is null, it means no user is logged in at all.
+    placeOrderBtn.disabled = totalItems === 0 || (!currentUserId && totalItems > 0) || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline;
 
     // Optional: Add a tooltip or message if disabled due to seller being offline
-    if (!sellerIsOnline && currentUserId) {
+    if (!currentUserId && totalItems > 0) { // If there's a cart but no user logged in
+        placeOrderBtn.title = "Please log in to place your order.";
+    } else if (!sellerIsOnline && currentUserId) {
         placeOrderBtn.title = "Cannot place order: Seller is currently offline.";
     } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
         placeOrderBtn.title = "Please enter your Roblox Username.";
@@ -863,8 +868,8 @@ placeOrderBtn.addEventListener('click', async () => {
         console.error("Error placing order to Firestore:", e);
         showMessageBox("Order Error", "There was an error placing your order. Please try again. " + e.message);
     } finally {
-        placeOrderBtn.disabled = false;
-    }
+            placeOrderBtn.disabled = false;
+        }
 });
 
 // --- Order History Functions (User-side) ---
@@ -1067,4 +1072,3 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
-
