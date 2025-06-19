@@ -21,7 +21,7 @@ const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
 
 let currentUserId = null; // To store the current authenticated user's ID
-let isAdmin = false; // Flag to check if the current user is an anpmdmin
+let isAdmin = false; // Flag to check if the current user is an admin
 // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
 const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
@@ -58,6 +58,7 @@ const userDisplay = document.getElementById("user-display");
 const authModal = document.getElementById("auth-modal");
 const closeAuthModalBtn = document.getElementById("close-auth-modal");
 const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
+const sellerStatusText = document.getElementById("seller-status-text"); // New: Seller Status text in header
 
 
 // --- DOM elements for Cart/Checkout ---
@@ -247,7 +248,8 @@ onAuthStateChanged(auth, async (user) => {
             }
             if (initAdminPanelModule) {
                 // Pass Firestore and Auth instances, plus user info to admin module
-                initAdminPanelModule(db, auth, currentUserId, isAdmin);
+                // Pass sellerStatusText to admin module
+                initAdminPanelModule(db, auth, currentUserId, isAdmin, sellerStatusText);
             }
         } else {
             adminPanelButton.style.display = "none";
@@ -289,6 +291,8 @@ const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
+const STORE_SETTINGS_DOC_PATH = `artifacts/${APP_ID}/storeSettings/config`; // Centralized settings document
+
 
 // --- Product Display (Accessible to all) ---
 function setupProductsListener() {
@@ -308,6 +312,25 @@ function setupProductsListener() {
 
 // Call setupProductsListener once when the script loads to always show products
 unsubscribeProducts = setupProductsListener();
+
+// New: Store settings listener for general users (to display header status)
+let unsubscribePublicStoreSettings = null;
+function setupPublicStoreSettingsListener() {
+    const storeSettingsRef = doc(db, STORE_SETTINGS_DOC_PATH);
+    unsubscribePublicStoreSettings = onSnapshot(storeSettingsRef, (docSnap) => {
+        let isOnline = true; // Default status
+        if (docSnap.exists()) {
+            isOnline = docSnap.data().isOnline;
+        }
+        if (sellerStatusText) { // Ensure the element exists
+            sellerStatusText.textContent = isOnline ? 'Online' : 'Offline';
+            sellerStatusText.classList.toggle('offline', !isOnline); // Apply offline class if status is false
+        }
+    }, (error) => {
+        console.error("Error listening to public store settings:", error);
+    });
+}
+setupPublicStoreSettingsListener(); // Call this on page load for all users
 
 // --- Cart Persistence (Customer-side) ---
 async function saveCartToFirestore(userId, cartData) {
@@ -817,3 +840,4 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
