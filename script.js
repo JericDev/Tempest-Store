@@ -58,7 +58,7 @@ const userDisplay = document.getElementById("user-display");
 const authModal = document.getElementById("auth-modal");
 const closeAuthModalBtn = document.getElementById("close-auth-modal");
 const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
-const sellerStatusText = document.getElementById("seller-status-text"); // ADDED: Reference to Seller Status text in header
+const sellerStatusText = document.getElementById("seller-status-text"); // Direct reference to the Seller Status text element
 
 
 // --- DOM elements for Cart/Checkout ---
@@ -291,7 +291,7 @@ const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
-const STORE_SETTINGS_DOC_PATH = `artifacts/${APP_ID}/storeSettings/config`; // ADDED: Centralized settings document
+const STORE_SETTINGS_DOC_PATH = `artifacts/${APP_ID}/storeSettings/config`; // Centralized settings document
 
 
 // --- Product Display (Accessible to all) ---
@@ -313,7 +313,7 @@ function setupProductsListener() {
 // Call setupProductsListener once when the script loads to always show products
 unsubscribeProducts = setupProductsListener();
 
-// ADDED: Store settings listener for general users (to display header status)
+// Store settings listener for general users (to display header status)
 let unsubscribePublicStoreSettings = null;
 function setupPublicStoreSettingsListener() {
     const storeSettingsRef = doc(db, STORE_SETTINGS_DOC_PATH);
@@ -691,7 +691,7 @@ function renderOrderHistory() {
                 <span>Date: ${new Date(order.orderDate).toLocaleDateString()}</span>
                 <span>Price: ₱${order.total.toFixed(2)}</span>
             </div>
-            <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span>
+            <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span>
             <button class="view-details-btn" data-order-id="${order.id}">View Details</button>
         `;
         orderHistoryList.appendChild(orderItemDiv);
@@ -831,7 +831,7 @@ window.addEventListener("DOMContentLoaded", () => {
         searchBox.addEventListener("input", applyFilters);
     }
 
-    // ✅ Payment method preview image change
+    // Payment method preview image change
     document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
@@ -841,3 +841,4 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
