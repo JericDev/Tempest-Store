@@ -855,15 +855,18 @@ main#product-list {
         gap: 8px; /* Reduced gap */
         border-radius: 12px; /* Ensure rounded corners */
         box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* Soften shadow */
-        flex-direction: column; /* Stack filter items */
-        align-items: center; /* Center items */
+        flex-direction: row; /* KEEP AS ROW to match the second image */
+        flex-wrap: wrap; /* Allow wrapping if not enough space for all */
+        justify-content: center; /* Center items */
+        align-items: center; /* Align items vertically */
     }
     .filters button, .filters input {
         padding: 10px 15px;
         font-size: 14px;
         border-radius: 10px; /* More rounded buttons */
-        width: calc(100% - 20px); /* Full width with horizontal padding */
-        margin: 4px 0; /* Consistent vertical margin */
+        width: auto; /* Let buttons size naturally */
+        flex-shrink: 0; /* Prevent buttons from shrinking too much */
+        margin: 4px; /* Adjust margin to create space between horizontal buttons */
         box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Add a subtle shadow */
         border: none; /* Remove border for cleaner look */
     }
@@ -877,6 +880,8 @@ main#product-list {
         background-position: 8px center;
         background-size: 20px;
         border: 1px solid #ddd; /* Keep a light border for the search input */
+        flex-grow: 1; /* Allow search input to grow */
+        max-width: calc(100% - 20px); /* Limit max-width to allow wrapping if necessary */
     }
 
     main#product-list {
@@ -1324,3 +1329,4 @@ main#product-list {
         max-width: 950px;
     }
 }
+
