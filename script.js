@@ -21,7 +21,7 @@ const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
 
 let currentUserId = null; // To store the current authenticated user's ID
-let isAdmin = false; // Flag to check if the current user is an admin
+let isAdmin = false; // Flag to check if the current user is an anpmdmin
 // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
 const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
@@ -299,6 +299,7 @@ function setupProductsListener() {
             fetchedProducts.push({ id: doc.id, ...doc.data() });
         });
         allProducts = fetchedProducts;
+        console.log("Fetched Products from Firestore:", allProducts); // Added for debugging
         applyFilters(); // Call applyFilters after products are fetched and updated
     }, (error) => {
         console.error("Error listening to products:", error);
@@ -736,7 +737,7 @@ function renderProducts(items) {
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
             ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
-            <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
+            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
             <h4>${product.name}</h4>
             <div class="price">${displayPrice}</div>
             <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
