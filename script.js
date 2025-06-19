@@ -267,7 +267,9 @@ onAuthStateChanged(auth, async (user) => {
         currentUserId = user.uid; // Set current user ID
         isAdmin = (currentUserId === ADMIN_UID); // Check if current user is admin
 
-        userDisplay.textContent = `Welcome, ${user.email}`;
+        // MODIFIED: Handle null/undefined user.email for anonymous users
+        userDisplay.textContent = user.email ? `Welcome, ${user.email}` : `Welcome, Guest (${user.uid.substring(0, 8)}...)`;
+        
         loginRegisterButton.style.display = "none";
         logoutButton.style.display = "inline-block";
         myOrdersButton.style.display = "inline-block";
@@ -1065,3 +1067,4 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
