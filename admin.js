@@ -1,7 +1,7 @@
 // admin.js
 // This file contains all logic and DOM manipulations specific to the admin panel.
 
-import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Updated Firebase SDK version
 
 // Global variables for admin-specific data and listeners
 let allOrders = []; // Global array to store all orders for admin view
@@ -58,11 +58,11 @@ const sellerOnlineToggle = document.getElementById("seller-online-toggle");
 const sellerStatusText = document.getElementById("seller-status-text");
 
 // --- Firestore Collection Paths (These are defined locally in admin.js for clarity) ---
-const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in script.js
+const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in script.js and Firebase Rules
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
-const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // Path for site settings
+const SITE_SETTINGS_DOC_PATH = `artifacts/${APP_ID}/settings/global`; // Path for site settings doc
 
 
 // --- Admin Panel Functions ---
@@ -78,6 +78,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     // Attach event listener for the admin panel button
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton) {
+        // Remove existing listener to prevent duplicates if initAdminPanel is called multiple times
         if (adminPanelButton._adminListener) {
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         }
@@ -90,7 +91,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
             showAdminTab('products'); // Default to product management tab when opening
         };
         adminPanelButton.addEventListener('click', listener);
-        adminPanelButton._adminListener = listener;
+        adminPanelButton._adminListener = listener; // Store the listener for later removal
     }
 
     closeAdminPanelModalBtn.addEventListener('click', () => {
@@ -104,6 +105,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     });
 
     adminTabButtons.forEach(button => {
+        // Remove existing listeners for tab buttons to prevent duplicates
         if (button._tabListener) {
             button.removeEventListener('click', button._tabListener);
         }
@@ -112,7 +114,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
             showAdminTab(tab);
         };
         button.addEventListener('click', listener);
-        button._tabListener = listener;
+        button._tabListener = listener; // Store the listener for later removal
     });
 
     // Remove existing listeners for product form buttons to prevent duplicates
@@ -126,36 +128,37 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     saveProductBtn._saveListener = async () => {
         const productId = productIdInput.value;
         const isNew = productNewCheckbox.checked;
-        const isSale = productSaleCheckbox.checked;
-        let salePrice = null;
+        const onSale = productSaleCheckbox.checked; // Changed from isSale to onSale
+        let salePriceValue = null; // Stored as number, not string with currency
         let productImage = productImageInput.value.trim();
 
-        if (isSale && productSalePriceInput.value.trim() !== '') {
-            salePrice = `₱${parseFloat(productSalePriceInput.value).toFixed(2)}`;
+        if (onSale && productSalePriceInput.value.trim() !== '') {
+            salePriceValue = parseFloat(productSalePriceInput.value);
         } else {
-            salePrice = null;
+            salePriceValue = null;
         }
 
         const newProduct = {
             name: productNameInput.value.trim(),
             category: productCategorySelect.value,
-            price: `₱${parseFloat(productPriceInput.value).toFixed(2)}`,
-            salePrice: salePrice,
+            price: parseFloat(productPriceInput.value), // Store as number
+            salePrice: salePriceValue, // Store as number or null
             stock: parseInt(productStockInput.value),
             image: productImage,
-            new: isNew,
-            sale: isSale
+            isNew: isNew, // Changed from new to isNew
+            onSale: onSale // Changed from sale to onSale
         };
 
-        if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
-            showCustomAlert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
+        if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(newProduct.price)) {
+            showCustomAlert("Please fill in all product fields correctly (Name, Image filename, Stock, Price).");
             return;
         }
-        if (isSale && (salePrice === null || isNaN(parseFloat(salePrice.replace('₱', ''))))) {
+        if (onSale && (salePriceValue === null || isNaN(salePriceValue))) {
             showCustomAlert("Please enter a valid Sale Price if the product is On Sale.");
             return;
         }
 
+        // Product ID is only set if editing an existing product
         if (productId) {
             newProduct.id = productId;
         }
@@ -167,8 +170,8 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     cancelEditProductBtn.addEventListener('click', cancelEditProductBtn._cancelListener);
 
     adminBackToOrderListBtn._backListener = () => {
-        adminOrdersList.parentElement.style.display = 'table';
-        adminOrderDetailsView.style.display = 'none';
+        adminOrdersList.parentElement.style.display = 'table'; // Show table
+        adminOrderDetailsView.style.display = 'none'; // Hide details
         currentEditingOrderId = null;
         currentEditingOrderUserId = null;
     };
@@ -206,16 +209,17 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     sellerOnlineToggle._toggleListener = (event) => {
         const isChecked = event.target.checked;
         if (toggleSellerStatusCallback) {
-            toggleSellerStatusCallback(isChecked);
+            toggleSellerStatusCallback(isChecked); // Call the callback from script.js
         }
-        renderSellerStatusToggle(isChecked); // Keep this for immediate visual feedback
+        renderSellerStatusToggle(isChecked); // Update admin UI immediately
     };
     sellerOnlineToggle.addEventListener('change', sellerOnlineToggle._toggleListener);
 
-    setupAllOrdersListener(); // Initialize admin listeners if an admin is already logged in
+    // Only set up all orders listener if admin is already logged in (checked in script.js)
+    // The listener is set up when the admin tab is activated or on initial admin login in script.js
 }
 
-// Cleanup function for admin panel when user logs out
+// Cleanup function for admin panel when user logs out (or before re-initializing)
 function cleanupAdminPanel() {
     if (unsubscribeAllOrders) {
         unsubscribeAllOrders();
@@ -283,6 +287,7 @@ async function deleteProductFromFirestore(productId) {
 }
 
 // Renders the list of products in the admin panel's product management table.
+// This function fetches fresh data when called.
 function renderAdminProducts() {
     adminProductsList.innerHTML = '';
     const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
@@ -305,12 +310,12 @@ function renderAdminProducts() {
                 <td data-label="Name">${product.name}</td>
                 <td data-label="Category">${product.category}</td>
                 <td data-label="Price">
-                    ${product.sale && product.salePrice ?
-                        `<span style="text-decoration: line-through; color: #888;">${product.price}</span> ${product.salePrice}` :
-                        product.price}
+                    ${product.onSale && product.salePrice !== null ?
+                        `<span style="text-decoration: line-through; color: #888;">₱${product.price.toFixed(2)}</span> ₱${product.salePrice.toFixed(2)}` :
+                        `₱${product.price.toFixed(2)}`}
                 </td>
                 <td data-label="Stock">${product.stock}</td>
-                <td data-label="Status">${product.new ? 'NEW ' : ''}${product.sale ? 'SALE' : ''}</td>
+                <td data-label="Status">${product.isNew ? 'NEW ' : ''}${product.isNew && product.onSale ? '/' : ''}${product.onSale ? 'SALE' : ''}</td>
                 <td data-label="Actions" class="admin-product-actions">
                     <button class="edit" data-id="${product.id}">Edit</button>
                     <button class="delete" data-id="${product.id}">Delete</button>
@@ -353,12 +358,12 @@ function editProduct(product) {
     productIdInput.value = product.id;
     productNameInput.value = product.name;
     productCategorySelect.value = product.category;
-    productPriceInput.value = parseFloat(product.price.replace('₱', ''));
-    productSalePriceInput.value = product.salePrice ? parseFloat(product.salePrice.replace('₱', '')) : '';
+    productPriceInput.value = product.price; // Stored as number
+    productSalePriceInput.value = product.salePrice !== null ? product.salePrice : ''; // Stored as number or null
     productStockInput.value = product.stock;
     productImageInput.value = product.image;
-    productNewCheckbox.checked = product.new || false;
-    productSaleCheckbox.checked = product.sale || false;
+    productNewCheckbox.checked = product.isNew || false; // Changed from new to isNew
+    productSaleCheckbox.checked = product.onSale || false; // Changed from sale to onSale
     saveProductBtn.textContent = "Save Changes";
     cancelEditProductBtn.style.display = "inline-block";
 }
@@ -390,11 +395,11 @@ function showAdminTab(tabName) {
     if (tabName === 'products') {
         adminProductManagement.style.display = 'block';
         resetProductForm();
-        renderAdminProducts();
+        renderAdminProducts(); // Ensure products are re-rendered
     } else if (tabName === 'orders') {
         adminOrderManagement.style.display = 'block';
         adminOrderDetailsView.style.display = 'none';
-        renderAdminOrders();
+        setupAllOrdersListener(); // Start listening for orders when this tab is active
     } else if (tabName === 'settings') {
         adminSiteSettings.style.display = 'block';
         // Get the latest seller status from script.js using the passed getter function
@@ -411,17 +416,18 @@ function showAdminTab(tabName) {
 // Sets up a real-time listener for all orders in Firestore (for admin view).
 function setupAllOrdersListener() {
     if (unsubscribeAllOrders) {
-        unsubscribeAllOrders();
+        unsubscribeAllOrders(); // Unsubscribe from previous listener if exists
     }
     const allOrdersColRef = collection(dbInstance, ALL_ORDERS_COLLECTION_PATH);
-    const q = query(allOrdersColRef, orderBy("orderDate", "desc"));
+    // Use "timestamp" for ordering as per script.js and Firebase Rules
+    const q = query(allOrdersColRef, orderBy("timestamp", "desc"));
     unsubscribeAllOrders = onSnapshot(q, (snapshot) => {
         const fetchedOrders = [];
         snapshot.forEach(doc => {
             fetchedOrders.push({ id: doc.id, ...doc.data() });
         });
-        allOrders = fetchedOrders;
-        renderAdminOrders();
+        allOrders = fetchedOrders; // Update the global allOrders cache
+        renderAdminOrders(); // Re-render the admin orders table
     }, (error) => {
         console.error("Error listening to all orders (admin):", error);
     });
@@ -436,12 +442,19 @@ function renderAdminOrders() {
 
     allOrders.forEach(order => {
         const row = document.createElement('tr');
+        row.dataset.orderId = order.id; // Set order ID for selection
+        
+        // Use timestamp for display
+        const timestampDate = order.timestamp ? new Date(order.timestamp.toDate()) : new Date();
+        const formattedDate = timestampDate.toLocaleString();
+        const statusClass = order.status.toLowerCase().replace(/\s/g, '-');
+
         row.innerHTML = `
             <td data-label="Order ID">${order.id.substring(0, 8)}...</td>
             <td data-label="User ID">${order.userId ? order.userId.substring(0, 8) + '...' : 'N/A'}</td>
-            <td data-label="Date">${new Date(order.orderDate).toLocaleDateString()}</td>
-            <td data-label="Total">₱${order.total.toFixed(2)}</td>
-            <td data-label="Status"><span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span></td>
+            <td data-label="Date">${formattedDate}</td>
+            <td data-label="Total">₱${order.totalPrice.toFixed(2)}</td>
+            <td data-label="Status"><span class="order-item-status status-${statusClass}">${order.status}</span></td>
             <td data-label="Actions" class="admin-order-actions">
                 <button class="view" data-id="${order.id}">View</button>
             </td>
@@ -465,15 +478,16 @@ function renderAdminOrders() {
 
 function showAdminOrderDetails(order) {
     currentEditingOrderId = order.id;
-    currentEditingOrderUserId = order.userId;
-    adminOrdersList.parentElement.style.display = 'none';
-    adminOrderDetailsView.style.display = 'block';
+    currentEditingOrderUserId = order.userId; // Store the userId to update user's specific order
+
+    adminOrdersList.parentElement.style.display = 'none'; // Hide table
+    adminOrderDetailsView.style.display = 'block'; // Show details
 
     adminDetailOrderId.textContent = order.id;
     adminDetailUserId.textContent = order.userId || 'N/A';
     adminDetailRobloxUsername.textContent = order.robloxUsername || 'N/A';
-    adminDetailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
-    adminDetailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
+    adminDetailOrderDate.textContent = order.timestamp ? new Date(order.timestamp.toDate()).toLocaleString() : 'N/A'; // Use timestamp
+    adminDetailOrderPrice.textContent = `₱${order.totalPrice.toFixed(2)}`; // Use totalPrice
     adminDetailPaymentMethod.textContent = order.paymentMethod;
     adminDetailOrderStatus.textContent = order.status;
     adminDetailOrderStatus.className = `status-info order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`;
@@ -485,10 +499,11 @@ function showAdminOrderDetails(order) {
         order.items.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'admin-order-detail-item';
+            // Assuming image path is relative from images folder or handled by onerror
             const imageUrl = `images/${item.image}`;
             itemDiv.innerHTML = `
                 <span class="admin-order-detail-item-name">${item.name}</span>
-                <span class="admin-order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
+                <span class="admin-order-detail-item-qty-price">Qty: ${item.quantity} - ₱${item.price.toFixed(2)}</span>
             `;
             adminDetailItemsList.appendChild(itemDiv);
         });
@@ -504,7 +519,7 @@ function renderSellerStatusToggle(isOnline) {
     sellerStatusText.classList.toggle('status-offline', !isOnline);
 }
 
-// Custom Alert/Confirm functions to replace native ones
+// Custom Alert/Confirm functions to replace native ones (identical to script.js, for self-containment)
 function showCustomAlert(message) {
     const alertModal = document.createElement('div');
     alertModal.className = 'custom-modal';
@@ -555,25 +570,22 @@ function showCustomConfirm(message, onConfirm) {
     const confirmBtn = confirmModal.querySelector('.custom-modal-confirm-btn');
     const cancelBtn = confirmModal.querySelector('.custom-modal-cancel-btn');
 
-    const closeModal = () => {
-        confirmModal.classList.remove('show');
-        setTimeout(() => confirmModal.remove(), 300);
-    };
+    // Clear previous listeners to prevent multiple calls
+    confirmBtn.onclick = null;
+    cancelBtn.onclick = null;
+    closeBtn.onclick = null;
 
-    closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-    confirmBtn.addEventListener('click', () => {
+    confirmBtn.onclick = () => {
         onConfirm();
         closeModal();
-    });
-    confirmModal.addEventListener('click', (event) => {
-        if (event.target === confirmModal) {
-            closeModal();
-        }
-    });
+    };
+    cancelBtn.onclick = () => closeModal();
+    closeBtn.onclick = () => closeModal();
 
+    confirmModal.querySelector('p').textContent = message; // Set message for confirm modal
     setTimeout(() => confirmModal.classList.add('show'), 10);
 }
 
-// Export the initialization function for script.js to call
+
+// Export the initialization and cleanup functions for script.js to call
 export { initAdminPanel, cleanupAdminPanel };
