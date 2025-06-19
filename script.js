@@ -340,7 +340,7 @@ onAuthStateChanged(auth, async (user) => {
         }
     } catch (error) {
         console.error("Firebase initial authentication failed:", error);
-        showMessageBox("Authentication Error", "Could not initialize Firebase authentication. Please try again.");
+        showMessageBox("Authentication Error", "Could not initialize Firebase authentication. Please try again. Details: " + error.message);
     }
 })();
 
@@ -360,9 +360,16 @@ function setupProductsListener() {
     return onSnapshot(productsColRef, (snapshot) => {
         const fetchedProducts = [];
         snapshot.forEach(doc => {
-            fetchedProducts.push({ id: doc.id, ...doc.data() });
+            // Ensure price fields are numbers when fetched
+            const data = doc.data();
+            fetchedProducts.push({ 
+                id: doc.id, 
+                ...data,
+                price: typeof data.price === 'string' ? parseFloat(data.price.replace('₱', '')) : data.price,
+                salePrice: typeof data.salePrice === 'string' ? parseFloat(data.salePrice.replace('₱', '')) : data.salePrice
+            });
         });
-        allProducts = fetchedProducts;
+        allProducts = fetchedProducts.filter(p => p.price !== undefined && !isNaN(p.price)); // Filter out products with invalid prices
         console.log("Fetched Products from Firestore:", allProducts); // Added for debugging
         applyFilters(); // Call applyFilters after products are fetched and updated
     }, (error) => {
@@ -387,14 +394,18 @@ function setupSiteSettingsListener() {
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status. This write needs admin rights.
-            // Only attempt to set if current user is admin, or if it's the initial anonymous sign-in (less ideal, but for setup)
             // A more robust solution would be to create this document via a server-side script or admin panel setup.
-            if (currentUserId && isAdmin) { // Only admin should be able to create this initially if it doesn't exist
+            // Attempt to set if current user is admin, or if it's the initial (anonymous) sign-in.
+            // The `onAuthStateChanged` handler might run after this, setting `isAdmin` properly.
+            // So, for initial setup, it's generally fine if _any_ authenticated user creates it.
+            if (auth.currentUser) { // Check if any user is authenticated (even anonymously)
                  try {
                     await setDoc(settingsDocRef, { sellerOnline: false });
                     console.log("Initialized 'global' settings document.");
                  } catch (e) {
                     console.error("Error initializing 'global' settings document:", e);
+                    // If it fails, it's likely a permission issue (e.g. for non-admin anonymous users)
+                    // The seller status will remain false based on the default value.
                  }
             }
             sellerIsOnline = false;
@@ -450,7 +461,13 @@ async function loadCartFromFirestore(userId) {
         const docSnap = await getDoc(userCartRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
-            cart = JSON.parse(data.items || '[]');
+            // IMPORTANT: Ensure 'data.items' is a string before parsing, or handle non-string data gracefully
+            if (typeof data.items === 'string') {
+                cart = JSON.parse(data.items);
+            } else {
+                console.warn("Firestore cart 'items' field is not a JSON string. Resetting cart for user:", userId, "Data:", data.items);
+                cart = []; // Reset cart if data is malformed
+            }
             console.log("Cart loaded from Firestore for user:", userId, "Contents:", cart); // More detailed log
         } else {
             cart = [];
@@ -458,22 +475,34 @@ async function loadCartFromFirestore(userId) {
         }
         console.log("Cart state after loadCartFromFirestore:", cart); // Debugging line
     } catch (e) {
-        console.error("Error loading cart from Firestore:", e);
-        showMessageBox("Cart Error", "Could not load cart from cloud: " + e.message);
-        cart = [];
+        console.error("Error loading cart from Firestore, or parsing data:", e);
+        showMessageBox("Cart Error", "Could not load cart from cloud: " + e.message + " (Your cart might be reset if data was malformed or permissions are incorrect.)");
+        cart = []; // Ensure cart is always an array on error
     }
 }
 
 function saveCartToLocalStorage(cartData) {
-    localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
-    console.log("Cart saved to Local Storage:", cartData); // Debugging log
+    // Check if localStorage is available and allowed
+    try {
+        localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
+        console.log("Cart saved to Local Storage:", cartData); // Debugging log
+    } catch (e) {
+        console.warn("Local storage access denied or full. Cart will not be saved locally.", e);
+        // Do not show a message box here, as it's a known Canvas limitation.
+    }
 }
 
 function loadCartFromLocalStorage() {
-    const storedCart = localStorage.getItem('tempestStoreCart');
-    const loadedCart = storedCart ? JSON.parse(storedCart) : [];
-    console.log("Cart loaded from Local Storage:", loadedCart); // Debugging log
-    return loadedCart;
+    // Check if localStorage is available and allowed
+    try {
+        const storedCart = localStorage.getItem('tempestStoreCart');
+        const loadedCart = storedCart ? JSON.parse(storedCart) : [];
+        console.log("Cart loaded from Local Storage:", loadedCart); // Debugging log
+        return loadedCart;
+    } catch (e) {
+        console.warn("Local storage access denied or unable to load. Returning empty cart.", e);
+        return []; // Return empty cart if localStorage fails
+    }
 }
 
 async function syncCartOnLogin(userId) {
@@ -483,7 +512,12 @@ async function syncCartOnLogin(userId) {
         const docSnap = await getDoc(userCartRef);
         let firestoreCart = [];
         if (docSnap.exists()) {
-            firestoreCart = JSON.parse(docSnap.data().items || '[]');
+            const data = docSnap.data();
+            if (typeof data.items === 'string') { // Ensure it's a string before parsing
+                 firestoreCart = JSON.parse(data.items);
+            } else {
+                 console.warn("Firestore cart 'items' field (during sync) is not a JSON string. Starting with empty Firestore cart for sync.");
+            }
         }
 
         localCart.forEach(localItem => {
@@ -493,13 +527,15 @@ async function syncCartOnLogin(userId) {
             } else {
                 // When syncing, ensure effectivePrice is correctly set based on current product data.
                 const productDetails = allProducts.find(p => p.id === localItem.id);
+                // Ensure productDetails.price and productDetails.salePrice are numbers
+                let priceToUse = localItem.price; // Fallback to local item's price
                 if (productDetails) {
-                    const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                    firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
-                } else {
-                    // Fallback if product not found (e.g., deleted by admin)
-                    firestoreCart.push(localItem);
+                    const prodPrice = typeof productDetails.price === 'string' ? parseFloat(productDetails.price.replace('₱', '')) : productDetails.price;
+                    const prodSalePrice = typeof productDetails.salePrice === 'string' ? parseFloat(productDetails.salePrice.replace('₱', '')) : productDetails.salePrice;
+
+                    priceToUse = productDetails.sale && typeof prodSalePrice === 'number' ? prodSalePrice : prodPrice;
                 }
+                firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
             }
         });
         cart = firestoreCart;
@@ -522,7 +558,19 @@ function setupUserOrderHistoryListener(userId) {
     return onSnapshot(q, (snapshot) => {
         const fetchedOrders = [];
         snapshot.forEach(doc => {
-            fetchedOrders.push({ id: doc.id, ...doc.data() });
+            const orderData = doc.data();
+            // Ensure total is a number before toFixed
+            orderData.total = typeof orderData.total === 'string' ? parseFloat(orderData.total.replace('₱', '')) : orderData.total;
+            // Also ensure items are properly parsed if they were stringified (though orderDetails already deep copies)
+            if (orderData.items && typeof orderData.items === 'string') {
+                try {
+                    orderData.items = JSON.parse(orderData.items);
+                } catch (e) {
+                    console.error("Error parsing order items for order:", doc.id, e);
+                    orderData.items = []; // Default to empty array if parsing fails
+                }
+            }
+            fetchedOrders.push({ id: doc.id, ...orderData });
         });
         userOrders = fetchedOrders;
         renderOrderHistory();
@@ -534,13 +582,19 @@ function setupUserOrderHistoryListener(userId) {
 
 // --- Cart Management Functions ---
 function addToCart(product) {
+    // Ensure cart is an array before using find/push
+    if (!Array.isArray(cart)) {
+        cart = [];
+        console.warn("Cart was not an array when addToCart was called. Initializing as empty array.");
+    }
+
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
         existingItem.quantity++;
     } else {
         // Ensure effectivePrice is based on product's current sale status/price
-        const productDetails = allProducts.find(p => p.id === product.id);
-        const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+        // product.price and product.salePrice should already be numbers from setupProductsListener
+        const priceToUse = product.sale && typeof product.salePrice === 'number' ? product.salePrice : product.price;
         cart.push({ ...product, quantity: 1, effectivePrice: priceToUse });
     }
     saveCart();
@@ -549,6 +603,11 @@ function addToCart(product) {
 }
 
 function removeFromCart(productId) {
+    // Ensure cart is an array before filtering
+    if (!Array.isArray(cart)) {
+        cart = [];
+        console.warn("Cart was not an array when removeFromCart was called. Initializing as empty array.");
+    }
     cart = cart.filter(item => item.id !== productId);
     saveCart();
     renderCart();
@@ -556,6 +615,11 @@ function removeFromCart(productId) {
 }
 
 function updateCartQuantity(productId, newQuantity) {
+    // Ensure cart is an array before finding item
+    if (!Array.isArray(cart)) {
+        cart = [];
+        console.warn("Cart was not an array when updateCartQuantity was called. Initializing as empty array.");
+    }
     const item = cart.find(item => item.id === productId);
     if (item) {
         item.quantity = Math.max(1, newQuantity);
@@ -569,13 +633,14 @@ function saveCart() {
     if (currentUserId) {
         saveCartToFirestore(currentUserId, cart);
     } else {
-        saveCartToLocalStorage(cart);
+        saveCartToLocalStorage(cart); // This will attempt to use localStorage, which may fail in Canvas
     }
     updateCartCountBadge();
 }
 
 function updateCartCountBadge() {
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    // Ensure cart is an array before reducing
+    const totalItems = Array.isArray(cart) ? cart.reduce((sum, item) => sum + item.quantity, 0) : 0;
     cartCountBadge.textContent = totalItems;
     cartCountBadge.style.display = totalItems > 0 ? 'inline-block' : 'none';
 
@@ -601,71 +666,76 @@ function renderCart() {
     console.log("renderCart() called. Current cart state:", cart); // Debugging line
     cartItemsContainer.innerHTML = '';
 
-    if (cart.length === 0) {
+    // Explicitly check if cart is an array to prevent TypeError
+    if (!Array.isArray(cart) || cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
-    } else {
-        cart.forEach(item => {
-            // Find the latest product details from allProducts
-            const productDetails = allProducts.find(p => p.id === item.id);
-            let priceToDisplay;
-            if (productDetails) {
-                // Use the live price from allProducts if available and valid
-                priceToDisplay = productDetails.sale && typeof productDetails.salePrice === 'number' ? productDetails.salePrice : productDetails.price;
-                // Update item's effectivePrice in cart to match latest
-                item.effectivePrice = priceToDisplay;
-            } else {
-                // Fallback if product is no longer found (e.g., deleted by admin)
-                // Use item.effectivePrice if it exists, otherwise fall back to item.price (original price from when added)
-                priceToDisplay = item.effectivePrice || item.price;
-                if (typeof priceToDisplay === 'string') {
-                    priceToDisplay = parseFloat(priceToDisplay.replace('₱', ''));
-                }
-            }
-            priceToDisplay = typeof priceToDisplay === 'number' ? `₱${priceToDisplay.toFixed(2)}` : priceToDisplay;
-
-
-            const imageUrl = `images/${item.image}`;
-            const cartItemDiv = document.createElement('div');
-            cartItemDiv.className = 'cart-item';
-            cartItemDiv.innerHTML = `
-                <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
-                <div class="cart-item-details">
-                    <h4>${item.name}</h4>
-                    <div class="cart-item-price">${priceToDisplay}</div>
-                </div>
-                <div class="cart-item-quantity-control">
-                    <button data-id="${item.id}" data-action="decrease">-</button>
-                    <input type="number" value="${item.quantity}" min="1" data-id="${item.id}">
-                    <button data-id="${item.id}" data-action="increase">+</button>
-                </div>
-                <button class="cart-item-remove" data-id="${item.id}">&times;</button>
-            `;
-            cartItemsContainer.appendChild(cartItemDiv);
-        });
-
-        cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const productId = event.target.dataset.id;
-                const input = event.target.parentElement.querySelector('input');
-                let newQuantity = parseInt(input.value);
-                const action = event.target.dataset.action;
-
-                if (action === 'increase') {
-                    newQuantity++;
-                } else if (action === 'decrease') {
-                    newQuantity--;
-                }
-                updateCartQuantity(productId, newQuantity);
-            });
-        });
-
-        cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const productId = event.target.dataset.id;
-                removeFromCart(productId);
-            });
-        });
+        return; // Exit if cart is not an array or is empty
     }
+
+    cart.forEach(item => {
+        // Find the latest product details from allProducts
+        const productDetails = allProducts.find(p => p.id === item.id);
+        let priceToDisplay;
+        if (productDetails) {
+            // Use the live price from allProducts if available and valid
+            // productDetails.price and productDetails.salePrice should already be numbers from setupProductsListener
+            priceToDisplay = productDetails.sale && typeof productDetails.salePrice === 'number' ? productDetails.salePrice : productDetails.price;
+            // Update item's effectivePrice in cart to match latest
+            item.effectivePrice = priceToDisplay;
+        } else {
+            // Fallback if product is no longer found (e.g., deleted by admin)
+            // Use item.effectivePrice if it exists, otherwise fall back to item.price (original price from when added)
+            priceToDisplay = item.effectivePrice || item.price;
+            // Ensure it's a number for toFixed, parsing if it came in as a string with '₱'
+            if (typeof priceToDisplay === 'string') {
+                priceToDisplay = parseFloat(priceToDisplay.replace('₱', ''));
+            }
+        }
+        // Format the price for display, ensuring it's a number first
+        priceToDisplay = typeof priceToDisplay === 'number' ? `₱${priceToDisplay.toFixed(2)}` : priceToDisplay;
+
+
+        const imageUrl = `images/${item.image}`;
+        const cartItemDiv = document.createElement('div');
+        cartItemDiv.className = 'cart-item';
+        cartItemDiv.innerHTML = `
+            <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
+            <div class="cart-item-details">
+                <h4>${item.name}</h4>
+                <div class="cart-item-price">${priceToDisplay}</div>
+            </div>
+            <div class="cart-item-quantity-control">
+                <button data-id="${item.id}" data-action="decrease">-</button>
+                <input type="number" value="${item.quantity}" min="1" data-id="${item.id}">
+                <button data-id="${item.id}" data-action="increase">+</button>
+            </div>
+            <button class="cart-item-remove" data-id="${item.id}">&times;</button>
+        `;
+        cartItemsContainer.appendChild(cartItemDiv);
+    });
+
+    cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.id;
+            const input = event.target.parentElement.querySelector('input');
+            let newQuantity = parseInt(input.value);
+            const action = event.target.dataset.action;
+
+            if (action === 'increase') {
+                newQuantity++;
+            } else if (action === 'decrease') {
+                newQuantity--;
+            }
+            updateCartQuantity(productId, newQuantity);
+        });
+    });
+
+    cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.id;
+            removeFromCart(productId);
+        });
+    });
 
     calculateCartTotals();
     updateCartCountBadge();
@@ -674,16 +744,25 @@ function renderCart() {
 function calculateCartTotals() {
     let subtotal = 0;
     let totalItemsInCart = 0;
-    cart.forEach(item => {
-        // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
-        // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
-        let priceValue = item.effectivePrice || item.price;
-        if (typeof priceValue === 'string') {
-            priceValue = parseFloat(priceValue.replace('₱', ''));
-        }
-        subtotal += priceValue * item.quantity;
-        totalItemsInCart += item.quantity;
-    });
+    // Ensure cart is an array before iterating
+    if (Array.isArray(cart)) {
+        cart.forEach(item => {
+            // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
+            // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
+            let priceValue = item.effectivePrice || item.price;
+            if (typeof priceValue === 'string') {
+                priceValue = parseFloat(priceValue.replace('₱', ''));
+            }
+            // Ensure priceValue is a valid number before multiplication
+            if (!isNaN(priceValue)) {
+                subtotal += priceValue * item.quantity;
+                totalItemsInCart += item.quantity;
+            } else {
+                console.warn(`Invalid priceValue for item ${item.id}:`, priceValue);
+            }
+        });
+    }
+
 
     const total = subtotal;
 
@@ -751,7 +830,7 @@ placeOrderBtn.addEventListener('click', async () => {
             userId: currentUserId,
             // Deep copy cart items to ensure order details are immutable if cart changes later
             // Items in cart will have updated effectivePrice from renderCart()
-            items: JSON.parse(JSON.stringify(cart)),
+            items: JSON.parse(JSON.stringify(cart)), // Ensure items are stringified inside the order object for safety
             subtotal: subtotal,
             total: total,
             orderDate: new Date().toISOString(),
@@ -864,14 +943,16 @@ function showOrderDetails(order) {
     detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
 
     detailItemsList.innerHTML = '';
-    if (order.items && order.items.length > 0) {
+    if (order.items && Array.isArray(order.items) && order.items.length > 0) { // Added Array.isArray check
         order.items.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'order-detail-item';
             const imageUrl = `images/${item.image}`;
+            // Ensure price is formatted
+            const itemPriceFormatted = typeof item.effectivePrice === 'number' ? `₱${item.effectivePrice.toFixed(2)}` : (item.effectivePrice || item.price);
             itemDiv.innerHTML = `
                 <span class="order-detail-item-name">${item.name}</span>
-                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${typeof item.effectivePrice === 'number' ? `₱${item.effectivePrice.toFixed(2)}` : item.effectivePrice || item.price}</span>
+                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${itemPriceFormatted}</span>
             `;
             detailItemsList.appendChild(itemDiv);
         });
@@ -896,6 +977,7 @@ function renderProducts(items) {
         const isOutOfStock = !product.stock || product.stock <= 0;
         if (isOutOfStock) card.classList.add("out-of-stock");
 
+        // product.price and product.salePrice are already converted to numbers in setupProductsListener
         const displayPrice = product.sale && typeof product.salePrice === 'number' ?
                                         `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">₱${product.price.toFixed(2)}</span> ₱${product.salePrice.toFixed(2)}` :
                                         `₱${product.price.toFixed(2)}`;
