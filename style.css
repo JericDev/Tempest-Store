@@ -62,11 +62,11 @@ header {
     margin: 30px 0; /* More vertical space */
     padding: 0 15px; /* Add horizontal padding */
     display: flex; /* Use flexbox for alignment */
-    flex-direction: row; /* Changed to row for horizontal layout by default */
-    justify-content: center; /* Center items horizontally */
-    align-items: center; /* Align items vertically */
-    gap: 15px; /* Space between children */
-    flex-wrap: wrap; /* Allow wrapping on small screens */
+    flex-direction: column; /* Always column for main contact-center */
+    justify-content: center; /* Center groups horizontally */
+    align-items: center; /* Center groups horizontally */
+    gap: 15px; /* Space between the seller status and social links group */
+    flex-wrap: wrap; /* Allows wrapping if content inside groups needs it */
 }
 .contact-center a {
     display: inline-block;
@@ -85,9 +85,18 @@ header {
     box-shadow: 0 4px 10px rgba(0,0,0,0.12);
 }
 
+/* New: Container for Facebook and Discord to keep them side-by-side */
+.social-links-group {
+    display: flex;
+    flex-direction: row; /* Always row for social links */
+    justify-content: center; /* Center the links within their group */
+    align-items: center;
+    gap: 15px; /* Space between Facebook and Discord buttons */
+    flex-wrap: wrap; /* Allow wrapping if buttons don't fit on one line */
+}
+
 /* New: Seller Status Display */
 .seller-status-container {
-    /* No margin-bottom needed as flex gap handles spacing */
     background-color: white;
     padding: 10px 20px;
     border-radius: 10px;
@@ -1066,10 +1075,6 @@ main#product-list {
     font-weight: bold;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-.custom-modal-ok-btn, .custom-modal-confirm-btn {
-    background-color: #007bff;
-    color: white;
-}
 .custom-modal-ok-btn:hover, .custom-modal-confirm-btn:hover {
     background-color: #0056b3;
 }
@@ -1083,7 +1088,7 @@ main#product-list {
 
 
 /* Responsive adjustments */
-/* Base for smaller phones (e.g., iPhone SE, Pixel 5) up to 480px wide */
+/* No more flex-direction: column for contact-center within media queries to force side-by-side */
 @media (max-width: 480px) {
     header {
         padding: 15px;
@@ -1132,8 +1137,9 @@ main#product-list {
     }
 
     .contact-center {
-        flex-direction: column; /* Revert to column for very small screens */
-        gap: 8px;
+        /* Keep as column to stack seller status and social links group */
+        flex-direction: column;
+        gap: 8px; /* Reduced gap for smaller screens */
     }
     .contact-center a {
         padding: 8px 15px;
@@ -1143,13 +1149,19 @@ main#product-list {
     .seller-status-container {
         font-size: 1em;
         padding: 8px 15px;
-        /* No margin-bottom needed, flex gap handles spacing */
-        flex-direction: column; /* Stack status text and label within its own container */
-        gap: 5px;
+        flex-direction: row; /* Keep content inside status container in a row */
+        gap: 5px; /* Reduced gap */
+        justify-content: center; /* Center content within */
     }
     .seller-status-container #seller-status-display {
         font-size: 0.85em;
         padding: 3px 7px;
+    }
+    .social-links-group { /* Target the new group for side-by-side */
+        flex-direction: row; /* Ensure side-by-side */
+        gap: 10px; /* Adjust gap for mobile */
+        flex-wrap: wrap; /* Allow wrapping if space is tight */
+        justify-content: center; /* Center the buttons */
     }
 
 
@@ -1502,15 +1514,20 @@ main#product-list {
     }
 
     .contact-center {
-        flex-direction: row; /* Keep contact links in a row */
-        flex-wrap: wrap;
+        flex-direction: column; /* Keep column for contact-center on medium screens too */
         justify-content: center;
+        align-items: center;
         gap: 15px;
     }
     .seller-status-container {
         font-size: 1.05em;
         padding: 10px 20px;
-        /* No margin-bottom needed, flex gap handles spacing */
+        flex-direction: row; /* Ensure contents inside status container are in a row */
+    }
+    .social-links-group { /* Target the new group for side-by-side */
+        flex-direction: row; /* Ensure side-by-side */
+        gap: 15px;
+        justify-content: center;
     }
 
 
