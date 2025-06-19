@@ -21,7 +21,7 @@ const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
 
 let currentUserId = null; // To store the current authenticated user's ID
-let isAdmin = false; // Flag to check if the current user is an admin
+let isAdmin = false; // Flag to check if the current user is an anpmdmin
 // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
 const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
@@ -29,6 +29,7 @@ const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided U
 let cart = []; // Global cart array
 let userOrders = []; // Global array to store user's orders (for user history)
 let allProducts = []; // Global array to store all products from Firestore
+let sellerIsOnline = false; // New: Global variable for seller status
 
 // New global variable for filtering
 let currentCategory = 'all'; // Initialize with 'all' category
@@ -36,7 +37,7 @@ let currentCategory = 'all'; // Initialize with 'all' category
 // Global variables to store unsubscribe functions for real-time listeners
 let unsubscribeUserOrders = null;
 let unsubscribeProducts = null;
-// Unsubscribe for allOrders will be handled in admin.js
+let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listener
 
 // Reference to the admin panel initialization function from admin.js
 let initAdminPanelModule = null;
@@ -58,7 +59,6 @@ const userDisplay = document.getElementById("user-display");
 const authModal = document.getElementById("auth-modal");
 const closeAuthModalBtn = document.getElementById("close-auth-modal");
 const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
-const sellerStatusText = document.getElementById("seller-status-text"); // Direct reference to the Seller Status text element
 
 
 // --- DOM elements for Cart/Checkout ---
@@ -86,6 +86,9 @@ const detailPaymentMethod = document.getElementById("detail-payment-method");
 const detailRobloxUsername = document.getElementById("detail-roblox-username");
 const detailItemsList = document.getElementById("detail-items-list");
 const backToOrderListBtn = document.getElementById("back-to-order-list");
+
+// --- New DOM elements for Seller Status ---
+const sellerStatusDisplay = document.getElementById("seller-status-display");
 
 
 // --- Authentication Functions ---
@@ -248,7 +251,7 @@ onAuthStateChanged(auth, async (user) => {
             }
             if (initAdminPanelModule) {
                 // Pass Firestore and Auth instances, plus user info to admin module
-                initAdminPanelModule(db, auth, currentUserId, isAdmin, sellerStatusText); // Pass sellerStatusText
+                initAdminPanelModule(db, auth, currentUserId, isAdmin, toggleSellerStatus); // Pass toggleSellerStatus function
             }
         } else {
             adminPanelButton.style.display = "none";
@@ -290,8 +293,7 @@ const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
-const STORE_SETTINGS_DOC_PATH = `artifacts/${APP_ID}/storeSettings/config`; // Centralized settings document
-
+const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New: Path for site settings
 
 // --- Product Display (Accessible to all) ---
 function setupProductsListener() {
@@ -312,25 +314,53 @@ function setupProductsListener() {
 // Call setupProductsListener once when the script loads to always show products
 unsubscribeProducts = setupProductsListener();
 
-// Store settings listener for general users (to display header status)
-let unsubscribePublicStoreSettings = null;
-function setupPublicStoreSettingsListener() {
-    const storeSettingsRef = doc(db, STORE_SETTINGS_DOC_PATH);
-    unsubscribePublicStoreSettings = onSnapshot(storeSettingsRef, (docSnap) => {
-        let isOnline = true; // Default status
+// --- New: Site Settings Listener and Functions ---
+function setupSiteSettingsListener() {
+    // Listen to a specific document (e.g., 'global') in the settings collection
+    const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
+    return onSnapshot(settingsDocRef, (docSnap) => {
         if (docSnap.exists()) {
-            isOnline = docSnap.data().isOnline;
-        }
-        if (sellerStatusText) { // Ensure the element exists
-            sellerStatusText.textContent = isOnline ? 'Online' : 'Offline';
-            sellerStatusText.classList.toggle('offline', !isOnline); // Apply offline class if status is false
-            sellerStatusText.classList.toggle('online', isOnline); // Ensure online class for green text
+            const data = docSnap.data();
+            sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
+            updateSellerStatusDisplay();
+        } else {
+            console.log("No 'global' settings document found. Initializing with default status.");
+            // If document doesn't exist, create it with default status
+            setDoc(settingsDocRef, { sellerOnline: false });
+            sellerIsOnline = false;
+            updateSellerStatusDisplay();
         }
     }, (error) => {
-        console.error("Error listening to public store settings:", error);
+        console.error("Error listening to site settings:", error);
     });
 }
-setupPublicStoreSettingsListener(); // Call this on page load for all users
+
+function updateSellerStatusDisplay() {
+    if (sellerIsOnline) {
+        sellerStatusDisplay.textContent = "Seller Status: Online";
+        sellerStatusDisplay.classList.remove("status-offline");
+        sellerStatusDisplay.classList.add("status-online");
+    } else {
+        sellerStatusDisplay.textContent = "Seller Status: Offline";
+        sellerStatusDisplay.classList.remove("status-online");
+        sellerStatusDisplay.classList.add("status-offline");
+    }
+}
+
+async function toggleSellerStatus(isOnline) {
+    try {
+        const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
+        await updateDoc(settingsDocRef, { sellerOnline: isOnline });
+        console.log("Seller status updated to:", isOnline);
+    } catch (e) {
+        console.error("Error updating seller status:", e);
+        alert("Error updating seller status: " + e.message);
+    }
+}
+
+// Call setupSiteSettingsListener once when the script loads
+unsubscribeSiteSettings = setupSiteSettingsListener();
+
 
 // --- Cart Persistence (Customer-side) ---
 async function saveCartToFirestore(userId, cartData) {
@@ -467,7 +497,19 @@ function updateCartCountBadge() {
     const { total } = calculateCartTotals();
     placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
 
-    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '');
+    // Disable place order button if cart is empty or seller is offline (if logged in)
+    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline;
+
+    // Optional: Add a tooltip or message if disabled due to seller being offline
+    if (!sellerIsOnline && currentUserId) {
+        placeOrderBtn.title = "Cannot place order: Seller is currently offline.";
+    } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
+        placeOrderBtn.title = "Please enter your Roblox Username.";
+    } else if (totalItems === 0) {
+        placeOrderBtn.title = "Your cart is empty.";
+    } else {
+        placeOrderBtn.title = ""; // Clear tooltip
+    }
 }
 
 function renderCart() {
@@ -582,6 +624,11 @@ placeOrderBtn.addEventListener('click', async () => {
         return;
     }
 
+    if (!sellerIsOnline) {
+        alert("Cannot place order: The seller is currently offline. Please try again later.");
+        return;
+    }
+
     const robloxUsername = robloxUsernameInput.value.trim();
 
     placeOrderBtn.disabled = true;
@@ -690,7 +737,7 @@ function renderOrderHistory() {
                 <span>Date: ${new Date(order.orderDate).toLocaleDateString()}</span>
                 <span>Price: ₱${order.total.toFixed(2)}</span>
             </div>
-            <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span>
+            <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span>
             <button class="view-details-btn" data-order-id="${order.id}">View Details</button>
         `;
         orderHistoryList.appendChild(orderItemDiv);
@@ -754,8 +801,8 @@ function renderProducts(items) {
         if (isOutOfStock) card.classList.add("out-of-stock");
 
         const displayPrice = product.sale && product.salePrice ?
-                               `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
-                               product.price;
+                                        `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
+                                        product.price;
         const imageUrl = `images/${product.image}`;
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
@@ -830,7 +877,7 @@ window.addEventListener("DOMContentLoaded", () => {
         searchBox.addEventListener("input", applyFilters);
     }
 
-    // Payment method preview image change
+    // ✅ Payment method preview image change
     document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
@@ -840,4 +887,3 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
-
