@@ -16,9 +16,13 @@
             <button id="logout-button" style="display: none;">Logout</button>
             <button id="my-orders-button" style="display: none;">My Orders</button>
             <button id="admin-panel-button" style="display: none;">Admin Panel</button>
-            <div class="cart-icon-container" id="cart-icon-btn">
-                🛒 <span class="cart-count-badge" id="cart-count">0</span>
-            </div>
+            <!-- Updated Cart Button -->
+            <button class="cart-button" id="cart-icon-btn">
+                <svg class="cart-icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 2L3 6V20C3 20.5304 3.21071 21.0391 3.58579 21.4142C3.96086 21.7893 4.46957 22 5 22H19C19.5304 22 20.0391 21.7893 20.4142 21.4142C20.7893 21.0391 21 20.5304 21 20V6L18 2H6ZM5 6H19L19.99 7H4.01L5 6ZM5 9V20H19V9H5ZM12 12C12.5523 12 13 12.4477 13 13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13C11 12.4477 11.4477 12 12 12Z" />
+                </svg>
+                Cart <span class="cart-count-badge" id="cart-count">0</span>
+            </button>
         </div>
     </header>
 
@@ -41,7 +45,7 @@
         </div>
     </div>
 
-       <div class="filters">
+        <div class="filters">
             <!-- Removed onclick attributes here, listeners will be added in script.js -->
             <button data-cat="all" class="active">All</button>
             <button data-cat="pets">Pets</button>
@@ -49,7 +53,7 @@
             <button data-cat="sheckles">Sheckles</button>
             <!-- Removed oninput attribute here, listener will be added in script.js -->
             <input type="text" id="searchBox" placeholder="Search..." />
-       </div>
+        </div>
 
     <main id="product-list"></main>
 
@@ -88,12 +92,12 @@
             </div>
             <!-- Payment Preview Image -->
             <div class="payment-preview" style="text-align: center; margin-top: 10px;">
-                   <img
-                   id="payment-preview-img"
-                   src="images/gcash.png"
-                   alt="Payment Preview"
-                   style="max-width: 200px; border-radius: 10px;"
-                   />
+                    <img
+                    id="payment-preview-img"
+                    src="https://placehold.co/200x200/007bff/ffffff?text=GCash"
+                    alt="Payment Preview"
+                    style="max-width: 200px; border-radius: 10px;"
+                    />
             </div>
 
 
