@@ -3,6 +3,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
+// IMPORTANT: Import admin.js functions
+import { initAdminPanel, cleanupAdminPanel } from './admin.js';
+
 // Your web app's Firebase configuration
 // IMPORTANT: Ensure this configuration matches your Firebase project's config.
 const firebaseConfig = {
@@ -21,7 +24,7 @@ const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
 
 let currentUserId = null; // To store the current authenticated user's ID
-let isAdmin = false; // Flag to check if the current user is an anpmdmin
+let isAdmin = false; // Flag to check if the current user is an admin
 // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
 const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
@@ -40,8 +43,8 @@ let unsubscribeProducts = null;
 let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listener
 
 // Reference to the admin panel initialization function from admin.js
-let initAdminPanelModule = null;
-let adminCleanupFunction = null;
+let initAdminPanelModule = null; // Now using imported initAdminPanel directly
+let adminCleanupFunction = null; // Now using imported cleanupAdminPanel directly
 
 
 // --- DOM elements for Authentication ---
@@ -89,6 +92,11 @@ const backToOrderListBtn = document.getElementById("back-to-order-list");
 
 // --- New DOM elements for Seller Status ---
 const sellerStatusDisplay = document.getElementById("seller-status-display");
+
+// --- Element to display cart persistence warning ---
+const cartPersistenceWarning = document.createElement('p');
+cartPersistenceWarning.className = 'empty-message text-red-500 font-bold mt-4'; // Tailwind classes for styling
+cartPersistenceWarning.style.display = 'none'; // Hidden by default
 
 
 // --- Authentication Functions ---
@@ -237,22 +245,9 @@ onAuthStateChanged(auth, async (user) => {
         if (isAdmin) {
             adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
             // Dynamically import and initialize admin module
-            if (!initAdminPanelModule) {
-                try {
-                    // Ensure the path is correct relative to script.js
-                    const adminModule = await import('./admin.js');
-                    initAdminPanelModule = adminModule.initAdminPanel;
-                    adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
-                } catch (error) {
-                    console.error("Error loading admin.js:", error);
-                    // Hide admin button if load fails
-                    adminPanelButton.style.display = "none";
-                }
-            }
-            if (initAdminPanelModule) {
-                // Pass Firestore and Auth instances, plus user info, toggle function, and a GETTER for current seller status
-                initAdminPanelModule(db, auth, currentUserId, isAdmin, toggleSellerStatus, () => sellerIsOnline);
-            }
+            // We are now directly importing it, so the check and import logic can be simplified.
+            initAdminPanel(db, auth, currentUserId, isAdmin, toggleSellerStatus, () => sellerIsOnline);
+            adminCleanupFunction = cleanupAdminPanel; // Assign the cleanup function
         } else {
             adminPanelButton.style.display = "none";
         }
@@ -263,6 +258,9 @@ onAuthStateChanged(auth, async (user) => {
         await syncCartOnLogin(currentUserId);
 
         unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
+
+        // Hide warning if user logs in
+        cartPersistenceWarning.style.display = 'none';
 
     } else {
         currentUserId = null;
@@ -276,8 +274,12 @@ onAuthStateChanged(auth, async (user) => {
 
         robloxUsernameInput.style.display = "none";
 
-        cart = loadCartFromLocalStorage();
+        cart = loadCartFromLocalStorage(); // This will now handle its own errors
         userOrders = [];
+
+        // Show warning if user is not logged in
+        cartPersistenceWarning.textContent = "Your cart is stored locally and may not persist across sessions or if browser storage is blocked. Please log in or register for reliable cart storage.";
+        cartPersistenceWarning.style.display = 'block';
     }
     authEmailInput.value = "";
     authPasswordInput.value = "";
@@ -323,9 +325,6 @@ function setupSiteSettingsListener() {
             const data = docSnap.data();
             sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
             updateSellerStatusDisplay();
-            // No need to explicitly call renderSellerStatusToggle here anymore.
-            // When admin panel is opened or tab is switched, admin.js will fetch the current state
-            // using the getter function provided during initAdminPanel.
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
@@ -357,7 +356,7 @@ async function toggleSellerStatus(isOnline) {
         console.log("Seller status updated to:", isOnline);
     } catch (e) {
         console.error("Error updating seller status:", e);
-        alert("Error updating seller status: " + e.message);
+        showCustomAlert("Error updating seller status: " + e.message); // Replaced alert
     }
 }
 
@@ -373,6 +372,7 @@ async function saveCartToFirestore(userId, cartData) {
         console.log("Cart saved to Firestore for user:", userId);
     } catch (e) {
         console.error("Error saving cart to Firestore:", e);
+        showCustomAlert("Failed to save cart to cloud. Please check your internet connection or try again later. If the problem persists, ensure you are logged in."); // Inform user about Firestore save failure
     }
 }
 
@@ -391,47 +391,66 @@ async function loadCartFromFirestore(userId) {
     } catch (e) {
         console.error("Error loading cart from Firestore:", e);
         cart = [];
+        showCustomAlert("Failed to load your cloud cart. Your cart might be empty or incomplete. Please check your internet connection."); // Inform user about Firestore load failure
     }
 }
 
 function saveCartToLocalStorage(cartData) {
-    localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
+    try {
+        localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
+        cartPersistenceWarning.style.display = 'none'; // Hide warning if successful
+    } catch (e) {
+        console.error("Error saving cart to local storage:", e);
+        // This is where "Access to storage is not allowed" error would lead
+        cartPersistenceWarning.textContent = "Your browser's privacy settings are preventing local cart storage. Please log in or register to save your cart.";
+        cartPersistenceWarning.style.display = 'block'; // Show warning for local storage failure
+    }
 }
 
 function loadCartFromLocalStorage() {
-    const storedCart = localStorage.getItem('tempestStoreCart');
-    return storedCart ? JSON.parse(storedCart) : [];
+    try {
+        const storedCart = localStorage.getItem('tempestStoreCart');
+        cartPersistenceWarning.style.display = 'none'; // Hide warning if successful
+        return storedCart ? JSON.parse(storedCart) : [];
+    } catch (e) {
+        console.error("Error loading cart from local storage:", e);
+        cartPersistenceWarning.textContent = "Your browser's privacy settings are preventing local cart loading. Your cart might appear empty. Please log in or register.";
+        cartPersistenceWarning.style.display = 'block'; // Show warning for local storage failure
+        return [];
+    }
 }
 
 async function syncCartOnLogin(userId) {
-    const localCart = loadCartFromLocalStorage();
+    const localCart = loadCartFromLocalStorage(); // This now has its own error handling
     if (localCart.length > 0) {
-        const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
-        const docSnap = await getDoc(userCartRef);
-        let firestoreCart = [];
-        if (docSnap.exists()) {
-            firestoreCart = JSON.parse(docSnap.data().items || '[]');
-        }
-
-        localCart.forEach(localItem => {
-            const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
-            if (existingItemIndex > -1) {
-                firestoreCart[existingItemIndex].quantity += localItem.quantity;
-            } else {
-                // When syncing, ensure effectivePrice is correctly set based on current product data.
-                const productDetails = allProducts.find(p => p.id === localItem.id);
-                if (productDetails) {
-                    const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                    firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
-                } else {
-                    // Fallback if product not found (e.g., deleted by admin)
-                    firestoreCart.push(localItem);
-                }
+        try {
+            const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
+            const docSnap = await getDoc(userCartRef);
+            let firestoreCart = [];
+            if (docSnap.exists()) {
+                firestoreCart = JSON.parse(docSnap.data().items || '[]');
             }
-        });
-        cart = firestoreCart;
-        await saveCartToFirestore(userId, cart);
-        localStorage.removeItem('tempestStoreCart');
+            localCart.forEach(localItem => {
+                const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
+                if (existingItemIndex > -1) {
+                    firestoreCart[existingItemIndex].quantity += localItem.quantity;
+                } else {
+                    const productDetails = allProducts.find(p => p.id === localItem.id);
+                    if (productDetails) {
+                        const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+                        firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
+                    } else {
+                        firestoreCart.push(localItem);
+                    }
+                }
+            });
+            cart = firestoreCart;
+            await saveCartToFirestore(userId, cart); // This now has its own error handling
+            localStorage.removeItem('tempestStoreCart'); // Only remove if sync to Firestore was attempted
+        } catch (e) {
+            console.error("Error syncing local cart to Firestore:", e);
+            showCustomAlert("Failed to sync your local cart to your cloud cart. Your cart might not be fully saved. Please check your internet connection or try logging in again.");
+        }
         renderCart();
     }
 }
@@ -449,6 +468,7 @@ function setupUserOrderHistoryListener(userId) {
         renderOrderHistory();
     }, (error) => {
         console.error("Error listening to user order history:", error);
+        showCustomAlert("Failed to load your order history. This might be due to a network error or missing permissions.");
     });
 }
 
@@ -517,9 +537,15 @@ function updateCartCountBadge() {
 
 function renderCart() {
     cartItemsContainer.innerHTML = '';
+    // Append the warning message if it's currently showing
+    cartItemsContainer.appendChild(cartPersistenceWarning);
+
 
     if (cart.length === 0) {
-        cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
+        const emptyMessage = document.createElement('p');
+        emptyMessage.className = 'empty-message';
+        emptyMessage.textContent = 'Your cart is empty.';
+        cartItemsContainer.appendChild(emptyMessage);
     } else {
         cart.forEach(item => {
             // Find the latest product details from allProducts
@@ -552,30 +578,31 @@ function renderCart() {
             `;
             cartItemsContainer.appendChild(cartItemDiv);
         });
-
-        cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const productId = event.target.dataset.id;
-                const action = event.target.dataset.action;
-                const input = event.target.parentElement.querySelector('input');
-                let newQuantity = parseInt(input.value);
-
-                if (action === 'increase') {
-                    newQuantity++;
-                } else if (action === 'decrease') {
-                    newQuantity--;
-                }
-                updateCartQuantity(productId, newQuantity);
-            });
-        });
-
-        cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const productId = event.target.dataset.id;
-                removeFromCart(productId);
-            });
-        });
     }
+
+
+    cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.id;
+            const action = event.target.dataset.action;
+            const input = event.target.parentElement.querySelector('input');
+            let newQuantity = parseInt(input.value);
+
+            if (action === 'increase') {
+                newQuantity++;
+            } else if (action === 'decrease') {
+                newQuantity--;
+            }
+            updateCartQuantity(productId, newQuantity);
+        });
+    });
+
+    cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.id;
+            removeFromCart(productId);
+        });
+    });
 
     calculateCartTotals();
     updateCartCountBadge();
@@ -606,6 +633,12 @@ cartIconBtn.addEventListener('click', () => {
     renderCart();
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
+    // Re-evaluate and show/hide warning when cart modal opens
+    if (!currentUserId) {
+        cartPersistenceWarning.style.display = 'block';
+    } else {
+        cartPersistenceWarning.style.display = 'none';
+    }
 });
 
 closeCartModalBtn.addEventListener('click', () => {
@@ -623,12 +656,12 @@ robloxUsernameInput.addEventListener('input', updateCartCountBadge);
 // Handles the process of placing an order.
 placeOrderBtn.addEventListener('click', async () => {
     if (cart.length === 0) {
-        alert("Your cart is empty. Please add items before placing an order.");
+        showCustomAlert("Your cart is empty. Please add items before placing an order."); // Replaced alert
         return;
     }
 
     if (!sellerIsOnline) {
-        alert("Cannot place order: The seller is currently offline. Please try again later.");
+        showCustomAlert("Cannot place order: The seller is currently offline. Please try again later."); // Replaced alert
         return;
     }
 
@@ -647,7 +680,7 @@ placeOrderBtn.addEventListener('click', async () => {
         }
 
         if (robloxUsername === '') {
-            alert("Please enter your Roblox Username to proceed with the order.");
+            showCustomAlert("Please enter your Roblox Username to proceed with the order."); // Replaced alert
             placeOrderBtn.disabled = false;
             return;
         }
@@ -676,7 +709,7 @@ placeOrderBtn.addEventListener('click', async () => {
         // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
         await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails);
 
-        alert("Successfully Placed Order!");
+        showCustomAlert("Successfully Placed Order!"); // Replaced alert
         console.log("Order saved to Firestore!");
 
         cart = [];
@@ -687,7 +720,12 @@ placeOrderBtn.addEventListener('click', async () => {
 
     } catch (e) {
         console.error("Error placing order to Firestore:", e);
-        alert("There was an error placing your order. Please try again.");
+        // More specific error message for permission denied if possible, or general "try again"
+        if (e.code === 'permission-denied') {
+            showCustomAlert("Failed to place order: You do not have permission. Please ensure you are logged in or contact support.");
+        } else {
+            showCustomAlert("There was an error placing your order. Please try again."); // Replaced alert
+        }
     } finally {
         placeOrderBtn.disabled = false;
     }
@@ -696,7 +734,7 @@ placeOrderBtn.addEventListener('click', async () => {
 // --- Order History Functions (User-side) ---
 myOrdersButton.addEventListener('click', () => {
     if (!currentUserId) {
-        alert("Please log in to view your order history.");
+        showCustomAlert("Please log in to view your order history."); // Replaced alert
         return;
     }
     orderHistoryModal.classList.add('show');
@@ -804,8 +842,8 @@ function renderProducts(items) {
         if (isOutOfStock) card.classList.add("out-of-stock");
 
         const displayPrice = product.sale && product.salePrice ?
-                                        `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
-                                        product.price;
+                                             `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
+                                             product.price;
         const imageUrl = `images/${product.image}`;
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
@@ -889,4 +927,84 @@ window.addEventListener("DOMContentLoaded", () => {
             img.src = `images/${selected}.png`;
         });
     });
+
+    // Append the cart persistence warning element to the cart modal
+    if (cartItemsContainer) {
+        cartItemsContainer.parentNode.insertBefore(cartPersistenceWarning, cartItemsContainer.nextSibling);
+    }
 });
+
+
+// --- Custom Alert/Confirm functions to replace native ones (COPIED FROM ADMIN.JS) ---
+function showCustomAlert(message) {
+    const alertModal = document.createElement('div');
+    alertModal.className = 'custom-modal';
+    alertModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <div class="custom-modal-buttons">
+                <button class="custom-modal-ok-btn">OK</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(alertModal);
+
+    const closeBtn = alertModal.querySelector('.custom-modal-close-btn');
+    const okBtn = alertModal.querySelector('.custom-modal-ok-btn');
+
+    const closeModal = () => {
+        alertModal.classList.remove('show');
+        setTimeout(() => alertModal.remove(), 300);
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    okBtn.addEventListener('click', closeModal);
+    alertModal.addEventListener('click', (event) => {
+        if (event.target === alertModal) {
+            closeModal();
+        }
+    });
+
+    setTimeout(() => alertModal.classList.add('show'), 10);
+}
+
+function showCustomConfirm(message, onConfirm) {
+    const confirmModal = document.createElement('div');
+    confirmModal.className = 'custom-modal';
+    confirmModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <div class="custom-modal-buttons">
+                <button class="custom-modal-confirm-btn">Yes</button>
+                <button class="custom-modal-cancel-btn">No</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmModal);
+
+    const closeBtn = confirmModal.querySelector('.custom-modal-close-btn');
+    const confirmBtn = confirmModal.querySelector('.custom-modal-confirm-btn');
+    const cancelBtn = confirmModal.querySelector('.custom-modal-cancel-btn');
+
+    const closeModal = () => {
+        confirmModal.classList.remove('show');
+        setTimeout(() => confirmModal.remove(), 300);
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    confirmBtn.addEventListener('click', () => {
+        onConfirm();
+        closeModal();
+    });
+    confirmModal.addEventListener('click', (event) => {
+        if (event.target === confirmModal) {
+            closeModal();
+        }
+    });
+
+    setTimeout(() => confirmModal.classList.add('show'), 10);
+}
+
