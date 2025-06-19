@@ -1,11 +1,11 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
 // Your web app's Firebase configuration
-// IMPORTANT: Ensure this configuration matches your Firebase project's config.
-const firebaseConfig = {
+// IMPORTANT: Using Canvas global variables if available, otherwise fallback to hardcoded config.
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
     apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
     authDomain: "store-7b9bd.firebaseapp.com",
     projectId: "store-7b9bd",
@@ -21,7 +21,7 @@ const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
 
 let currentUserId = null; // To store the current authenticated user's ID
-let isAdmin = false; // Flag to check if the current user is an anpmdmin
+let isAdmin = false; // Flag to check if the current user is an admin
 // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
 const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
@@ -42,6 +42,47 @@ let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listen
 // Reference to the admin panel initialization function from admin.js
 let initAdminPanelModule = null;
 let adminCleanupFunction = null;
+
+// --- Custom Message Box DOM Elements ---
+const messageBox = document.createElement('div');
+messageBox.id = 'custom-message-box';
+messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50 hidden';
+messageBox.innerHTML = `
+    <div class="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full mx-auto transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div class="flex justify-between items-center pb-3">
+            <h3 class="text-xl font-semibold text-gray-900" id="message-box-title">Message</h3>
+            <button type="button" class="text-gray-400 hover:text-gray-600 text-2xl" id="close-message-box">&times;</button>
+        </div>
+        <div class="mt-2 text-sm text-gray-500" id="message-box-content"></div>
+        <div class="mt-4 flex justify-end">
+            <button type="button" class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" id="message-box-ok-button">OK</button>
+        </div>
+    </div>
+`;
+document.body.appendChild(messageBox);
+
+const messageBoxTitle = document.getElementById('message-box-title');
+const messageBoxContent = document.getElementById('message-box-content');
+const closeMessageBoxBtn = document.getElementById('close-message-box');
+const messageBoxOkBtn = document.getElementById('message-box-ok-button');
+
+function showMessageBox(title, message) {
+    messageBoxTitle.textContent = title;
+    messageBoxContent.textContent = message;
+    messageBox.classList.remove('hidden');
+}
+
+function hideMessageBox() {
+    messageBox.classList.add('hidden');
+}
+
+closeMessageBoxBtn.addEventListener('click', hideMessageBox);
+messageBoxOkBtn.addEventListener('click', hideMessageBox);
+messageBox.addEventListener('click', (event) => {
+    if (event.target === messageBox) {
+        hideMessageBox();
+    }
+});
 
 
 // --- DOM elements for Authentication ---
@@ -95,7 +136,7 @@ const sellerStatusDisplay = document.getElementById("seller-status-display");
 registerButton.addEventListener("click", () => {
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
-    if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
+    if (!email || !password) { showMessageBox("Error", "Please enter email and password."); return; }
     createUserWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
             authMessage.textContent = `Registered and logged in as: ${userCredential.user.email}`;
@@ -117,7 +158,7 @@ registerButton.addEventListener("click", () => {
 loginButton.addEventListener("click", () => {
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
-    if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
+    if (!email || !password) { showMessageBox("Error", "Please enter email and password."); return; }
     signInWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
             authMessage.textContent = `Logged in as: ${userCredential.user.email}`;
@@ -182,30 +223,27 @@ authModal.addEventListener('click', (event) => {
 forgotPasswordButton.addEventListener('click', () => {
     const email = authEmailInput.value.trim();
     if (!email) {
-        authMessage.textContent = "Please enter your email to reset your password.";
-        authMessage.style.color = 'red';
+        showMessageBox("Error", "Please enter your email to reset your password.");
         return;
     }
 
     sendPasswordResetEmail(auth, email)
         .then(() => {
-            authMessage.textContent = `Password reset email sent to ${email}. Check your inbox!`;
-            authMessage.style.color = 'green';
+            showMessageBox("Success", `Password reset email sent to ${email}. Check your inbox!`);
             authEmailInput.value = "";
             authPasswordInput.value = "";
         })
         .catch((error) => {
             switch (error.code) {
                 case 'auth/invalid-email':
-                    authMessage.textContent = "Password reset failed: The email address is not valid.";
+                    showMessageBox("Error", "Password reset failed: The email address is not valid.");
                     break;
                 case 'auth/user-not-found':
-                    authMessage.textContent = "Password reset failed: No user found with that email address.";
+                    showMessageBox("Error", "Password reset failed: No user found with that email address.");
                     break;
                 default:
-                    authMessage.textContent = `Password reset failed: ${error.message}`;
+                    showMessageBox("Error", `Password reset failed: ${error.message}`);
             }
-            authMessage.style.color = 'red';
             console.error("Password reset error:", error);
         });
 });
@@ -283,12 +321,33 @@ onAuthStateChanged(auth, async (user) => {
     authPasswordInput.value = "";
     authMessage.textContent = "";
     authMessage.style.color = 'red';
-    renderCart();
+    renderCart(); // This call is crucial to render the cart state (either from Firestore or LocalStorage)
     // Products are always rendered via the setupProductsListener called globally.
 });
 
+// --- Canvas Initial Authentication ---
+// This block ensures Firebase authentication is handled correctly for Canvas environment.
+// It uses __initial_auth_token for custom token sign-in or signs in anonymously.
+// This needs to run once when the script loads.
+(async () => {
+    try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+            console.log("Signed in with custom token from Canvas environment.");
+        } else {
+            await signInAnonymously(auth);
+            console.log("Signed in anonymously because no custom token was provided.");
+        }
+    } catch (error) {
+        console.error("Firebase initial authentication failed:", error);
+        showMessageBox("Authentication Error", "Could not initialize Firebase authentication. Please try again.");
+    }
+})();
+
+
 // --- Firestore Collection Paths ---
-const APP_ID = 'tempest-store-app';
+// Using __app_id global variable if available, otherwise fallback.
+const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'tempest-store-app';
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
@@ -318,18 +377,26 @@ unsubscribeProducts = setupProductsListener();
 function setupSiteSettingsListener() {
     // Listen to a specific document (e.g., 'global') in the settings collection
     const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
-    return onSnapshot(settingsDocRef, (docSnap) => {
+    return onSnapshot(settingsDocRef, async (docSnap) => {
         if (docSnap.exists()) {
             const data = docSnap.data();
             sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
             updateSellerStatusDisplay();
-            // No need to explicitly call renderSellerStatusToggle here anymore.
             // When admin panel is opened or tab is switched, admin.js will fetch the current state
             // using the getter function provided during initAdminPanel.
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
-            // If document doesn't exist, create it with default status
-            setDoc(settingsDocRef, { sellerOnline: false });
+            // If document doesn't exist, create it with default status. This write needs admin rights.
+            // Only attempt to set if current user is admin, or if it's the initial anonymous sign-in (less ideal, but for setup)
+            // A more robust solution would be to create this document via a server-side script or admin panel setup.
+            if (currentUserId && isAdmin) { // Only admin should be able to create this initially if it doesn't exist
+                 try {
+                    await setDoc(settingsDocRef, { sellerOnline: false });
+                    console.log("Initialized 'global' settings document.");
+                 } catch (e) {
+                    console.error("Error initializing 'global' settings document:", e);
+                 }
+            }
             sellerIsOnline = false;
             updateSellerStatusDisplay();
         }
@@ -357,7 +424,7 @@ async function toggleSellerStatus(isOnline) {
         console.log("Seller status updated to:", isOnline);
     } catch (e) {
         console.error("Error updating seller status:", e);
-        alert("Error updating seller status: " + e.message);
+        showMessageBox("Error", "Error updating seller status: " + e.message);
     }
 }
 
@@ -373,6 +440,7 @@ async function saveCartToFirestore(userId, cartData) {
         console.log("Cart saved to Firestore for user:", userId);
     } catch (e) {
         console.error("Error saving cart to Firestore:", e);
+        showMessageBox("Cart Error", "Could not save cart to cloud: " + e.message);
     }
 }
 
@@ -383,24 +451,29 @@ async function loadCartFromFirestore(userId) {
         if (docSnap.exists()) {
             const data = docSnap.data();
             cart = JSON.parse(data.items || '[]');
-            console.log("Cart loaded from Firestore for user:", userId, cart);
+            console.log("Cart loaded from Firestore for user:", userId, "Contents:", cart); // More detailed log
         } else {
             cart = [];
             console.log("No cart found in Firestore for user:", userId);
         }
+        console.log("Cart state after loadCartFromFirestore:", cart); // Debugging line
     } catch (e) {
         console.error("Error loading cart from Firestore:", e);
+        showMessageBox("Cart Error", "Could not load cart from cloud: " + e.message);
         cart = [];
     }
 }
 
 function saveCartToLocalStorage(cartData) {
     localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
+    console.log("Cart saved to Local Storage:", cartData); // Debugging log
 }
 
 function loadCartFromLocalStorage() {
     const storedCart = localStorage.getItem('tempestStoreCart');
-    return storedCart ? JSON.parse(storedCart) : [];
+    const loadedCart = storedCart ? JSON.parse(storedCart) : [];
+    console.log("Cart loaded from Local Storage:", loadedCart); // Debugging log
+    return loadedCart;
 }
 
 async function syncCartOnLogin(userId) {
@@ -432,13 +505,19 @@ async function syncCartOnLogin(userId) {
         cart = firestoreCart;
         await saveCartToFirestore(userId, cart);
         localStorage.removeItem('tempestStoreCart');
+        console.log("Cart state after syncCartOnLogin (synced to Firestore and local cleared):", cart); // Debugging line
         renderCart();
+    } else {
+        console.log("No local cart to sync."); // Debugging line
     }
 }
 
 // --- Customer Order History (User-side) ---
 function setupUserOrderHistoryListener(userId) {
     const ordersCollectionRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
+    // IMPORTANT: Firebase orderBy() requires an index for the field.
+    // If you don't have an index for "orderDate", this query will fail.
+    // As per Canvas guidelines, if orderBy() causes issues, you might need to fetch all and sort in JS.
     const q = query(ordersCollectionRef, orderBy("orderDate", "desc"));
     return onSnapshot(q, (snapshot) => {
         const fetchedOrders = [];
@@ -449,6 +528,7 @@ function setupUserOrderHistoryListener(userId) {
         renderOrderHistory();
     }, (error) => {
         console.error("Error listening to user order history:", error);
+        showMessageBox("Order History Error", "Could not load order history: " + error.message);
     });
 }
 
@@ -465,13 +545,14 @@ function addToCart(product) {
     }
     saveCart();
     renderCart();
-    console.log("Cart contents:", cart);
+    console.log("Cart contents after adding:", cart);
 }
 
 function removeFromCart(productId) {
     cart = cart.filter(item => item.id !== productId);
     saveCart();
     renderCart();
+    console.log("Cart contents after removing:", cart);
 }
 
 function updateCartQuantity(productId, newQuantity) {
@@ -480,6 +561,7 @@ function updateCartQuantity(productId, newQuantity) {
         item.quantity = Math.max(1, newQuantity);
         saveCart();
         renderCart();
+        console.log("Cart contents after quantity update:", cart);
     }
 }
 
@@ -516,6 +598,7 @@ function updateCartCountBadge() {
 }
 
 function renderCart() {
+    console.log("renderCart() called. Current cart state:", cart); // Debugging line
     cartItemsContainer.innerHTML = '';
 
     if (cart.length === 0) {
@@ -526,13 +609,20 @@ function renderCart() {
             const productDetails = allProducts.find(p => p.id === item.id);
             let priceToDisplay;
             if (productDetails) {
-                priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+                // Use the live price from allProducts if available and valid
+                priceToDisplay = productDetails.sale && typeof productDetails.salePrice === 'number' ? productDetails.salePrice : productDetails.price;
                 // Update item's effectivePrice in cart to match latest
                 item.effectivePrice = priceToDisplay;
             } else {
                 // Fallback if product is no longer found (e.g., deleted by admin)
+                // Use item.effectivePrice if it exists, otherwise fall back to item.price (original price from when added)
                 priceToDisplay = item.effectivePrice || item.price;
+                if (typeof priceToDisplay === 'string') {
+                    priceToDisplay = parseFloat(priceToDisplay.replace('₱', ''));
+                }
             }
+            priceToDisplay = typeof priceToDisplay === 'number' ? `₱${priceToDisplay.toFixed(2)}` : priceToDisplay;
+
 
             const imageUrl = `images/${item.image}`;
             const cartItemDiv = document.createElement('div');
@@ -556,9 +646,9 @@ function renderCart() {
         cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
             button.addEventListener('click', (event) => {
                 const productId = event.target.dataset.id;
-                const action = event.target.dataset.action;
                 const input = event.target.parentElement.querySelector('input');
                 let newQuantity = parseInt(input.value);
+                const action = event.target.dataset.action;
 
                 if (action === 'increase') {
                     newQuantity++;
@@ -587,7 +677,10 @@ function calculateCartTotals() {
     cart.forEach(item => {
         // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
         // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
-        const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
+        let priceValue = item.effectivePrice || item.price;
+        if (typeof priceValue === 'string') {
+            priceValue = parseFloat(priceValue.replace('₱', ''));
+        }
         subtotal += priceValue * item.quantity;
         totalItemsInCart += item.quantity;
     });
@@ -603,7 +696,7 @@ function calculateCartTotals() {
 // --- Cart Modal Event Listeners ---
 cartIconBtn.addEventListener('click', () => {
     cartModal.classList.add('show');
-    renderCart();
+    renderCart(); // Re-render cart every time modal opens to ensure latest state
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
 });
@@ -623,12 +716,12 @@ robloxUsernameInput.addEventListener('input', updateCartCountBadge);
 // Handles the process of placing an order.
 placeOrderBtn.addEventListener('click', async () => {
     if (cart.length === 0) {
-        alert("Your cart is empty. Please add items before placing an order.");
+        showMessageBox("Order Error", "Your cart is empty. Please add items before placing an order.");
         return;
     }
 
     if (!sellerIsOnline) {
-        alert("Cannot place order: The seller is currently offline. Please try again later.");
+        showMessageBox("Order Error", "Cannot place order: The seller is currently offline. Please try again later.");
         return;
     }
 
@@ -647,7 +740,7 @@ placeOrderBtn.addEventListener('click', async () => {
         }
 
         if (robloxUsername === '') {
-            alert("Please enter your Roblox Username to proceed with the order.");
+            showMessageBox("Order Error", "Please enter your Roblox Username to proceed with the order.");
             placeOrderBtn.disabled = false;
             return;
         }
@@ -673,21 +766,21 @@ placeOrderBtn.addEventListener('click', async () => {
         const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
 
         const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
-        // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
+        // setDoc here will act as a create if doc does not exist, which is now allowed by rules
         await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails);
 
-        alert("Successfully Placed Order!");
+        showMessageBox("Order Placed!", "Successfully Placed Order! You can view it in 'My Orders'.");
         console.log("Order saved to Firestore!");
 
         cart = [];
-        saveCart();
+        saveCart(); // This will clear the Firestore cart as well
         renderCart();
         cartModal.classList.remove('show');
         robloxUsernameInput.value = '';
 
     } catch (e) {
         console.error("Error placing order to Firestore:", e);
-        alert("There was an error placing your order. Please try again.");
+        showMessageBox("Order Error", "There was an error placing your order. Please try again. " + e.message);
     } finally {
         placeOrderBtn.disabled = false;
     }
@@ -696,7 +789,7 @@ placeOrderBtn.addEventListener('click', async () => {
 // --- Order History Functions (User-side) ---
 myOrdersButton.addEventListener('click', () => {
     if (!currentUserId) {
-        alert("Please log in to view your order history.");
+        showMessageBox("Login Required", "Please log in to view your order history.");
         return;
     }
     orderHistoryModal.classList.add('show');
@@ -778,7 +871,7 @@ function showOrderDetails(order) {
             const imageUrl = `images/${item.image}`;
             itemDiv.innerHTML = `
                 <span class="order-detail-item-name">${item.name}</span>
-                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
+                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${typeof item.effectivePrice === 'number' ? `₱${item.effectivePrice.toFixed(2)}` : item.effectivePrice || item.price}</span>
             `;
             detailItemsList.appendChild(itemDiv);
         });
@@ -803,9 +896,9 @@ function renderProducts(items) {
         const isOutOfStock = !product.stock || product.stock <= 0;
         if (isOutOfStock) card.classList.add("out-of-stock");
 
-        const displayPrice = product.sale && product.salePrice ?
-                                        `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
-                                        product.price;
+        const displayPrice = product.sale && typeof product.salePrice === 'number' ?
+                                        `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">₱${product.price.toFixed(2)}</span> ₱${product.salePrice.toFixed(2)}` :
+                                        `₱${product.price.toFixed(2)}`;
         const imageUrl = `images/${product.image}`;
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
@@ -880,7 +973,7 @@ window.addEventListener("DOMContentLoaded", () => {
         searchBox.addEventListener("input", applyFilters);
     }
 
-    // ✅ Payment method preview image change
+    // Payment method preview image change
     document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
