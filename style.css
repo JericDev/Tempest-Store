@@ -57,20 +57,27 @@ header {
     color: #FFD700; /* Gold accent */
 }
 
-/* Seller Status styling */
+/* Seller Status in Header */
 .seller-status {
-    color: #add8e6; /* Light blue, similar to user display */
     font-size: 1em;
+    font-weight: 600;
     margin-left: 20px;
-    white-space: nowrap; /* Prevent text wrapping */
-    padding: 5px 0; /* Some vertical padding */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: white; /* Default color for seller status text */
 }
-#seller-status-text {
+
+.seller-status #seller-status-text {
     font-weight: bold;
-    color: #32CD32; /* Green for Online */
 }
-#seller-status-text.offline {
-    color: #dc3545; /* Red for Offline */
+
+.seller-status #seller-status-text.online {
+    color: #4CAF50; /* Green for online */
+}
+
+.seller-status #seller-status-text.offline {
+    color: #F44336; /* Red for offline */
 }
 
 
