@@ -1,4 +1,4 @@
-// script.js
+t.js
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
@@ -385,8 +385,6 @@ function setupProductsListener() {
         const newProductStocks = {}; // Temporary map for current stocks
         snapshot.forEach(doc => {
             const productData = { id: doc.id, ...doc.data() };
-            // Ensure stock is always a number, defaulting to 0 if null, undefined, or invalid
-            productData.stock = Number(productData.stock) || 0; 
             fetchedProducts.push(productData);
             newProductStocks[productData.id] = productData.stock; // Populate stock map
         });
@@ -1024,8 +1022,7 @@ function renderProducts(items) {
     items.forEach(product => {
         const card = document.createElement("div");
         card.className = "card";
-        // Ensure product.stock is treated as a number
-        const isOutOfStock = !product.stock || Number(product.stock) <= 0;
+        const isOutOfStock = !product.stock || product.stock <= 0;
         if (isOutOfStock) card.classList.add("out-of-stock");
 
         const displayPrice = product.sale && product.salePrice ?
@@ -1035,7 +1032,7 @@ function renderProducts(items) {
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
             ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
-            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20N/A';" />
+            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
             <h4>${product.name}</h4>
             <div class="price">${displayPrice}</div>
             <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
