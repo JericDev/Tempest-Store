@@ -22,7 +22,7 @@ import {
     onSnapshot,
     query,
     where,
-    orderBy,
+    // Removed orderBy import as it's now handled in-memory
     serverTimestamp // Import serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
@@ -410,6 +410,8 @@ function listenForProducts() {
     const productsCollectionRef = collection(db, "artifacts", appId, "public", "data", "products");
     unsubscribeProductListener = onSnapshot(productsCollectionRef, (snapshot) => {
         allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort products in memory, e.g., by name
+        allProducts.sort((a, b) => a.name.localeCompare(b.name));
         filterProducts(); // Re-filter and render products whenever data changes
         renderAdminProducts(allProducts); // Also update admin panel product list
     }, (error) => {
@@ -753,13 +755,20 @@ function listenForUserOrders(uid) {
         unsubscribeOrderListener();
     }
 
+    // Removed orderBy from the query to prevent potential index issues
     const q = query(
-        collection(db, "artifacts", appId, "users", uid, "orders"),
-        orderBy("timestamp", "desc") // Order by timestamp, newest first
+        collection(db, "artifacts", appId, "users", uid, "orders")
     );
 
     unsubscribeOrderListener = onSnapshot(q, (snapshot) => {
-        const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort orders in memory by timestamp in descending order (newest first)
+        orders.sort((a, b) => {
+            const dateA = a.timestamp ? a.timestamp.toDate() : new Date(0); // Handle potential missing timestamp
+            const dateB = b.timestamp ? b.timestamp.toDate() : new Date(0);
+            return dateB.getTime() - dateA.getTime(); // Sort descending
+        });
+
         displayUserOrders(orders); // Re-render orders when data changes
         renderAdminOrders(orders); // Also update admin panel order list
     }, (error) => {
@@ -1240,3 +1249,4 @@ function showConfirmModal(message, onConfirmCallback) {
     modal.querySelector('#custom-confirm-message').textContent = message;
     modal.classList.add('show');
 }
+
