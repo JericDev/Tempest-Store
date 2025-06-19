@@ -29,6 +29,7 @@ const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided U
 let cart = []; // Global cart array
 let userOrders = []; // Global array to store user's orders (for user history)
 let allProducts = []; // Global array to store all products from Firestore
+let sellerIsOnline = false; // New: Global variable for seller status
 
 // New global variable for filtering
 let currentCategory = 'all'; // Initialize with 'all' category
@@ -36,7 +37,7 @@ let currentCategory = 'all'; // Initialize with 'all' category
 // Global variables to store unsubscribe functions for real-time listeners
 let unsubscribeUserOrders = null;
 let unsubscribeProducts = null;
-// Unsubscribe for allOrders will be handled in admin.js
+let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listener
 
 // Reference to the admin panel initialization function from admin.js
 let initAdminPanelModule = null;
@@ -85,6 +86,9 @@ const detailPaymentMethod = document.getElementById("detail-payment-method");
 const detailRobloxUsername = document.getElementById("detail-roblox-username");
 const detailItemsList = document.getElementById("detail-items-list");
 const backToOrderListBtn = document.getElementById("back-to-order-list");
+
+// --- New DOM elements for Seller Status ---
+const sellerStatusDisplay = document.getElementById("seller-status-display");
 
 
 // --- Authentication Functions ---
@@ -246,8 +250,8 @@ onAuthStateChanged(auth, async (user) => {
                 }
             }
             if (initAdminPanelModule) {
-                // Pass Firestore and Auth instances, plus user info to admin module
-                initAdminPanelModule(db, auth, currentUserId, isAdmin);
+                // Pass Firestore and Auth instances, plus user info, toggle function, and a GETTER for current seller status
+                initAdminPanelModule(db, auth, currentUserId, isAdmin, toggleSellerStatus, () => sellerIsOnline);
             }
         } else {
             adminPanelButton.style.display = "none";
@@ -289,6 +293,7 @@ const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
+const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New: Path for site settings
 
 // --- Product Display (Accessible to all) ---
 function setupProductsListener() {
@@ -308,6 +313,57 @@ function setupProductsListener() {
 
 // Call setupProductsListener once when the script loads to always show products
 unsubscribeProducts = setupProductsListener();
+
+// --- New: Site Settings Listener and Functions ---
+function setupSiteSettingsListener() {
+    // Listen to a specific document (e.g., 'global') in the settings collection
+    const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
+    return onSnapshot(settingsDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
+            updateSellerStatusDisplay();
+            // No need to explicitly call renderSellerStatusToggle here anymore.
+            // When admin panel is opened or tab is switched, admin.js will fetch the current state
+            // using the getter function provided during initAdminPanel.
+        } else {
+            console.log("No 'global' settings document found. Initializing with default status.");
+            // If document doesn't exist, create it with default status
+            setDoc(settingsDocRef, { sellerOnline: false });
+            sellerIsOnline = false;
+            updateSellerStatusDisplay();
+        }
+    }, (error) => {
+        console.error("Error listening to site settings:", error);
+    });
+}
+
+function updateSellerStatusDisplay() {
+    if (sellerIsOnline) {
+        sellerStatusDisplay.textContent = "Seller Status: Online";
+        sellerStatusDisplay.classList.remove("status-offline");
+        sellerStatusDisplay.classList.add("status-online");
+    } else {
+        sellerStatusDisplay.textContent = "Seller Status: Offline";
+        sellerStatusDisplay.classList.remove("status-online");
+        sellerStatusDisplay.classList.add("status-offline");
+    }
+}
+
+async function toggleSellerStatus(isOnline) {
+    try {
+        const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
+        await updateDoc(settingsDocRef, { sellerOnline: isOnline });
+        console.log("Seller status updated to:", isOnline);
+    } catch (e) {
+        console.error("Error updating seller status:", e);
+        alert("Error updating seller status: " + e.message);
+    }
+}
+
+// Call setupSiteSettingsListener once when the script loads
+unsubscribeSiteSettings = setupSiteSettingsListener();
+
 
 // --- Cart Persistence (Customer-side) ---
 async function saveCartToFirestore(userId, cartData) {
@@ -444,7 +500,19 @@ function updateCartCountBadge() {
     const { total } = calculateCartTotals();
     placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
 
-    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '');
+    // Disable place order button if cart is empty or seller is offline (if logged in)
+    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline;
+
+    // Optional: Add a tooltip or message if disabled due to seller being offline
+    if (!sellerIsOnline && currentUserId) {
+        placeOrderBtn.title = "Cannot place order: Seller is currently offline.";
+    } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
+        placeOrderBtn.title = "Please enter your Roblox Username.";
+    } else if (totalItems === 0) {
+        placeOrderBtn.title = "Your cart is empty.";
+    } else {
+        placeOrderBtn.title = ""; // Clear tooltip
+    }
 }
 
 function renderCart() {
@@ -556,6 +624,11 @@ robloxUsernameInput.addEventListener('input', updateCartCountBadge);
 placeOrderBtn.addEventListener('click', async () => {
     if (cart.length === 0) {
         alert("Your cart is empty. Please add items before placing an order.");
+        return;
+    }
+
+    if (!sellerIsOnline) {
+        alert("Cannot place order: The seller is currently offline. Please try again later.");
         return;
     }
 
@@ -731,8 +804,8 @@ function renderProducts(items) {
         if (isOutOfStock) card.classList.add("out-of-stock");
 
         const displayPrice = product.sale && product.salePrice ?
-                               `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
-                               product.price;
+                                        `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
+                                        product.price;
         const imageUrl = `images/${product.image}`;
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
