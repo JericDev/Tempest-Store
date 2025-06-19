@@ -78,6 +78,7 @@ header {
     border-radius: 10px;
     font-weight: bold;
     box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    border: 1px solid #28a745; /* Green border for contact links */
 }
 .contact-center a:hover {
     background: #d0d0d0;
@@ -107,6 +108,7 @@ header {
     align-items: center;
     gap: 10px;
     flex-shrink: 0; /* Prevent from shrinking too much */
+    border: 1px solid #28a745; /* Green border for seller status container */
 }
 .seller-status-container #seller-status-display {
     padding: 5px 10px;
@@ -137,13 +139,14 @@ header {
     justify-content: center;
     align-items: center;
     gap: 10px; /* Space between filter buttons and search */
+    border: 1px solid #28a745; /* Green border for filters section */
 }
 .filters button,
 .filters input {
     margin: 5px; /* Adjusted margin */
     padding: 12px 18px; /* Larger padding for touch */
     font-size: 16px; /* Slightly larger font */
-    border: 1px solid #ddd;
+    border: 1px solid #28a745; /* Green border for filter buttons and input */
     border-radius: 10px; /* Consistent radius */
 }
 .filters button {
@@ -187,6 +190,7 @@ main#product-list {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    border: 1px solid #28a745; /* Green border for product cards */
 }
 .card:hover {
     transform: translateY(-8px); /* More noticeable lift */
@@ -204,7 +208,7 @@ main#product-list {
     margin: 0 auto 15px; /* More margin below image */
     display: block;
     border-radius: 12px; /* Consistent radius */
-    border: 1px solid #eee;
+    border: 1px solid #28a745; /* Green border for product images */
 }
 
 .badge {
@@ -337,7 +341,7 @@ main#product-list {
     font-size: 32px;
     color: #333;
     text-align: center;
-    border-bottom: 2px solid #eee;
+    border-bottom: 2px solid #28a745; /* Green border for h2 bottom */
     padding-bottom: 12px;
 }
 .modal-close-btn {
@@ -372,7 +376,7 @@ main#product-list {
     width: calc(100% - 24px);
     padding: 14px;
     margin-bottom: 18px;
-    border: 1px solid #ccc;
+    border: 1px solid #28a745; /* Green border for auth inputs */
     border-radius: 10px;
     font-size: 17px;
 }
@@ -434,7 +438,7 @@ main#product-list {
     align-items: center;
     gap: 20px;
     padding: 15px 0;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #28a745; /* Green border */
     flex-wrap: wrap;
     justify-content: space-between;
 }
@@ -446,7 +450,7 @@ main#product-list {
     height: 80px;
     object-fit: contain;
     border-radius: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid #28a745; /* Green border for cart item images */
 }
 .cart-item-details {
     flex-grow: 1;
@@ -478,6 +482,7 @@ main#product-list {
     padding: 8px;
     font-size: 1.1em;
     border-radius: 8px;
+    border: 1px solid #28a745; /* Green border for cart quantity input */
 }
 .cart-item-remove {
     font-size: 28px;
@@ -485,7 +490,7 @@ main#product-list {
 }
 .cart-summary {
     padding-top: 20px;
-    border-top: 2px solid #eee;
+    border-top: 2px solid #28a745; /* Green border for cart summary */
     margin-top: 20px;
 }
 .cart-summary div {
@@ -500,7 +505,7 @@ main#product-list {
 
 .payment-methods {
     padding-top: 20px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #28a745; /* Green border for payment methods */
     margin-top: 20px;
 }
 .payment-methods h3 {
@@ -516,6 +521,7 @@ main#product-list {
     padding: 12px;
     border-radius: 10px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    border: 1px solid #28a745; /* Green border for payment options */
 }
 .payment-option img {
     width: 35px;
@@ -531,7 +537,7 @@ main#product-list {
     padding: 14px;
     margin-top: 20px;
     margin-bottom: 20px;
-    border: 1px solid #ccc;
+    border: 1px solid #28a745; /* Green border for Roblox username input */
     border-radius: 10px;
     font-size: 17px;
 }
@@ -569,6 +575,7 @@ main#product-list {
     margin-bottom: 8px;
     box-shadow: 0 1px 5px rgba(0,0,0,0.05);
     flex-wrap: wrap;
+    border: 1px solid #28a745; /* Green border for order items */
 }
 .order-item-info {
     flex-basis: 100%;
@@ -608,7 +615,7 @@ main#product-list {
 /* Order Details View */
 #order-details-view {
     padding-top: 25px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #28a745; /* Green border for order details view */
 }
 #order-details-view h3 {
     font-size: 1.8em;
@@ -620,7 +627,7 @@ main#product-list {
 }
 #order-details-items {
     margin-top: 25px;
-    border-top: 1px dashed #eee;
+    border-top: 1px dashed #28a745; /* Green dashed border for order details items */
     padding-top: 20px;
 }
 #order-details-items h4 {
@@ -632,7 +639,7 @@ main#product-list {
     justify-content: space-between;
     align-items: center;
     padding: 10px 0;
-    border-bottom: 1px dotted #eee;
+    border-bottom: 1px dotted #28a745; /* Green dotted border */
     flex-wrap: wrap;
 }
 .order-detail-item:last-child {
@@ -668,7 +675,7 @@ main#product-list {
     padding-bottom: 12px;
     display: flex;
     flex-wrap: wrap;
-    border-bottom: 2px solid #eee;
+    border-bottom: 2px solid #28a745; /* Green border */
 }
 .admin-tab-btn {
     padding: 12px 25px;
@@ -711,7 +718,7 @@ main#product-list {
     padding: 25px;
     border-radius: 12px;
     margin-bottom: 35px;
-    border: 1px solid #eee;
+    border: 1px solid #28a745; /* Green border */
     background-color: #fcfcfc;
 }
 #product-form-container h3 {
@@ -732,7 +739,7 @@ main#product-list {
     width: calc(100% - 22px);
     padding: 12px;
     margin-bottom: 18px;
-    border: 1px solid #ddd;
+    border: 1px solid #28a745; /* Green border */
     border-radius: 10px;
     font-size: 1.05em;
     background-color: white;
@@ -768,10 +775,11 @@ main#product-list {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #28a745; /* Green border */
 }
 .admin-product-table th, .admin-product-table td,
 .admin-order-table th, .admin-order-table td {
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #28a745; /* Green border */
     padding: 12px;
     text-align: left;
     vertical-align: middle;
@@ -792,6 +800,7 @@ main#product-list {
     height: 60px;
     object-fit: contain;
     border-radius: 8px;
+    border: 1px solid #28a745; /* Green border */
 }
 .admin-product-actions, .admin-order-actions {
     display: flex;
@@ -824,7 +833,7 @@ main#product-list {
 #admin-order-details-view {
     display: none;
     padding: 25px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #28a745; /* Green border */
     background-color: #fcfcfc;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -848,7 +857,7 @@ main#product-list {
 }
 #admin-order-details-items {
     margin-top: 25px;
-    border-top: 1px dashed #eee;
+    border-top: 1px dashed #28a745; /* Green dashed border */
     padding-top: 20px;
 }
 #admin-order-details-items h4 {
@@ -862,7 +871,7 @@ main#product-list {
     justify-content: space-between;
     align-items: center;
     padding: 10px 0;
-    border-bottom: 1px dotted #eee;
+    border-bottom: 1px dotted #28a745; /* Green dotted border */
     flex-wrap: wrap;
 }
 .admin-order-detail-item:last-child {
@@ -887,12 +896,12 @@ main#product-list {
     gap: 12px;
     margin-top: 25px;
     padding-top: 20px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid #28a745; /* Green border */
 }
 .order-status-update-section select {
     padding: 12px;
     border-radius: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid #28a745; /* Green border */
     font-size: 1.05em;
 }
 .order-status-update-section button {
@@ -927,7 +936,7 @@ main#product-list {
 /* New: Admin Site Settings - Toggle Switch Styles */
 #admin-site-settings {
     padding: 25px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #28a745; /* Green border */
     background-color: #fcfcfc;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -940,7 +949,7 @@ main#product-list {
     justify-content: space-between;
     margin-bottom: 20px;
     padding: 15px;
-    border: 1px solid #eee;
+    border: 1px solid #28a745; /* Green border */
     border-radius: 10px;
     background-color: white;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
@@ -1044,6 +1053,7 @@ main#product-list {
     box-shadow: 0 8px 25px rgba(0,0,0,0.3);
     position: relative;
     animation: fadeInScale 0.3s ease-out;
+    border: 1px solid #28a745; /* Green border */
 }
 .custom-modal-close-btn {
     position: absolute;
@@ -1074,6 +1084,8 @@ main#product-list {
     font-size: 1em;
     font-weight: bold;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    background-color: #007bff; /* Blue */
+    color: white;
 }
 .custom-modal-ok-btn:hover, .custom-modal-confirm-btn:hover {
     background-color: #0056b3;
@@ -1180,7 +1192,7 @@ main#product-list {
         padding: 10px 15px;
         font-size: 14px;
         border-radius: 10px;
-        border: none;
+        border: 1px solid #28a745; /* Green border */
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         width: auto;
         flex-shrink: 0;
@@ -1195,7 +1207,7 @@ main#product-list {
         padding-left: 35px;
         background-position: 8px center;
         background-size: 20px;
-        border: 1px solid #ddd;
+        border: 1px solid #28a745; /* Green border */
         flex-grow: 1;
         max-width: calc(100% - 20px);
     }
@@ -1546,7 +1558,7 @@ main#product-list {
         font-size: 15px;
         padding: 11px 16px;
         border-radius: 10px;
-        border: none;
+        border: 1px solid #28a745; /* Green border */
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         width: auto;
         flex-shrink: 0;
@@ -1562,7 +1574,7 @@ main#product-list {
         padding-left: 38px;
         background-position: 10px center;
         background-size: 20px;
-        border: 1px solid #ddd;
+        border: 1px solid #28a745; /* Green border */
     }
 
     main#product-list {
@@ -1694,3 +1706,4 @@ main#product-list {
         max-width: 950px;
     }
 }
+
