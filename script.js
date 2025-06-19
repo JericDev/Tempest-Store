@@ -250,8 +250,8 @@ onAuthStateChanged(auth, async (user) => {
                 }
             }
             if (initAdminPanelModule) {
-                // Pass Firestore and Auth instances, plus user info and current seller status to admin module
-                initAdminPanelModule(db, auth, currentUserId, isAdmin, toggleSellerStatus, sellerIsOnline);
+                // Pass Firestore and Auth instances, plus user info, toggle function, and a GETTER for current seller status
+                initAdminPanelModule(db, auth, currentUserId, isAdmin, toggleSellerStatus, () => sellerIsOnline);
             }
         } else {
             adminPanelButton.style.display = "none";
@@ -323,21 +323,9 @@ function setupSiteSettingsListener() {
             const data = docSnap.data();
             sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
             updateSellerStatusDisplay();
-            // IMPORTANT: If admin panel is already open, update its toggle state
-            // This ensures the admin panel's toggle is always in sync with Firestore
-            if (isAdmin && initAdminPanelModule) { // Check if admin and module loaded
-                // admin.js needs a way to receive this update
-                // We will adjust admin.js to expose a renderSellerStatusToggle function for this.
-                // For now, we rely on initAdminPanel being called (which happens on auth state change).
-                // If the admin panel is already open when this listener updates, it won't auto-sync
-                // until the admin re-opens the settings tab or reloads the page.
-                // A better approach would be to pass the setter function to admin.js directly.
-                // However, the `initAdminPanel` already receives `initialStatus`.
-                // Let's ensure the `initialStatus` is correct when admin panel is opened.
-                // The issue you're seeing is likely the initial state when the admin panel modal opens.
-                // The Firestore listener updates `sellerIsOnline` in script.js, but admin.js needs to know this.
-                // The fix below for `onAuthStateChanged` should address the initial state.
-            }
+            // No need to explicitly call renderSellerStatusToggle here anymore.
+            // When admin panel is opened or tab is switched, admin.js will fetch the current state
+            // using the getter function provided during initAdminPanel.
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
