@@ -853,18 +853,30 @@ main#product-list {
         padding: 10px; /* Reduced padding */
         margin: 20px auto;
         gap: 8px; /* Reduced gap */
+        border-radius: 12px; /* Ensure rounded corners */
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* Soften shadow */
+        flex-direction: column; /* Stack filter items */
+        align-items: center; /* Center items */
     }
     .filters button, .filters input {
         padding: 10px 15px;
         font-size: 14px;
-        border-radius: 8px;
-        width: 100%; /* Full width for filter buttons and search box */
+        border-radius: 10px; /* More rounded buttons */
+        width: calc(100% - 20px); /* Full width with horizontal padding */
         margin: 4px 0; /* Consistent vertical margin */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Add a subtle shadow */
+        border: none; /* Remove border for cleaner look */
+    }
+    .filters button.active {
+        background-color: #333;
+        color: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Stronger shadow for active */
     }
     .filters input[type="text"] {
         padding-left: 35px;
         background-position: 8px center;
         background-size: 20px;
+        border: 1px solid #ddd; /* Keep a light border for the search input */
     }
 
     main#product-list {
@@ -1162,14 +1174,37 @@ main#product-list {
         min-width: 20px;
     }
 
+    .filters {
+        padding: 15px; /* Maintain padding */
+        margin: 20px auto;
+        gap: 10px; /* Maintain gap */
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        flex-direction: row; /* Keep in a row as much as possible */
+        justify-content: center;
+        align-items: center;
+    }
     .filters button, .filters input {
         font-size: 15px;
         padding: 11px 16px;
+        border-radius: 10px; /* More rounded buttons */
+        border: none; /* Remove border */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Add subtle shadow */
+        width: auto; /* Allow natural width */
+        flex-shrink: 0; /* Prevent shrinking */
+    }
+    .filters button.active {
+        background-color: #333;
+        color: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Stronger shadow for active */
     }
     .filters input[type="text"] {
+        flex-grow: 1; /* Allow search to grow */
+        max-width: 200px; /* Set a max width for search input */
         padding-left: 38px;
         background-position: 10px center;
         background-size: 20px;
+        border: 1px solid #ddd; /* Keep a light border for search */
     }
 
     main#product-list {
@@ -1289,4 +1324,3 @@ main#product-list {
         max-width: 950px;
     }
 }
-
