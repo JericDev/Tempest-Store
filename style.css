@@ -57,34 +57,14 @@ header {
     color: #FFD700; /* Gold accent */
 }
 
-/* Seller Status in Header */
-.seller-status {
-    font-size: 1em;
-    font-weight: 600;
-    margin-left: 20px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: white; /* Default color for seller status text */
-}
-
-.seller-status #seller-status-text {
-    font-weight: bold;
-}
-
-.seller-status #seller-status-text.online {
-    color: #4CAF50; /* Green for online */
-}
-
-.seller-status #seller-status-text.offline {
-    color: #F44336; /* Red for offline */
-}
-
-
 .contact-center {
     text-align: center;
     margin: 30px 0; /* More vertical space */
     padding: 0 15px; /* Add horizontal padding */
+    display: flex; /* Use flexbox for alignment */
+    flex-direction: column; /* Stack children by default */
+    align-items: center; /* Center items horizontally */
+    gap: 15px; /* Space between children */
 }
 .contact-center a {
     display: inline-block;
@@ -92,7 +72,7 @@ header {
     background: #e0e0e0;
     text-decoration: none;
     padding: 10px 20px; /* Larger buttons */
-    margin: 8px; /* More margin between them */
+    margin: 0 8px; /* Adjusted margin for flexbox */
     border-radius: 10px;
     font-weight: bold;
     box-shadow: 0 2px 6px rgba(0,0,0,0.08);
@@ -102,6 +82,35 @@ header {
     transform: translateY(-3px); /* More noticeable hover */
     box-shadow: 0 4px 10px rgba(0,0,0,0.12);
 }
+
+/* New: Seller Status Display */
+.seller-status-container {
+    margin-bottom: 10px; /* Space above Facebook/Discord links */
+    background-color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    font-weight: bold;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.seller-status-container #seller-status-display {
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 0.95em;
+    white-space: nowrap;
+}
+.seller-status-container .status-online {
+    background-color: #28a745; /* Green for online */
+    color: white;
+}
+.seller-status-container .status-offline {
+    background-color: #dc3545; /* Red for offline */
+    color: white;
+}
+
 
 .filters {
     text-align: center;
@@ -271,51 +280,6 @@ main#product-list {
 #login-register-button:hover { background-color: #0056b3; }
 
 
-/* Styling for the cart icon container to make it look like a green button */
-.cart-button { /* Changed from .cart-icon-container for the button element */
-    background-color: #4CAF50; /* Green background */
-    color: white; /* White text color */
-    padding: 8px 18px; /* Adjusted padding */
-    border-radius: 8px; /* Rounded corners */
-    display: flex; /* Use flexbox for text and badge alignment */
-    align-items: center; /* Vertically align items */
-    gap: 8px; /* Space between text and badge */
-    font-size: 16px; /* Font size for the text */
-    font-weight: bold;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.2); /* Soft shadow */
-    position: relative; /* For positioning the badge */
-    min-width: 120px; /* Ensure a minimum width */
-    justify-content: center; /* Center content horizontally */
-    margin-left: 10px; /* Add some margin from other buttons */
-    cursor: pointer; /* Indicate it's clickable */
-    transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease; /* Smooth transitions */
-}
-
-.cart-button:hover {
-    background-color: #45a049; /* Darker green on hover */
-    transform: translateY(-2px); /* Slight lift on hover */
-    box-shadow: 0 5px 12px rgba(0,0,0,0.25);
-}
-
-/* Styling for the cart count badge when it's inside the button and replacing the '0' */
-.cart-button .cart-count-badge { /* Adjusted to .cart-button for the button element */
-    position: static; /* Important: remove absolute positioning if it was there */
-    background-color: #FF6B6B; /* Red badge color */
-    color: white;
-    border-radius: 50%; /* Make it circular */
-    padding: 2px 6px; /* Adjusted padding to make it smaller */
-    font-size: 12px; /* Smaller font size for the count */
-    font-weight: bold;
-    min-width: 18px; /* Ensure circular shape */
-    text-align: center;
-    line-height: 1.2; /* Adjust line height for vertical centering */
-    display: inline-block; /* Ensure it behaves like text */
-    vertical-align: middle; /* Align with surrounding text */
-    margin: 0 2px; /* Small horizontal margin to separate from parentheses */
-    border: 1px solid white; /* White border as seen in the image */
-    box-shadow: 0 0 3px rgba(0,0,0,0.2); /* Subtle shadow for depth */
-}
-
 /* Modals (Auth, Cart, Order History, Order Details, Admin Product/Order Management) */
 .modal {
     position: fixed;
@@ -412,7 +376,46 @@ main#product-list {
     font-weight: 500;
 }
 
-
+/* Cart Icon in Header */
+.cart-icon-container {
+    position: relative;
+    cursor: pointer;
+    padding: 10px; /* Larger click area */
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+    margin-left: 10px; /* Ensure spacing from other buttons */
+    background-color: #555; /* Added background for visibility */
+    display: flex; /* Use flex to center the icon */
+    align-items: center;
+    justify-content: center;
+    width: 40px; /* Fixed width for better circular shape */
+    height: 40px; /* Fixed height for better circular shape */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3); /* Add a subtle shadow */
+}
+.cart-icon-container:hover {
+    background-color: #666; /* Slightly lighter on hover */
+}
+/* The cart symbol itself is emoji, so we target the span it's in */
+.cart-icon-container span:first-child { /* Target the 🛒 emoji */
+    font-size: 24px; /* Adjust size of emoji */
+    color: white; /* Ensure the emoji is white */
+}
+.cart-count-badge {
+    position: absolute;
+    top: -5px; /* Adjusted position */
+    right: -5px;
+    background-color: #FF6B6B; /* Red badge */
+    color: white;
+    border-radius: 50%;
+    padding: 5px 9px; /* Larger padding */
+    font-size: 13px;
+    font-weight: bold;
+    min-width: 22px; /* Slightly larger min-width */
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    line-height: 1.2; /* For better vertical alignment of numbers */
+    border: 2px solid #333; /* Border to stand out */
+}
 /* Cart Specific Styles */
 .cart-item {
     display: flex;
@@ -494,6 +497,8 @@ main#product-list {
     font-size: 1.5em;
 }
 .payment-option {
+    display: flex; /* Use flexbox for alignment */
+    align-items: center;
     gap: 12px; /* Increased gap */
     margin-bottom: 12px;
     padding: 12px;
@@ -544,6 +549,9 @@ main#product-list {
     padding: 15px 0;
 }
 .order-item {
+    display: flex; /* Use flexbox */
+    justify-content: space-between;
+    align-items: center;
     padding: 15px 12px; /* More padding */
     border-radius: 10px;
     margin-bottom: 8px;
@@ -608,18 +616,28 @@ main#product-list {
     font-size: 1.4em;
 }
 .order-detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 10px 0;
+    border-bottom: 1px dotted #eee;
     flex-wrap: wrap; /* Allow wrapping */
 }
+.order-detail-item:last-child {
+    border-bottom: none;
+}
 .order-detail-item-name {
+    font-weight: bold;
+    color: #444;
     flex-basis: 100%; /* Take full width on small screens */
     margin-bottom: 5px;
     font-size: 1.05em;
 }
 .order-detail-item-qty-price {
-    flex-basis: 100%; /* Take full width on small screens */
-    text-align: left; /* Align left for stacked items */
     font-size: 0.95em;
+    color: #666;
+    text-align: left; /* Align left for stacked items */
+    flex-basis: 100%; /* Take full width on small screens */
 }
 .back-to-orders-btn {
     padding: 12px 18px;
@@ -636,6 +654,7 @@ main#product-list {
 .admin-tabs {
     margin-bottom: 25px;
     padding-bottom: 12px;
+    display: flex; /* Use flex for tab buttons */
     flex-wrap: wrap; /* Allow tabs to wrap */
     border-bottom: 2px solid #eee; /* Clearer tab separation */
 }
@@ -893,49 +912,170 @@ main#product-list {
     background-color: #5a6268;
 }
 
-/* Admin Store Settings Tab Styles */
+/* New: Admin Site Settings - Toggle Switch Styles */
+#admin-site-settings {
+    padding: 25px; /* Consistent padding */
+    border-top: 1px solid #eee; /* Matches other tab content */
+    background-color: #fcfcfc;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-top: 25px;
+}
+
 .settings-group {
     display: flex;
     align-items: center;
-    gap: 15px;
+    justify-content: space-between; /* Space out label and toggle */
     margin-bottom: 20px;
     padding: 15px;
     border: 1px solid #eee;
     border-radius: 10px;
-    background-color: #f9f9f9;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    background-color: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+    gap: 10px; /* Space between items if wrapped */
 }
 
 .settings-group label {
     font-weight: bold;
     color: #333;
     font-size: 1.1em;
-    min-width: 120px; /* Give label a fixed width */
+    flex-shrink: 0; /* Prevent label from shrinking */
 }
 
-#admin-seller-status-display {
-    font-weight: bold;
+/* Toggle Switch Container */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px; /* Width of the entire switch */
+    height: 34px; /* Height of the entire switch */
+    flex-shrink: 0; /* Prevent toggle from shrinking */
+}
+
+/* Hide default HTML checkbox */
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The slider (the background) */
+.toggle-switch .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc; /* Grey when OFF */
+    transition: .4s;
+    border-radius: 34px; /* Rounded slider */
+}
+
+.toggle-switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 26px; /* Size of the circle */
+    width: 26px; /* Size of the circle */
+    left: 4px; /* Distance from left edge */
+    bottom: 4px; /* Distance from bottom edge */
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%; /* Make it a circle */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* When checkbox is checked, change background color and move slider */
+.toggle-switch input:checked + .slider {
+    background-color: #2196F3; /* Blue when ON */
+}
+
+.toggle-switch input:checked + .slider:before {
+    transform: translateX(26px); /* Move circle to the right */
+}
+
+/* Text for Online/Offline status next to toggle */
+#seller-status-text {
+    margin-left: 15px; /* Space from the toggle switch */
     font-size: 1.1em;
-    color: #32CD32; /* Default to green for online */
-    margin-right: auto; /* Pushes button to the right */
+    font-weight: bold;
+    color: #666; /* Default text color */
 }
 
-#admin-seller-status-display.offline {
-    color: #dc3545; /* Red for offline status */
+/* Custom Alert/Confirm Modals */
+.custom-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001; /* Higher than other modals */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
-
-#toggle-seller-status-btn {
-    background-color: #007bff; /* Blue for toggle button */
-    color: white;
-    padding: 10px 15px;
-    border-radius: 8px;
+.custom-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+.custom-modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    position: relative;
+    animation: fadeInScale 0.3s ease-out;
+}
+.custom-modal-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #999;
+}
+.custom-modal-close-btn:hover {
+    color: #333;
+}
+.custom-modal-content p {
+    font-size: 1.1em;
+    margin-bottom: 25px;
+    color: #333;
+}
+.custom-modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+.custom-modal-ok-btn, .custom-modal-confirm-btn, .custom-modal-cancel-btn {
+    padding: 12px 25px;
+    border-radius: 10px;
     font-size: 1em;
-    min-width: 100px;
+    font-weight: bold;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-
-#toggle-seller-status-btn:hover {
+.custom-modal-ok-btn, .custom-modal-confirm-btn {
+    background-color: #007bff;
+    color: white;
+}
+.custom-modal-ok-btn:hover, .custom-modal-confirm-btn:hover {
     background-color: #0056b3;
+}
+.custom-modal-cancel-btn {
+    background-color: #6c757d;
+    color: white;
+}
+.custom-modal-cancel-btn:hover {
+    background-color: #5a6268;
 }
 
 
@@ -951,11 +1091,6 @@ main#product-list {
         font-size: 22px; /* Adjusted size */
         margin-right: 0;
         margin-bottom: 0;
-    }
-    .seller-status {
-        margin-left: 0;
-        margin-top: 10px;
-        font-size: 0.9em;
     }
     .auth-section {
         width: 100%; /* Take full width */
@@ -975,29 +1110,45 @@ main#product-list {
         flex-grow: 1; /* Allow stretching */
         margin: 0; /* Remove specific margins, let gap handle it */
     }
-    /* Cart Button for small mobile */
-    .cart-button {
-        padding: 8px 12px; /* Adjusted padding */
-        font-size: 14px; /* Smaller font for text */
-        width: auto; /* Let content determine width */
-        max-width: 120px; /* Max width to prevent excessive stretching */
-        min-width: 80px; /* Minimum width for readability */
-        margin-left: 0; /* Remove horizontal margin */
+    .cart-icon-container {
+        padding: 8px; /* Maintain touch target */
+        width: 36px; /* Slightly smaller for mobile */
+        height: 36px; /* Slightly smaller for mobile */
+        margin-left: 0; /* Remove horizontal margin for better centering */
         margin-top: 10px; /* Add some top margin to separate from other buttons */
     }
-    .cart-button .cart-count-badge {
+    .cart-icon-container span:first-child {
+        font-size: 22px; /* Adjust size of emoji for smaller icon container */
+    }
+    .cart-count-badge {
         font-size: 11px;
         padding: 3px 7px;
         min-width: 18px;
-        top: -5px; /* Adjust badge position for smaller button */
-        right: -5px;
+        top: -3px;
+        right: -3px;
     }
 
+    .contact-center {
+        flex-direction: column; /* Ensure contact links stack */
+        gap: 8px; /* Smaller gap */
+    }
     .contact-center a {
         padding: 8px 15px; /* Slightly smaller buttons */
         font-size: 14px;
         margin: 4px; /* Reduced margin */
     }
+    .seller-status-container {
+        font-size: 1em; /* Smaller font for status */
+        padding: 8px 15px;
+        margin-bottom: 8px;
+        flex-direction: column; /* Stack status text and label */
+        gap: 5px;
+    }
+    .seller-status-container #seller-status-display {
+        font-size: 0.85em; /* Smaller badge text */
+        padding: 3px 7px;
+    }
+
 
     .filters {
         padding: 10px; /* Reduced padding */
@@ -1014,11 +1165,11 @@ main#product-list {
         padding: 10px 15px;
         font-size: 14px;
         border-radius: 10px; /* More rounded buttons */
+        border: none; /* Remove border for cleaner look */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Add a subtle shadow */
         width: auto; /* Let buttons size naturally */
         flex-shrink: 0; /* Prevent buttons from shrinking too much */
         margin: 4px; /* Adjust margin to create space between horizontal buttons */
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Add a subtle shadow */
-        border: none; /* Remove border for cleaner look */
     }
     .filters button.active {
         background-color: #333;
@@ -1287,29 +1438,20 @@ main#product-list {
         font-size: 1em;
     }
 
-    /* Admin Store Settings Tab Styles - Mobile Adjustments */
-    .settings-group {
-        flex-direction: column; /* Stack elements vertically */
-        align-items: flex-start; /* Align to start */
-        gap: 10px;
-        padding: 10px;
+    /* Custom Alert/Confirm Modals for Mobile */
+    .custom-modal-content {
+        padding: 20px;
+        border-radius: 10px;
     }
-    .settings-group label {
-        min-width: unset; /* Remove fixed width */
-        width: 100%; /* Take full width */
-        text-align: left;
+    .custom-modal-content p {
+        font-size: 1em;
+        margin-bottom: 15px;
     }
-    #admin-seller-status-display {
-        margin-right: 0;
-        width: 100%;
-        text-align: left;
+    .custom-modal-ok-btn, .custom-modal-confirm-btn, .custom-modal-cancel-btn {
+        padding: 10px 20px;
+        font-size: 0.9em;
     }
-    #toggle-seller-status-btn {
-        width: 100%;
-        min-width: unset;
-        font-size: 0.95em;
-        padding: 8px 12px;
-    }
+
 }
 
 /* Medium-sized phones and small tablets (481px to 768px) */
@@ -1341,21 +1483,33 @@ main#product-list {
         padding: 8px 12px;
         font-size: 14px;
     }
-    /* Cart Button for medium screens */
-    .cart-button {
-        padding: 10px 15px; /* Consistent padding */
-        font-size: 15px; /* Consistent font size */
-        width: auto; /* Let content determine width */
-        min-width: 90px; /* Adjust min-width */
+    .cart-icon-container {
+        padding: 8px;
+        width: 36px; /* Consistency with smaller mobile view */
+        height: 36px; /* Consistency with smaller mobile view */
         margin-left: 10px; /* Restore margin */
     }
-    .cart-button .cart-count-badge {
+    .cart-icon-container span:first-child {
+        font-size: 22px;
+    }
+    .cart-count-badge {
         font-size: 12px;
         padding: 4px 8px;
         min-width: 20px;
-        top: -5px;
-        right: -5px;
     }
+
+    .contact-center {
+        flex-direction: row; /* Keep contact links in a row */
+        flex-wrap: wrap; /* Allow wrapping if needed */
+        justify-content: center;
+        gap: 15px;
+    }
+    .seller-status-container {
+        font-size: 1.05em; /* Slightly larger for tablets */
+        padding: 10px 20px;
+        margin-bottom: 0; /* Remove vertical margin */
+    }
+
 
     .filters {
         padding: 15px; /* Maintain padding */
@@ -1472,34 +1626,17 @@ main#product-list {
     .admin-product-actions button:first-child {
         margin-left: 0;
     }
-    .order-status-update-section select,
-    .order-status-update-section button {
-        padding: 10px;
+
+    /* Custom Alert/Confirm Modals for Tablets */
+    .custom-modal-content {
+        padding: 25px;
+    }
+    .custom-modal-content p {
+        font-size: 1.1em;
+    }
+    .custom-modal-ok-btn, .custom-modal-confirm-btn, .custom-modal-cancel-btn {
+        padding: 12px 25px;
         font-size: 1em;
-    }
-    .admin-back-to-orders-btn {
-        padding: 10px 15px;
-        font-size: 1em;
-    }
-    /* Admin Store Settings Tab Styles - Tablet Adjustments */
-    .settings-group {
-        flex-direction: row; /* Keep elements in a row if space allows */
-        justify-content: flex-start;
-        align-items: center;
-        gap: 15px;
-    }
-    .settings-group label {
-        min-width: 120px; /* Restore fixed width */
-        width: auto;
-        text-align: left;
-    }
-    #admin-seller-status-display {
-        margin-right: auto; /* Push button to the right */
-        width: auto;
-    }
-    #toggle-seller-status-btn {
-        width: auto;
-        min-width: 100px;
     }
 }
 
@@ -1536,4 +1673,3 @@ main#product-list {
         max-width: 950px;
     }
 }
-
