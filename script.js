@@ -1,892 +1,1242 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+// Import necessary Firebase functions
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+import {
+    getAuth,
+    signInAnonymously,
+    signInWithCustomToken,
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    sendPasswordResetEmail
+} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+import {
+    getFirestore,
+    collection,
+    doc,
+    getDoc,
+    setDoc,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    onSnapshot,
+    query,
+    where,
+    orderBy,
+    serverTimestamp // Import serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-// Your web app's Firebase configuration
-// IMPORTANT: Ensure this configuration matches your Firebase project's config.
-const firebaseConfig = {
-    apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
-    authDomain: "store-7b9bd.firebaseapp.com",
-    projectId: "store-7b9bd",
-    storageBucket: "store-7b9bd.firebase-storage.app",
-    messagingSenderId: "1015427798898",
-    appId: "1:1015427798898:web:a15c71636506fac128afeb",
-    measurementId: "G-NR4JS3FLWG"
-};
+// --- Firebase Initialization and Global Variables ---
+let app;
+let db;
+let auth;
+let currentUserId = null; // To store the authenticated user's ID
+let unsubscribeProductListener; // To store the unsubscribe function for products
+let unsubscribeOrderListener; // To store the unsubscribe function for orders
+let unsubscribeStoreSettingsListener; // To store the unsubscribe function for store settings
+
+// Safely get __app_id and __firebase_config
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app); // Initialize Firestore
+if (Object.keys(firebaseConfig).length > 0) {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
 
-let currentUserId = null; // To store the current authenticated user's ID
-let isAdmin = false; // Flag to check if the current user is an anpmdmin
-// IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
-// You can find your UID in the Firebase Console -> Authentication -> Users tab.
-const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
+    // Sign in anonymously or with custom token
+    if (typeof __initial_auth_token !== 'undefined') {
+        signInWithCustomToken(auth, __initial_auth_token)
+            .then(() => {
+                console.log('Signed in with custom token.');
+            })
+            .catch((error) => {
+                console.error('Error signing in with custom token:', error);
+                // Fallback to anonymous if custom token fails
+                signInAnonymously(auth)
+                    .then(() => console.log('Signed in anonymously.'))
+                    .catch((anonError) => console.error('Error signing in anonymously:', anonError));
+            });
+    } else {
+        signInAnonymously(auth)
+            .then(() => console.log('Signed in anonymously.'))
+            .catch((error) => console.error('Error signing in anonymously:', error));
+    }
+} else {
+    console.error("Firebase config is not provided. Firebase will not be initialized.");
+}
 
-let cart = []; // Global cart array
-let userOrders = []; // Global array to store user's orders (for user history)
-let allProducts = []; // Global array to store all products from Firestore
-let sellerIsOnline = false; // New: Global variable for seller status
+// --- Auth State Change Listener ---
+onAuthStateChanged(auth, (user) => {
+    const userDisplay = document.getElementById('user-display');
+    const loginRegisterButton = document.getElementById('login-register-button');
+    const logoutButton = document.getElementById('logout-button');
+    const myOrdersButton = document.getElementById('my-orders-button');
+    const adminPanelButton = document.getElementById('admin-panel-button');
 
-// New global variable for filtering
-let currentCategory = 'all'; // Initialize with 'all' category
+    if (user) {
+        currentUserId = user.uid;
+        userDisplay.textContent = `Welcome, User ${user.uid.substring(0, 8)}...`; // Displaying a truncated user ID
+        loginRegisterButton.style.display = 'none';
+        logoutButton.style.display = 'inline-block';
+        myOrdersButton.style.display = 'inline-block';
 
-// Global variables to store unsubscribe functions for real-time listeners
-let unsubscribeUserOrders = null;
-let unsubscribeProducts = null;
-let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listener
+        // Check if the user is an admin
+        checkAdminStatus(user.uid).then(isAdmin => {
+            if (isAdmin) {
+                adminPanelButton.style.display = 'inline-block';
+                // Start listening for store settings only for admins
+                listenForStoreSettings();
+            } else {
+                adminPanelButton.style.display = 'none';
+                if (unsubscribeStoreSettingsListener) {
+                    unsubscribeStoreSettingsListener(); // Unsubscribe if not admin
+                }
+            }
+        });
 
-// Reference to the admin panel initialization function from admin.js
-let initAdminPanelModule = null;
-let adminCleanupFunction = null;
+        // Start real-time listeners for products and orders when user logs in
+        listenForProducts();
+        listenForUserOrders(user.uid);
+    } else {
+        currentUserId = null;
+        userDisplay.textContent = '';
+        loginRegisterButton.style.display = 'inline-block';
+        logoutButton.style.display = 'none';
+        myOrdersButton.style.display = 'none';
+        adminPanelButton.style.display = 'none';
+
+        // Clear products and orders display when logged out
+        renderProducts([]);
+        document.getElementById('admin-products-list').innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
+        document.getElementById('order-history-list').innerHTML = '<p class="empty-message">No orders found.</p>';
+        document.getElementById('admin-orders-list').innerHTML = '<tr><td colspan="6" class="empty-message">No orders found.</td></tr>';
+
+        // Unsubscribe from real-time updates when logged out
+        if (unsubscribeProductListener) {
+            unsubscribeProductListener();
+        }
+        if (unsubscribeOrderListener) {
+            unsubscribeOrderListener();
+        }
+        if (unsubscribeStoreSettingsListener) {
+            unsubscribeStoreSettingsListener();
+        }
+
+        // Reset cart display when logged out
+        updateCartDisplay();
+        document.getElementById('place-order-btn').textContent = 'Place Order (0 items) ₱0.00';
+    }
+});
+
+// --- Admin Status Check ---
+async function checkAdminStatus(uid) {
+    try {
+        const adminDocRef = doc(db, "artifacts", appId, "public", "data", "admins", uid);
+        const adminDocSnap = await getDoc(adminDocRef);
+        return adminDocSnap.exists();
+    } catch (error) {
+        console.error("Error checking admin status:", error);
+        return false;
+    }
+}
+
+// --- Modals and UI Elements ---
+const authModal = document.getElementById('auth-modal');
+const closeAuthModalBtn = document.getElementById('close-auth-modal');
+const loginRegisterButton = document.getElementById('login-register-button');
+const registerButton = document.getElementById('register-button');
+const loginButton = document.getElementById('login-button');
+const authEmailInput = document.getElementById('auth-email');
+const authPasswordInput = document.getElementById('auth-password');
+const authMessage = document.getElementById('auth-message');
+const logoutButton = document.getElementById('logout-button');
+const forgotPasswordButton = document.getElementById('forgot-password-button');
+
+const cartModal = document.getElementById('cart-modal');
+const cartIconButton = document.getElementById('cart-icon-btn');
+const closeCartModalBtn = document.getElementById('close-cart-modal');
+const cartItemsContainer = document.getElementById('cart-items-container');
+const cartCountBadge = document.getElementById('cart-count');
+const cartSubtotalSpan = document.getElementById('cart-subtotal');
+const cartTotalSpan = document.getElementById('cart-total');
+const placeOrderBtn = document.getElementById('place-order-btn');
+const robloxUsernameInput = document.getElementById('roblox-username-input');
+
+const orderHistoryModal = document.getElementById('order-history-modal');
+const myOrdersButton = document.getElementById('my-orders-button');
+const closeOrderHistoryModalBtn = document.getElementById('close-order-history-modal');
+const orderHistoryList = document.getElementById('order-history-list');
+const orderDetailsView = document.getElementById('order-details-view');
+const backToOrderListBtn = document.getElementById('back-to-order-list');
+
+const adminPanelModal = document.getElementById('admin-panel-modal');
+const adminPanelButton = document.getElementById('admin-panel-button');
+const closeAdminPanelModalBtn = document.getElementById('close-admin-panel-modal');
+const adminTabs = document.querySelector('.admin-tabs');
+const adminProductManagement = document.getElementById('admin-product-management');
+const adminOrderManagement = document.getElementById('admin-order-management');
+const adminSiteSettings = document.getElementById('admin-site-settings');
+
+const productFormContainer = document.getElementById('product-form-container');
+const productIdInput = document.getElementById('product-id-input');
+const productNameInput = document.getElementById('product-name');
+const productCategorySelect = document.getElementById('product-category');
+const productPriceInput = document.getElementById('product-price');
+const productSalePriceInput = document.getElementById('product-sale-price'); // New
+const productStockInput = document.getElementById('product-stock');
+const productImageInput = document.getElementById('product-image');
+const productNewCheckbox = document.getElementById('product-new'); // New
+const productSaleCheckbox = document.getElementById('product-sale'); // New
+const saveProductBtn = document.getElementById('save-product-btn');
+const cancelEditProductBtn = document.getElementById('cancel-edit-product');
+const productFormTitle = document.getElementById('product-form-title');
+const adminProductsList = document.getElementById('admin-products-list');
+
+const adminOrdersList = document.getElementById('admin-orders-list');
+const adminOrderDetailsView = document.getElementById('admin-order-details-view');
+const adminBackToOrderListBtn = document.getElementById('admin-back-to-order-list');
+const orderStatusSelect = document.getElementById('order-status-select');
+const updateOrderStatusBtn = document.getElementById('update-order-status-btn');
+
+const sellerOnlineToggle = document.getElementById('seller-online-toggle');
+const sellerStatusText = document.getElementById('seller-status-text');
+const sellerStatusDisplay = document.getElementById('seller-status-display'); // For the main page display
 
 
-// --- DOM elements for Authentication ---
-const authEmailInput = document.getElementById("auth-email");
-const authPasswordInput = document.getElementById("auth-password");
-const registerButton = document.getElementById("register-button");
-const loginButton = document.getElementById("login-button");
-const loginRegisterButton = document.getElementById("login-register-button");
-const logoutButton = document.getElementById("logout-button");
-const myOrdersButton = document.getElementById("my-orders-button");
-// adminPanelButton is now managed by admin.js, but its visibility by script.js
-const adminPanelButton = document.getElementById("admin-panel-button");
-const authMessage = document.getElementById("auth-message");
-const userDisplay = document.getElementById("user-display");
-const authModal = document.getElementById("auth-modal");
-const closeAuthModalBtn = document.getElementById("close-auth-modal");
-const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
+// --- Event Listeners ---
+loginRegisterButton.addEventListener('click', () => {
+    authModal.classList.add('show');
+    authMessage.textContent = ''; // Clear previous messages
+});
+closeAuthModalBtn.addEventListener('click', () => authModal.classList.remove('show'));
 
+registerButton.addEventListener('click', handleRegister);
+loginButton.addEventListener('click', handleLogin);
+logoutButton.addEventListener('click', handleLogout);
+forgotPasswordButton.addEventListener('click', handleForgotPassword);
 
-// --- DOM elements for Cart/Checkout ---
-const cartIconBtn = document.getElementById("cart-icon-btn");
-const cartCountBadge = document.getElementById("cart-count");
-const cartModal = document.getElementById("cart-modal");
-const closeCartModalBtn = document.getElementById("close-cart-modal");
-const cartItemsContainer = document.getElementById("cart-items-container");
-const cartSubtotalSpan = document.getElementById("cart-subtotal");
-const cartTotalSpan = document.getElementById("cart-total");
-const placeOrderBtn = document.getElementById("place-order-btn");
-const robloxUsernameInput = document.getElementById("roblox-username-input");
+cartIconButton.addEventListener('click', () => {
+    cartModal.classList.add('show');
+    updateCartDisplay();
+});
+closeCartModalBtn.addEventListener('click', () => cartModal.classList.remove('show'));
 
-// --- DOM elements for Order History ---
-const orderHistoryModal = document.getElementById("order-history-modal");
-const closeOrderHistoryModalBtn = document.getElementById("close-order-history-modal");
-const orderHistoryList = document.getElementById("order-history-list");
-const orderHistoryTitle = document.getElementById("order-history-title");
-const orderDetailsView = document.getElementById("order-details-view");
-const detailOrderId = document.getElementById("detail-order-id");
-const detailOrderDate = document.getElementById("detail-order-date");
-const detailOrderStatus = document.getElementById("detail-order-status");
-const detailOrderPrice = document.getElementById("detail-order-price");
-const detailPaymentMethod = document.getElementById("detail-payment-method");
-const detailRobloxUsername = document.getElementById("detail-roblox-username");
-const detailItemsList = document.getElementById("detail-items-list");
-const backToOrderListBtn = document.getElementById("back-to-order-list");
+placeOrderBtn.addEventListener('click', placeOrder);
 
-// --- New DOM elements for Seller Status ---
-const sellerStatusDisplay = document.getElementById("seller-status-display");
+myOrdersButton.addEventListener('click', () => {
+    orderHistoryModal.classList.add('show');
+    displayUserOrders();
+});
+closeOrderHistoryModalBtn.addEventListener('click', () => {
+    orderHistoryModal.classList.remove('show');
+    // Hide details view and show list when closing modal
+    orderDetailsView.style.display = 'none';
+    orderHistoryList.style.display = 'block';
+    document.getElementById('order-history-title').textContent = 'My Orders';
+});
+backToOrderListBtn.addEventListener('click', () => {
+    orderDetailsView.style.display = 'none';
+    orderHistoryList.style.display = 'block';
+    document.getElementById('order-history-title').textContent = 'My Orders';
+});
+
+adminPanelButton.addEventListener('click', () => {
+    adminPanelModal.classList.add('show');
+    // Ensure product management is the default view
+    showAdminTab('products');
+});
+closeAdminPanelModalBtn.addEventListener('click', () => {
+    adminPanelModal.classList.remove('show');
+    adminOrderDetailsView.style.display = 'none'; // Hide order details on close
+});
+
+adminTabs.addEventListener('click', (event) => {
+    if (event.target.classList.contains('admin-tab-btn')) {
+        const tab = event.target.dataset.tab;
+        showAdminTab(tab);
+    }
+});
+
+saveProductBtn.addEventListener('click', handleSaveProduct);
+cancelEditProductBtn.addEventListener('click', () => {
+    resetProductForm();
+    cancelEditProductBtn.style.display = 'none';
+});
+
+// Event listener for product table actions (edit/delete)
+adminProductsList.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.classList.contains('edit')) {
+        const productId = target.closest('tr').dataset.productId;
+        editProduct(productId);
+    } else if (target.classList.contains('delete')) {
+        const productId = target.closest('tr').dataset.productId;
+        showConfirmModal('Are you sure you want to delete this product?', () => deleteProduct(productId));
+    }
+});
+
+// Event listener for order table actions (view)
+adminOrdersList.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.classList.contains('view')) {
+        const orderId = target.closest('tr').dataset.orderId;
+        viewAdminOrderDetails(orderId);
+    }
+    // Prevent default anchor behavior
+    event.preventDefault();
+});
+
+adminBackToOrderListBtn.addEventListener('click', () => {
+    adminOrderDetailsView.style.display = 'none';
+    adminOrderManagement.style.display = 'block';
+});
+
+updateOrderStatusBtn.addEventListener('click', handleUpdateOrderStatus);
+
+// Payment method image update
+document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
+    radio.addEventListener('change', (event) => {
+        const paymentPreviewImg = document.getElementById('payment-preview-img');
+        const selectedMethod = event.target.value;
+        if (selectedMethod === 'GCash') {
+            paymentPreviewImg.src = 'images/gcash.png';
+        } else if (selectedMethod === 'Maya') {
+            paymentPreviewImg.src = 'images/maya.png';
+        } else if (selectedMethod === 'Paypal') {
+            paymentPreviewImg.src = 'images/paypal.png';
+        }
+    });
+});
+
+// Search and Filter functionality
+document.getElementById('searchBox').addEventListener('input', filterProducts);
+document.querySelectorAll('.filters button').forEach(button => {
+    button.addEventListener('click', function() {
+        // Remove active class from all filter buttons
+        document.querySelectorAll('.filters button').forEach(btn => btn.classList.remove('active'));
+        // Add active class to the clicked button
+        this.classList.add('active');
+        filterProducts();
+    });
+});
+
+// Seller status toggle listener
+if (sellerOnlineToggle) {
+    sellerOnlineToggle.addEventListener('change', async function() {
+        const newStatus = this.checked;
+        await updateStoreSettings({ isSellerOnline: newStatus });
+    });
+}
 
 
 // --- Authentication Functions ---
-registerButton.addEventListener("click", () => {
+async function handleRegister() {
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
-    if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
-    createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            authMessage.textContent = `Registered and logged in as: ${userCredential.user.email}`;
-            authMessage.style.color = 'green';
-            console.log("User registered:", userCredential.user.email);
-            authModal.classList.remove('show');
-        })
-        .catch((error) => {
-            if (error.code === 'auth/email-already-in-use') {
-                authMessage.textContent = "Registration failed: This email is already in use. Try logging in.";
-            } else {
-                authMessage.textContent = `Registration failed: ${error.message}`;
-            }
-            authMessage.style.color = 'red';
-            console.error("Registration error:", error);
-        });
-});
+    authMessage.textContent = ''; // Clear previous messages
 
-loginButton.addEventListener("click", () => {
-    const email = authEmailInput.value;
-    const password = authPasswordInput.value;
-    if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
-    signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            authMessage.textContent = `Logged in as: ${userCredential.user.email}`;
-            authMessage.style.color = 'green';
-            console.log("User logged in:", userCredential.user.email);
-            authModal.classList.remove('show');
-        })
-        .catch((error) => {
-            switch (error.code) {
-                case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                case 'auth/invalid-credential':
-                    authMessage.textContent = "Login failed: Invalid email or password.";
-                    break;
-                case 'auth/invalid-email':
-                    authMessage.textContent = "Login failed: The email address is not valid.";
-                    break;
-                case 'auth/user-disabled':
-                    authMessage.textContent = "Login failed: This account has been disabled.";
-                    break;
-                default:
-                    authMessage.textContent = `Login failed: ${error.message}`;
-            }
-            authMessage.style.color = 'red';
-            console.error("Login error:", error);
-        });
-});
+    if (!email || !password) {
+        showCustomAlert('Please enter both email and password.');
+        return;
+    }
 
-logoutButton.addEventListener("click", () => {
-    signOut(auth)
-        .then(() => {
-            authMessage.textContent = "Logged out successfully.";
-            authMessage.style.color = 'green';
-            console.log("User logged out.");
-        })
-        .catch((error) => {
-            authMessage.textContent = `Logout failed: ${error.message}`;
-            authMessage.style.color = 'red';
-            console.error("Logout error:", error);
-        });
-});
-
-loginRegisterButton.addEventListener('click', () => {
-    authModal.classList.add('show');
-    authMessage.textContent = "";
-    authMessage.style.color = 'red';
-    authEmailInput.value = "";
-    authPasswordInput.value = "";
-});
-
-closeAuthModalBtn.addEventListener('click', () => {
-    authModal.classList.remove('show');
-});
-
-authModal.addEventListener('click', (event) => {
-    if (event.target === authModal) {
+    try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        showCustomAlert('Registration successful! You are now logged in.');
         authModal.classList.remove('show');
+    } catch (error) {
+        console.error('Error registering:', error.message);
+        showCustomAlert(`Registration failed: ${error.message}`);
     }
-});
+}
 
-// --- Forgot Password Functionality ---
-forgotPasswordButton.addEventListener('click', () => {
-    const email = authEmailInput.value.trim();
+async function handleLogin() {
+    const email = authEmailInput.value;
+    const password = authPasswordInput.value;
+    authMessage.textContent = ''; // Clear previous messages
+
+    if (!email || !password) {
+        showCustomAlert('Please enter both email and password.');
+        return;
+    }
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        showCustomAlert('Login successful!');
+        authModal.classList.remove('show');
+    } catch (error) {
+        console.error('Error logging in:', error.message);
+        showCustomAlert(`Login failed: ${error.message}`);
+    }
+}
+
+async function handleLogout() {
+    try {
+        await signOut(auth);
+        console.log('User logged out.');
+        // UI will update via onAuthStateChanged listener
+    } catch (error) {
+        console.error('Error logging out:', error.message);
+    }
+}
+
+async function handleForgotPassword() {
+    const email = authEmailInput.value;
     if (!email) {
-        authMessage.textContent = "Please enter your email to reset your password.";
-        authMessage.style.color = 'red';
+        showCustomAlert('Please enter your email to reset password.');
         return;
     }
-
-    sendPasswordResetEmail(auth, email)
-        .then(() => {
-            authMessage.textContent = `Password reset email sent to ${email}. Check your inbox!`;
-            authMessage.style.color = 'green';
-            authEmailInput.value = "";
-            authPasswordInput.value = "";
-        })
-        .catch((error) => {
-            switch (error.code) {
-                case 'auth/invalid-email':
-                    authMessage.textContent = "Password reset failed: The email address is not valid.";
-                    break;
-                case 'auth/user-not-found':
-                    authMessage.textContent = "Password reset failed: No user found with that email address.";
-                    break;
-                default:
-                    authMessage.textContent = `Password reset failed: ${error.message}`;
-            }
-            authMessage.style.color = 'red';
-            console.error("Password reset error:", error);
-        });
-});
-
-// --- Authentication State Observer (Crucial for loading user data) ---
-onAuthStateChanged(auth, async (user) => {
-    // Unsubscribe from any existing listeners that are managed here
-    if (unsubscribeUserOrders) {
-        unsubscribeUserOrders();
-        unsubscribeUserOrders = null;
+    try {
+        await sendPasswordResetEmail(auth, email);
+        showCustomAlert('Password reset email sent! Check your inbox.');
+    } catch (error) {
+        console.error('Error sending password reset email:', error.message);
+        showCustomAlert(`Password reset failed: ${error.message}`);
     }
-    // Product listener is always active, no need to unsubscribe here.
+}
 
-    // Clean up admin panel if currently active
-    if (adminCleanupFunction) {
-        adminCleanupFunction();
-        adminCleanupFunction = null;
+// --- Product Listing and Cart Functions ---
+let allProducts = []; // Cache for all products
+let currentFilters = { category: 'all', searchTerm: '' };
+
+function listenForProducts() {
+    // Unsubscribe from previous listener if it exists
+    if (unsubscribeProductListener) {
+        unsubscribeProductListener();
     }
 
-    if (user) {
-        currentUserId = user.uid; // Set current user ID
-        isAdmin = (currentUserId === ADMIN_UID); // Check if current user is admin
-
-        userDisplay.textContent = `Welcome, ${user.email}`;
-        loginRegisterButton.style.display = "none";
-        logoutButton.style.display = "inline-block";
-        myOrdersButton.style.display = "inline-block";
-
-        if (isAdmin) {
-            adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
-            // Dynamically import and initialize admin module
-            if (!initAdminPanelModule) {
-                try {
-                    // Ensure the path is correct relative to script.js
-                    const adminModule = await import('./admin.js');
-                    initAdminPanelModule = adminModule.initAdminPanel;
-                    adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
-                } catch (error) {
-                    console.error("Error loading admin.js:", error);
-                    // Hide admin button if load fails
-                    adminPanelButton.style.display = "none";
-                }
-            }
-            if (initAdminPanelModule) {
-                // Pass Firestore and Auth instances, plus user info, toggle function, and a GETTER for current seller status
-                initAdminPanelModule(db, auth, currentUserId, isAdmin, toggleSellerStatus, () => sellerIsOnline);
-            }
-        } else {
-            adminPanelButton.style.display = "none";
-        }
-
-        robloxUsernameInput.style.display = "block";
-
-        await loadCartFromFirestore(currentUserId);
-        await syncCartOnLogin(currentUserId);
-
-        unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
-
-    } else {
-        currentUserId = null;
-        isAdmin = false;
-
-        userDisplay.textContent = "";
-        loginRegisterButton.style.display = "inline-block";
-        logoutButton.style.display = "none";
-        myOrdersButton.style.display = "none";
-        adminPanelButton.style.display = "none";
-
-        robloxUsernameInput.style.display = "none";
-
-        cart = loadCartFromLocalStorage();
-        userOrders = [];
-    }
-    authEmailInput.value = "";
-    authPasswordInput.value = "";
-    authMessage.textContent = "";
-    authMessage.style.color = 'red';
-    renderCart();
-    // Products are always rendered via the setupProductsListener called globally.
-});
-
-// --- Firestore Collection Paths ---
-const APP_ID = 'tempest-store-app';
-const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
-const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
-const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
-const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
-const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New: Path for site settings
-
-// --- Product Display (Accessible to all) ---
-function setupProductsListener() {
-    const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
-    return onSnapshot(productsColRef, (snapshot) => {
-        const fetchedProducts = [];
-        snapshot.forEach(doc => {
-            fetchedProducts.push({ id: doc.id, ...doc.data() });
-        });
-        allProducts = fetchedProducts;
-        console.log("Fetched Products from Firestore:", allProducts); // Added for debugging
-        applyFilters(); // Call applyFilters after products are fetched and updated
+    const productsCollectionRef = collection(db, "artifacts", appId, "public", "data", "products");
+    unsubscribeProductListener = onSnapshot(productsCollectionRef, (snapshot) => {
+        allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        filterProducts(); // Re-filter and render products whenever data changes
+        renderAdminProducts(allProducts); // Also update admin panel product list
     }, (error) => {
-        console.error("Error listening to products:", error);
+        console.error("Error fetching products:", error);
     });
 }
 
-// Call setupProductsListener once when the script loads to always show products
-unsubscribeProducts = setupProductsListener();
+function renderProducts(productsToRender) {
+    const productList = document.getElementById('product-list');
+    productList.innerHTML = ''; // Clear existing products
 
-// --- New: Site Settings Listener and Functions ---
-function setupSiteSettingsListener() {
-    // Listen to a specific document (e.g., 'global') in the settings collection
-    const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
-    return onSnapshot(settingsDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
-            updateSellerStatusDisplay();
-            // No need to explicitly call renderSellerStatusToggle here anymore.
-            // When admin panel is opened or tab is switched, admin.js will fetch the current state
-            // using the getter function provided during initAdminPanel.
-        } else {
-            console.log("No 'global' settings document found. Initializing with default status.");
-            // If document doesn't exist, create it with default status
-            setDoc(settingsDocRef, { sellerOnline: false });
-            sellerIsOnline = false;
-            updateSellerStatusDisplay();
-        }
-    }, (error) => {
-        console.error("Error listening to site settings:", error);
-    });
-}
-
-function updateSellerStatusDisplay() {
-    if (sellerIsOnline) {
-        sellerStatusDisplay.textContent = "Seller Status: Online";
-        sellerStatusDisplay.classList.remove("status-offline");
-        sellerStatusDisplay.classList.add("status-online");
-    } else {
-        sellerStatusDisplay.textContent = "Seller Status: Offline";
-        sellerStatusDisplay.classList.remove("status-online");
-        sellerStatusDisplay.classList.add("status-offline");
-    }
-}
-
-async function toggleSellerStatus(isOnline) {
-    try {
-        const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
-        await updateDoc(settingsDocRef, { sellerOnline: isOnline });
-        console.log("Seller status updated to:", isOnline);
-    } catch (e) {
-        console.error("Error updating seller status:", e);
-        alert("Error updating seller status: " + e.message);
-    }
-}
-
-// Call setupSiteSettingsListener once when the script loads
-unsubscribeSiteSettings = setupSiteSettingsListener();
-
-
-// --- Cart Persistence (Customer-side) ---
-async function saveCartToFirestore(userId, cartData) {
-    try {
-        const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
-        await setDoc(userCartRef, { items: JSON.stringify(cartData) });
-        console.log("Cart saved to Firestore for user:", userId);
-    } catch (e) {
-        console.error("Error saving cart to Firestore:", e);
-    }
-}
-
-async function loadCartFromFirestore(userId) {
-    try {
-        const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
-        const docSnap = await getDoc(userCartRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            cart = JSON.parse(data.items || '[]');
-            console.log("Cart loaded from Firestore for user:", userId, cart);
-        } else {
-            cart = [];
-            console.log("No cart found in Firestore for user:", userId);
-        }
-    } catch (e) {
-        console.error("Error loading cart from Firestore:", e);
-        cart = [];
-    }
-}
-
-function saveCartToLocalStorage(cartData) {
-    localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
-}
-
-function loadCartFromLocalStorage() {
-    const storedCart = localStorage.getItem('tempestStoreCart');
-    return storedCart ? JSON.parse(storedCart) : [];
-}
-
-async function syncCartOnLogin(userId) {
-    const localCart = loadCartFromLocalStorage();
-    if (localCart.length > 0) {
-        const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
-        const docSnap = await getDoc(userCartRef);
-        let firestoreCart = [];
-        if (docSnap.exists()) {
-            firestoreCart = JSON.parse(docSnap.data().items || '[]');
-        }
-
-        localCart.forEach(localItem => {
-            const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
-            if (existingItemIndex > -1) {
-                firestoreCart[existingItemIndex].quantity += localItem.quantity;
-            } else {
-                // When syncing, ensure effectivePrice is correctly set based on current product data.
-                const productDetails = allProducts.find(p => p.id === localItem.id);
-                if (productDetails) {
-                    const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                    firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
-                } else {
-                    // Fallback if product not found (e.g., deleted by admin)
-                    firestoreCart.push(localItem);
-                }
-            }
-        });
-        cart = firestoreCart;
-        await saveCartToFirestore(userId, cart);
-        localStorage.removeItem('tempestStoreCart');
-        renderCart();
-    }
-}
-
-// --- Customer Order History (User-side) ---
-function setupUserOrderHistoryListener(userId) {
-    const ordersCollectionRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
-    const q = query(ordersCollectionRef, orderBy("orderDate", "desc"));
-    return onSnapshot(q, (snapshot) => {
-        const fetchedOrders = [];
-        snapshot.forEach(doc => {
-            fetchedOrders.push({ id: doc.id, ...doc.data() });
-        });
-        userOrders = fetchedOrders;
-        renderOrderHistory();
-    }, (error) => {
-        console.error("Error listening to user order history:", error);
-    });
-}
-
-// --- Cart Management Functions ---
-function addToCart(product) {
-    const existingItem = cart.find(item => item.id === product.id);
-    if (existingItem) {
-        existingItem.quantity++;
-    } else {
-        // Ensure effectivePrice is based on product's current sale status/price
-        const productDetails = allProducts.find(p => p.id === product.id);
-        const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-        cart.push({ ...product, quantity: 1, effectivePrice: priceToUse });
-    }
-    saveCart();
-    renderCart();
-    console.log("Cart contents:", cart);
-}
-
-function removeFromCart(productId) {
-    cart = cart.filter(item => item.id !== productId);
-    saveCart();
-    renderCart();
-}
-
-function updateCartQuantity(productId, newQuantity) {
-    const item = cart.find(item => item.id === productId);
-    if (item) {
-        item.quantity = Math.max(1, newQuantity);
-        saveCart();
-        renderCart();
-    }
-}
-
-function saveCart() {
-    if (currentUserId) {
-        saveCartToFirestore(currentUserId, cart);
-    } else {
-        saveCartToLocalStorage(cart);
-    }
-    updateCartCountBadge();
-}
-
-function updateCartCountBadge() {
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    cartCountBadge.textContent = totalItems;
-    cartCountBadge.style.display = totalItems > 0 ? 'inline-block' : 'none';
-
-    const { total } = calculateCartTotals();
-    placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
-
-    // Disable place order button if cart is empty or seller is offline (if logged in)
-    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline;
-
-    // Optional: Add a tooltip or message if disabled due to seller being offline
-    if (!sellerIsOnline && currentUserId) {
-        placeOrderBtn.title = "Cannot place order: Seller is currently offline.";
-    } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
-        placeOrderBtn.title = "Please enter your Roblox Username.";
-    } else if (totalItems === 0) {
-        placeOrderBtn.title = "Your cart is empty.";
-    } else {
-        placeOrderBtn.title = ""; // Clear tooltip
-    }
-}
-
-function renderCart() {
-    cartItemsContainer.innerHTML = '';
-
-    if (cart.length === 0) {
-        cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
-    } else {
-        cart.forEach(item => {
-            // Find the latest product details from allProducts
-            const productDetails = allProducts.find(p => p.id === item.id);
-            let priceToDisplay;
-            if (productDetails) {
-                priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                // Update item's effectivePrice in cart to match latest
-                item.effectivePrice = priceToDisplay;
-            } else {
-                // Fallback if product is no longer found (e.g., deleted by admin)
-                priceToDisplay = item.effectivePrice || item.price;
-            }
-
-            const imageUrl = `images/${item.image}`;
-            const cartItemDiv = document.createElement('div');
-            cartItemDiv.className = 'cart-item';
-            cartItemDiv.innerHTML = `
-                <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
-                <div class="cart-item-details">
-                    <h4>${item.name}</h4>
-                    <div class="cart-item-price">${priceToDisplay}</div>
-                </div>
-                <div class="cart-item-quantity-control">
-                    <button data-id="${item.id}" data-action="decrease">-</button>
-                    <input type="number" value="${item.quantity}" min="1" data-id="${item.id}">
-                    <button data-id="${item.id}" data-action="increase">+</button>
-                </div>
-                <button class="cart-item-remove" data-id="${item.id}">&times;</button>
-            `;
-            cartItemsContainer.appendChild(cartItemDiv);
-        });
-
-        cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const productId = event.target.dataset.id;
-                const action = event.target.dataset.action;
-                const input = event.target.parentElement.querySelector('input');
-                let newQuantity = parseInt(input.value);
-
-                if (action === 'increase') {
-                    newQuantity++;
-                } else if (action === 'decrease') {
-                    newQuantity--;
-                }
-                updateCartQuantity(productId, newQuantity);
-            });
-        });
-
-        cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const productId = event.target.dataset.id;
-                removeFromCart(productId);
-            });
-        });
-    }
-
-    calculateCartTotals();
-    updateCartCountBadge();
-}
-
-function calculateCartTotals() {
-    let subtotal = 0;
-    let totalItemsInCart = 0;
-    cart.forEach(item => {
-        // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
-        // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
-        const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
-        subtotal += priceValue * item.quantity;
-        totalItemsInCart += item.quantity;
-    });
-
-    const total = subtotal;
-
-    cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
-    cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
-
-    return { subtotal, total, totalItemsInCart };
-}
-
-// --- Cart Modal Event Listeners ---
-cartIconBtn.addEventListener('click', () => {
-    cartModal.classList.add('show');
-    renderCart();
-    robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
-    updateCartCountBadge();
-});
-
-closeCartModalBtn.addEventListener('click', () => {
-    cartModal.classList.remove('show');
-});
-
-cartModal.addEventListener('click', (event) => {
-    if (event.target === cartModal) {
-        cartModal.classList.remove('show');
-    }
-});
-
-robloxUsernameInput.addEventListener('input', updateCartCountBadge);
-
-// Handles the process of placing an order.
-placeOrderBtn.addEventListener('click', async () => {
-    if (cart.length === 0) {
-        alert("Your cart is empty. Please add items before placing an order.");
+    if (productsToRender.length === 0) {
+        productList.innerHTML = '<p class="empty-message">No products match your criteria.</p>';
         return;
     }
 
-    if (!sellerIsOnline) {
-        alert("Cannot place order: The seller is currently offline. Please try again later.");
-        return;
-    }
-
-    const robloxUsername = robloxUsernameInput.value.trim();
-
-    placeOrderBtn.disabled = true;
-
-    try {
-        if (!currentUserId) {
-            authModal.classList.add('show');
-            authMessage.textContent = "Please login or register to complete your order.";
-            authEmailInput.value = "";
-            authPasswordInput.value = "";
-            placeOrderBtn.disabled = false;
-            return;
+    productsToRender.forEach(product => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        if (product.stock === 0) {
+            card.classList.add('out-of-stock');
         }
 
-        if (robloxUsername === '') {
-            alert("Please enter your Roblox Username to proceed with the order.");
-            placeOrderBtn.disabled = false;
-            return;
-        }
+        const priceDisplay = product.onSale && product.salePrice !== undefined && product.salePrice < product.price
+            ? `<span style="text-decoration: line-through; color: #888;">₱${product.price.toFixed(2)}</span> <span class="price">₱${product.salePrice.toFixed(2)}</span>`
+            : `<span class="price">₱${product.price.toFixed(2)}</span>`;
 
-        // Recalculate totals right before placing order with latest effective prices
-        const { subtotal, total } = calculateCartTotals();
-        const orderDetails = {
-            userId: currentUserId,
-            // Deep copy cart items to ensure order details are immutable if cart changes later
-            // Items in cart will have updated effectivePrice from renderCart()
-            items: JSON.parse(JSON.stringify(cart)),
-            subtotal: subtotal,
-            total: total,
-            orderDate: new Date().toISOString(),
-            status: 'Pending',
-            paymentMethod: document.querySelector('input[name="payment-method"]:checked').value,
-            robloxUsername: robloxUsername
-        };
+        const stockInfoClass = product.stock > 0 ? 'in-stock' : 'out-of-stock-text';
+        const stockInfoText = product.stock > 0 ? `${product.stock} in stock` : 'Out of Stock';
 
-        console.log("Placing Order:", orderDetails);
-
-        const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
-        const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
-
-        const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
-        // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
-        await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails);
-
-        alert("Successfully Placed Order!");
-        console.log("Order saved to Firestore!");
-
-        cart = [];
-        saveCart();
-        renderCart();
-        cartModal.classList.remove('show');
-        robloxUsernameInput.value = '';
-
-    } catch (e) {
-        console.error("Error placing order to Firestore:", e);
-        alert("There was an error placing your order. Please try again.");
-    } finally {
-        placeOrderBtn.disabled = false;
-    }
-});
-
-// --- Order History Functions (User-side) ---
-myOrdersButton.addEventListener('click', () => {
-    if (!currentUserId) {
-        alert("Please log in to view your order history.");
-        return;
-    }
-    orderHistoryModal.classList.add('show');
-    orderHistoryTitle.textContent = "My Orders";
-    orderHistoryList.style.display = 'block';
-    orderDetailsView.style.display = 'none';
-    renderOrderHistory();
-});
-
-closeOrderHistoryModalBtn.addEventListener('click', () => {
-    orderHistoryModal.classList.remove('show');
-});
-
-orderHistoryModal.addEventListener('click', (event) => {
-    if (event.target === orderHistoryModal) {
-        orderHistoryModal.classList.remove('show');
-    }
-});
-
-backToOrderListBtn.addEventListener('click', () => {
-    orderHistoryList.style.display = 'block';
-    orderDetailsView.style.display = 'none';
-    orderHistoryTitle.textContent = "My Orders";
-    renderOrderHistory();
-});
-
-function renderOrderHistory() {
-    orderHistoryList.innerHTML = '';
-
-    if (userOrders.length === 0) {
-        orderHistoryList.innerHTML = '<p class="empty-message">No orders found.</p>';
-        return;
-    }
-
-    userOrders.forEach(order => {
-        const orderItemDiv = document.createElement('div');
-        orderItemDiv.className = 'order-item';
-        orderItemDiv.innerHTML = `
-            <div class="order-item-info">
-                <strong>Order ID: ${order.id.substring(0, 8)}...</strong>
-                <span>Date: ${new Date(order.orderDate).toLocaleDateString()}</span>
-                <span>Price: ₱${order.total.toFixed(2)}</span>
-            </div>
-            <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span>
-            <button class="view-details-btn" data-order-id="${order.id}">View Details</button>
-        `;
-        orderHistoryList.appendChild(orderItemDiv);
-    });
-
-    orderHistoryList.querySelectorAll('.view-details-btn').forEach(button => {
-        button.addEventListener('click', (event) => {
-            const orderId = event.target.dataset.orderId;
-            const selectedOrder = userOrders.find(order => order.id === orderId);
-            if (selectedOrder) {
-                showOrderDetails(selectedOrder);
-            }
-        });
-    });
-}
-
-function showOrderDetails(order) {
-    orderHistoryTitle.textContent = "Order Details";
-    orderHistoryList.style.display = 'none';
-    orderDetailsView.style.display = 'block';
-
-    detailOrderId.textContent = order.id;
-    detailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
-    detailOrderStatus.textContent = order.status;
-    detailOrderStatus.className = `status-info order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`;
-    detailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
-    detailPaymentMethod.textContent = order.paymentMethod;
-    detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
-
-    detailItemsList.innerHTML = '';
-    if (order.items && order.items.length > 0) {
-        order.items.forEach(item => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'order-detail-item';
-            const imageUrl = `images/${item.image}`;
-            itemDiv.innerHTML = `
-                <span class="order-detail-item-name">${item.name}</span>
-                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
-            `;
-            detailItemsList.appendChild(itemDiv);
-        });
-    } else {
-        detailItemsList.innerHTML = '<p>No items found for this order.</p>';
-    }
-}
-
-// --- Product Display Functions (Main Store Page) ---
-function renderProducts(items) {
-    const list = document.getElementById("product-list");
-    list.innerHTML = "";
-
-    if (items.length === 0) {
-        list.innerHTML = '<p class="empty-message" style="width: 100%;">No products available. Please add some from the Admin Panel!</p>';
-        return;
-    }
-
-    items.forEach(product => {
-        const card = document.createElement("div");
-        card.className = "card";
-        const isOutOfStock = !product.stock || product.stock <= 0;
-        if (isOutOfStock) card.classList.add("out-of-stock");
-
-        const displayPrice = product.sale && product.salePrice ?
-                                        `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
-                                        product.price;
-        const imageUrl = `images/${product.image}`;
         card.innerHTML = `
-            ${product.new ? `<span class="badge">NEW</span>` : ""}
-            ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
-            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
-            <h4>${product.name}</h4>
-            <div class="price">${displayPrice}</div>
-            <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
-                ${isOutOfStock ? 'Out of Stock' : `Stock: ${product.stock}`}
-            </div>
-            <button class="add-to-cart-btn" ${isOutOfStock ? 'disabled' : ''} data-product-id="${product.id}">
-                ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-            </button>
+            ${product.isNew ? '<span class="badge new">NEW</span>' : ''}
+            ${product.onSale ? '<span class="badge sale" style="left:auto; right:15px;">SALE</span>' : ''}
+            <img src="images/${product.image}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/160x160/cccccc/000000?text=No+Image';" />
+            <h3>${product.name}</h3>
+            <p>${priceDisplay}</p>
+            <p class="stock-info ${stockInfoClass}">${stockInfoText}</p>
+            <button class="add-to-cart-btn" data-product-id="${product.id}" ${product.stock === 0 ? 'disabled' : ''}>Add to Cart</button>
         `;
-        list.appendChild(card);
+        productList.appendChild(card);
     });
 
     document.querySelectorAll('.add-to-cart-btn').forEach(button => {
         button.addEventListener('click', (event) => {
             const productId = event.target.dataset.productId;
-            const productToAdd = allProducts.find(p => p.id === productId);
-            if (productToAdd) {
-                addToCart(productToAdd);
-            }
+            addToCart(productId);
         });
     });
 }
 
-function setFilter(category) {
-    currentCategory = category;
+function filterProducts() {
+    const activeCategoryButton = document.querySelector('.filters button.active');
+    const category = activeCategoryButton ? activeCategoryButton.dataset.cat : 'all';
+    const searchTerm = document.getElementById('searchBox').value.toLowerCase();
 
-    document.querySelectorAll(".filters button").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.cat === category);
-    });
+    let filtered = allProducts;
 
-    applyFilters();
-}
-
-function applyFilters() {
-    const searchBox = document.getElementById("searchBox");
-    if (!searchBox) { // Added a check in case searchBox isn't available for some reason
-        console.error("Search box element not found.");
-        return;
+    if (category !== 'all') {
+        filtered = filtered.filter(product => product.category === category);
     }
-    const query = searchBox.value.toLowerCase();
 
-    const filtered = allProducts.filter(product => {
-        const matchesCategory = currentCategory === "all" || product.category === currentCategory;
-        const matchesSearch = product.name.toLowerCase().includes(query);
-        return matchesCategory && matchesSearch;
-    });
-
+    if (searchTerm) {
+        filtered = filtered.filter(product =>
+            product.name.toLowerCase().includes(searchTerm) ||
+            product.category.toLowerCase().includes(searchTerm)
+        );
+    }
     renderProducts(filtered);
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-    updateCartCountBadge();
-    // Initial product rendering is now handled by setupProductsListener
-    // Initial auth state check is handled by onAuthStateChanged
+function getCartItems() {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    return cart;
+}
 
-    // Attach event listeners for filter buttons
-    document.querySelectorAll(".filters button").forEach(button => {
-        button.addEventListener("click", (event) => {
-            const category = event.target.dataset.cat;
-            setFilter(category);
-        });
-    });
+function saveCartItems(cart) {
+    localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartDisplay();
+}
 
-    // Attach event listener for search box
-    const searchBox = document.getElementById("searchBox");
-    if (searchBox) {
-        searchBox.addEventListener("input", applyFilters);
+function addToCart(productId) {
+    const product = allProducts.find(p => p.id === productId);
+    if (!product) {
+        console.error('Product not found:', productId);
+        return;
     }
 
-    // ✅ Payment method preview image change
-    document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
-            const img = document.getElementById('payment-preview-img');
-            // Ensure the image source matches your file names (e.g., "gcash.png", "maya.png", "paypal.png")
-            img.src = `images/${selected}.png`;
+    let cart = getCartItems();
+    const existingItem = cart.find(item => item.id === productId);
+
+    if (existingItem) {
+        // Check if adding more would exceed stock
+        if (existingItem.quantity + 1 > product.stock) {
+            showCustomAlert(`Cannot add more "${product.name}". Only ${product.stock} left in stock.`);
+            return;
+        }
+        existingItem.quantity++;
+    } else {
+        // Check if initial add exceeds stock (should be handled by disabled button, but good to double check)
+        if (product.stock === 0) {
+            showCustomAlert(`"${product.name}" is out of stock and cannot be added to cart.`);
+            return;
+        }
+        cart.push({
+            id: product.id,
+            name: product.name,
+            price: product.onSale && product.salePrice !== undefined && product.salePrice < product.price ? product.salePrice : product.price,
+            quantity: 1,
+            image: product.image,
+            category: product.category // Include category for order processing
+        });
+    }
+    saveCartItems(cart);
+}
+
+function updateCartItemQuantity(productId, newQuantity) {
+    let cart = getCartItems();
+    const product = allProducts.find(p => p.id === productId);
+    const itemIndex = cart.findIndex(item => item.id === productId);
+
+    if (itemIndex > -1 && product) {
+        if (newQuantity <= 0) {
+            // Remove item if quantity is 0 or less
+            cart.splice(itemIndex, 1);
+        } else if (newQuantity > product.stock) {
+            // Prevent increasing quantity beyond stock
+            showCustomAlert(`Cannot set quantity to ${newQuantity} for "${product.name}". Only ${product.stock} left in stock.`);
+            cart[itemIndex].quantity = product.stock; // Set to max available stock
+        } else {
+            cart[itemIndex].quantity = newQuantity;
+        }
+    }
+    saveCartItems(cart);
+}
+
+function removeCartItem(productId) {
+    let cart = getCartItems();
+    cart = cart.filter(item => item.id !== productId);
+    saveCartItems(cart);
+}
+
+function updateCartDisplay() {
+    const cart = getCartItems();
+    cartItemsContainer.innerHTML = ''; // Clear current display
+    let subtotal = 0;
+
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
+        robloxUsernameInput.style.display = 'none'; // Hide Roblox username input if cart is empty
+    } else {
+        robloxUsernameInput.style.display = 'block'; // Show Roblox username input if cart has items
+        cart.forEach(item => {
+            const cartItemDiv = document.createElement('div');
+            cartItemDiv.classList.add('cart-item');
+            const itemTotalPrice = item.price * item.quantity;
+            subtotal += itemTotalPrice;
+
+            cartItemDiv.innerHTML = `
+                <img src="images/${item.image}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/80x80/cccccc/000000?text=No+Image';">
+                <div class="cart-item-details">
+                    <h4>${item.name}</h4>
+                    <p class="cart-item-price">₱${item.price.toFixed(2)}</p>
+                </div>
+                <div class="cart-item-quantity-control">
+                    <button class="decrease-qty" data-product-id="${item.id}">-</button>
+                    <input type="number" value="${item.quantity}" min="1" data-product-id="${item.id}">
+                    <button class="increase-qty" data-product-id="${item.id}">+</button>
+                </div>
+                <button class="cart-item-remove" data-product-id="${item.id}">&times;</button>
+            `;
+            cartItemsContainer.appendChild(cartItemDiv);
+        });
+    }
+
+    // Add event listeners for quantity controls and remove buttons
+    cartItemsContainer.querySelectorAll('.decrease-qty').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.productId;
+            const input = event.target.nextElementSibling;
+            let newQuantity = parseInt(input.value) - 1;
+            updateCartItemQuantity(productId, newQuantity);
         });
     });
-});
+
+    cartItemsContainer.querySelectorAll('.increase-qty').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.productId;
+            const input = event.target.previousElementSibling;
+            let newQuantity = parseInt(input.value) + 1;
+            updateCartItemQuantity(productId, newQuantity);
+        });
+    });
+
+    cartItemsContainer.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('change', (event) => {
+            const productId = event.target.dataset.productId;
+            let newQuantity = parseInt(event.target.value);
+            if (isNaN(newQuantity) || newQuantity < 1) {
+                newQuantity = 1; // Default to 1 if invalid input
+            }
+            updateCartItemQuantity(productId, newQuantity);
+        });
+    });
+
+    cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.productId;
+            removeCartItem(productId);
+        });
+    });
+
+    const total = subtotal; // For now, total is same as subtotal, add taxes/shipping later if needed
+    cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
+    cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
+    cartCountBadge.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    placeOrderBtn.textContent = `Place Order (${cart.reduce((sum, item) => sum + item.quantity, 0)} items) ₱${total.toFixed(2)}`;
+}
+
+// --- Stock Deduction Function ---
+async function deductProductStock(productId, quantityOrdered) {
+    try {
+        const productRef = doc(db, "artifacts", appId, "public", "data", "products", productId);
+        const productSnap = await getDoc(productRef);
+
+        if (productSnap.exists()) {
+            const currentStock = productSnap.data().stock;
+            // This check should ideally be redundant due to the pre-check in placeOrder,
+            // but it acts as a safeguard.
+            if (currentStock >= quantityOrdered) {
+                const newStock = currentStock - quantityOrdered;
+                await updateDoc(productRef, {
+                    stock: newStock
+                });
+                console.log(`Stock for product ${productId} updated to ${newStock}`);
+            } else {
+                console.warn(`Attempted to deduct stock for product ${productId} but insufficient stock. Current: ${currentStock}, Ordered: ${quantityOrdered}`);
+                // This shouldn't happen if the pre-check works, but good to log.
+            }
+        } else {
+            console.error(`Product with ID ${productId} not found for stock deduction.`);
+        }
+    } catch (error) {
+        console.error("Error deducting stock:", error);
+    }
+}
+
+
+// --- Place Order Function ---
+async function placeOrder() {
+    const cartItems = getCartItems();
+    const robloxUsername = robloxUsernameInput.value.trim();
+    const selectedPaymentMethod = document.querySelector('input[name="payment-method"]:checked');
+
+    if (!currentUserId) {
+        showCustomAlert('You must be logged in to place an order.');
+        return;
+    }
+
+    if (cartItems.length === 0) {
+        showCustomAlert('Your cart is empty. Please add items before placing an order.');
+        return;
+    }
+
+    if (robloxUsernameInput.style.display !== 'none' && !robloxUsername) {
+        showCustomAlert('Please enter your Roblox Username.');
+        return;
+    }
+
+    if (!selectedPaymentMethod) {
+        showCustomAlert('Please select a payment method.');
+        return;
+    }
+
+    // --- NEW: Pre-order stock validation ---
+    for (const item of cartItems) {
+        const productInCache = allProducts.find(p => p.id === item.id);
+        if (!productInCache) {
+            showCustomAlert(`Error: Product "${item.name}" not found in our catalog. Please try refreshing.`);
+            return;
+        }
+        if (productInCache.stock === 0) {
+            showCustomAlert(`"${item.name}" is out of stock. Please remove it from your cart or reduce quantity.`);
+            return;
+        }
+        if (productInCache.stock < item.quantity) {
+            showCustomAlert(`Insufficient stock for "${item.name}". Only ${productInCache.stock} available. Please reduce quantity.`);
+            return;
+        }
+    }
+    // --- END NEW: Pre-order stock validation ---
+
+
+    // Show confirmation modal before placing the order
+    showConfirmModal('Are you sure you want to place this order?', async () => {
+        try {
+            // Prepare order data
+            const orderData = {
+                userId: currentUserId,
+                items: cartItems.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    image: item.image,
+                    category: item.category,
+                })),
+                totalPrice: parseFloat(cartTotalSpan.textContent.replace('₱', '')),
+                paymentMethod: selectedPaymentMethod.value,
+                robloxUsername: robloxUsername,
+                status: 'Pending',
+                timestamp: serverTimestamp() // Use server timestamp for consistency
+            };
+
+            // Add order to Firestore
+            await addDoc(collection(db, "artifacts", appId, "users", currentUserId, "orders"), orderData);
+
+            // Deduct stock for each item in the order
+            // This is done AFTER the order is successfully saved to ensure data integrity
+            for (const item of cartItems) {
+                await deductProductStock(item.id, item.quantity);
+            }
+
+            // Clear the cart after successful order
+            saveCartItems([]);
+            robloxUsernameInput.value = ''; // Clear username input
+
+            showCustomAlert('Order placed successfully!');
+            cartModal.classList.remove('show');
+        } catch (error) {
+            console.error('Error placing order:', error);
+            showCustomAlert('Failed to place order. Please try again.');
+        }
+    });
+}
+
+
+// --- Order History Functions (User View) ---
+function listenForUserOrders(uid) {
+    if (unsubscribeOrderListener) {
+        unsubscribeOrderListener();
+    }
+
+    const q = query(
+        collection(db, "artifacts", appId, "users", uid, "orders"),
+        orderBy("timestamp", "desc") // Order by timestamp, newest first
+    );
+
+    unsubscribeOrderListener = onSnapshot(q, (snapshot) => {
+        const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        displayUserOrders(orders); // Re-render orders when data changes
+        renderAdminOrders(orders); // Also update admin panel order list
+    }, (error) => {
+        console.error("Error fetching user orders:", error);
+    });
+}
+
+function displayUserOrders(orders = []) {
+    orderHistoryList.innerHTML = ''; // Clear existing orders
+
+    if (orders.length === 0) {
+        orderHistoryList.innerHTML = '<p class="empty-message">No orders found.</p>';
+        return;
+    }
+
+    orders.forEach(order => {
+        const orderItemDiv = document.createElement('div');
+        orderItemDiv.classList.add('order-item');
+        orderItemDiv.dataset.orderId = order.id;
+
+        const timestampDate = order.timestamp ? new Date(order.timestamp.toDate()) : new Date(); // Convert Firestore Timestamp to Date object
+        const formattedDate = timestampDate.toLocaleString(); // Format as local string
+
+        const statusClass = order.status.toLowerCase().replace(/\s/g, '-');
+
+        orderItemDiv.innerHTML = `
+            <div class="order-item-info">
+                <strong>Order ID: ${order.id.substring(0, 8)}...</strong>
+                <span>Date: ${formattedDate}</span>
+                <span>Total: ₱${order.totalPrice.toFixed(2)}</span>
+                <span class="order-item-status status-${statusClass}">${order.status}</span>
+            </div>
+            <button class="view-details-btn" data-order-id="${order.id}">View Details</button>
+        `;
+        orderHistoryList.appendChild(orderItemDiv);
+    });
+
+    document.querySelectorAll('.view-details-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const orderId = event.target.dataset.orderId;
+            viewOrderDetails(orderId);
+        });
+    });
+}
+
+async function viewOrderDetails(orderId) {
+    try {
+        const orderDocRef = doc(db, "artifacts", appId, "users", currentUserId, "orders", orderId);
+        const orderDocSnap = await getDoc(orderDocRef);
+
+        if (orderDocSnap.exists()) {
+            const order = { id: orderDocSnap.id, ...orderDocSnap.data() };
+            document.getElementById('detail-order-id').textContent = order.id;
+            document.getElementById('detail-order-date').textContent = order.timestamp ? new Date(order.timestamp.toDate()).toLocaleString() : 'N/A';
+            document.getElementById('detail-order-status').textContent = order.status;
+            document.getElementById('detail-order-price').textContent = `₱${order.totalPrice.toFixed(2)}`;
+            document.getElementById('detail-payment-method').textContent = order.paymentMethod;
+            document.getElementById('detail-roblox-username').textContent = order.robloxUsername || 'Not provided';
+
+            const detailItemsList = document.getElementById('detail-items-list');
+            detailItemsList.innerHTML = '';
+            order.items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('order-detail-item');
+                itemDiv.innerHTML = `
+                    <span class="order-detail-item-name">${item.name}</span>
+                    <span class="order-detail-item-qty-price">${item.quantity} x ₱${item.price.toFixed(2)}</span>
+                `;
+                detailItemsList.appendChild(itemDiv);
+            });
+
+            orderHistoryList.style.display = 'none';
+            orderDetailsView.style.display = 'block';
+            document.getElementById('order-history-title').textContent = 'Order Details';
+
+        } else {
+            console.log("No such order!");
+            showCustomAlert("Order details not found.");
+        }
+    } catch (error) {
+        console.error("Error fetching order details:", error);
+        showCustomAlert("Failed to load order details.");
+    }
+}
+
+
+// --- Admin Panel Functions ---
+function showAdminTab(tabName) {
+    // Hide all tab contents
+    adminProductManagement.style.display = 'none';
+    adminOrderManagement.style.display = 'none';
+    adminSiteSettings.style.display = 'none';
+
+    // Remove active class from all buttons
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    // Show the selected tab content and add active class to its button
+    if (tabName === 'products') {
+        adminProductManagement.style.display = 'block';
+        document.querySelector('.admin-tab-btn[data-tab="products"]').classList.add('active');
+    } else if (tabName === 'orders') {
+        adminOrderManagement.style.display = 'block';
+        document.querySelector('.admin-tab-btn[data-tab="orders"]').classList.add('active');
+        // Ensure admin order details view is hidden when switching to order list
+        adminOrderDetailsView.style.display = 'none';
+    } else if (tabName === 'settings') {
+        adminSiteSettings.style.display = 'block';
+        document.querySelector('.admin-tab-btn[data-tab="settings"]').classList.add('active');
+    }
+}
+
+// Product Management
+function resetProductForm() {
+    productIdInput.value = '';
+    productNameInput.value = '';
+    productCategorySelect.value = 'pets';
+    productPriceInput.value = '';
+    productSalePriceInput.value = '';
+    productStockInput.value = '';
+    productImageInput.value = '';
+    productNewCheckbox.checked = false;
+    productSaleCheckbox.checked = false;
+    saveProductBtn.textContent = 'Add Product';
+    productFormTitle.textContent = 'Add New Product';
+    cancelEditProductBtn.style.display = 'none';
+}
+
+async function handleSaveProduct() {
+    const id = productIdInput.value;
+    const name = productNameInput.value.trim();
+    const category = productCategorySelect.value;
+    const price = parseFloat(productPriceInput.value);
+    const salePrice = productSalePriceInput.value ? parseFloat(productSalePriceInput.value) : null;
+    const stock = parseInt(productStockInput.value);
+    const image = productImageInput.value.trim();
+    const isNew = productNewCheckbox.checked;
+    const onSale = productSaleCheckbox.checked;
+
+    if (!name || !category || isNaN(price) || isNaN(stock) || !image) {
+        showCustomAlert('Please fill in all required product fields (Name, Category, Price, Stock, Image).');
+        return;
+    }
+    if (salePrice !== null && isNaN(salePrice)) {
+        showCustomAlert('Please enter a valid number for Sale Price.');
+        return;
+    }
+
+    try {
+        const productData = { name, category, price, stock, image, isNew, onSale };
+        if (salePrice !== null) {
+            productData.salePrice = salePrice;
+        }
+
+        if (id) {
+            // Update existing product
+            await updateDoc(doc(db, "artifacts", appId, "public", "data", "products", id), productData);
+            showCustomAlert('Product updated successfully!');
+        } else {
+            // Add new product
+            await addDoc(collection(db, "artifacts", appId, "public", "data", "products"), productData);
+            showCustomAlert('Product added successfully!');
+        }
+        resetProductForm();
+    } catch (error) {
+        console.error("Error saving product:", error);
+        showCustomAlert('Failed to save product. Please try again.');
+    }
+}
+
+function renderAdminProducts(products) {
+    adminProductsList.innerHTML = '';
+    if (products.length === 0) {
+        adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
+        return;
+    }
+
+    products.forEach(product => {
+        const row = document.createElement('tr');
+        row.dataset.productId = product.id;
+        row.innerHTML = `
+            <td><img src="images/${product.image}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/60x60/cccccc/000000?text=No+Image';"></td>
+            <td>${product.name}</td>
+            <td>${product.category}</td>
+            <td>₱${product.price.toFixed(2)} ${product.onSale && product.salePrice ? ` (Sale: ₱${product.salePrice.toFixed(2)})` : ''}</td>
+            <td>${product.stock}</td>
+            <td>${product.isNew ? 'New' : ''}${product.isNew && product.onSale ? '/' : ''}${product.onSale ? 'Sale' : ''}</td>
+            <td class="admin-product-actions">
+                <button class="edit">Edit</button>
+                <button class="delete">Delete</button>
+            </td>
+        `;
+        adminProductsList.appendChild(row);
+    });
+}
+
+async function editProduct(productId) {
+    try {
+        const productDocRef = doc(db, "artifacts", appId, "public", "data", "products", productId);
+        const productDocSnap = await getDoc(productDocRef);
+
+        if (productDocSnap.exists()) {
+            const product = { id: productDocSnap.id, ...productDocSnap.data() };
+            productIdInput.value = product.id;
+            productNameInput.value = product.name;
+            productCategorySelect.value = product.category;
+            productPriceInput.value = product.price;
+            productSalePriceInput.value = product.salePrice || ''; // Set to empty string if no sale price
+            productStockInput.value = product.stock;
+            productImageInput.value = product.image;
+            productNewCheckbox.checked = product.isNew || false;
+            productSaleCheckbox.checked = product.onSale || false;
+
+            saveProductBtn.textContent = 'Update Product';
+            productFormTitle.textContent = 'Edit Product';
+            cancelEditProductBtn.style.display = 'inline-block';
+        } else {
+            showCustomAlert('Product not found for editing.');
+        }
+    } catch (error) {
+        console.error("Error fetching product for edit:", error);
+        showCustomAlert('Failed to load product for editing.');
+    }
+}
+
+async function deleteProduct(productId) {
+    try {
+        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "products", productId));
+        showCustomAlert('Product deleted successfully!');
+    } catch (error) {
+        console.error("Error deleting product:", error);
+        showCustomAlert('Failed to delete product. Please try again.');
+    }
+}
+
+// Order Management
+function renderAdminOrders(orders) {
+    adminOrdersList.innerHTML = '';
+    if (orders.length === 0) {
+        adminOrdersList.innerHTML = '<tr><td colspan="6" class="empty-message">No orders found.</td></tr>';
+        return;
+    }
+
+    orders.forEach(order => {
+        const row = document.createElement('tr');
+        row.dataset.orderId = order.id;
+
+        const timestampDate = order.timestamp ? new Date(order.timestamp.toDate()) : new Date();
+        const formattedDate = timestampDate.toLocaleString();
+        const statusClass = order.status.toLowerCase().replace(/\s/g, '-');
+
+        row.innerHTML = `
+            <td>${order.id.substring(0, 8)}...</td>
+            <td>${order.userId.substring(0, 8)}...</td>
+            <td>${formattedDate}</td>
+            <td>₱${order.totalPrice.toFixed(2)}</td>
+            <td><span class="order-item-status status-${statusClass}">${order.status}</span></td>
+            <td class="admin-order-actions">
+                <button class="view">View</button>
+            </td>
+        `;
+        adminOrdersList.appendChild(row);
+    });
+}
+
+async function viewAdminOrderDetails(orderId) {
+    try {
+        // Fetch the order from ALL users' orders (as admin)
+        // This is simplified and assumes orderId is unique or you iterate through user collections.
+        // For a robust admin panel, you'd likely fetch all orders into a single array first.
+        // For now, let's try to get it directly from the current user's orders (if admin is also a user)
+        // or a dedicated 'all_orders' collection if you had one.
+        // For this example, we will search through all current users known by the app
+        // This part needs careful consideration for scale.
+        let order = null;
+        const usersRef = collection(db, "artifacts", appId, "users");
+        const userSnapshots = await getDocs(usersRef);
+
+        for (const userDoc of userSnapshots.docs) {
+            const ordersRef = collection(db, "artifacts", appId, "users", userDoc.id, "orders");
+            const orderDocSnap = await getDoc(doc(ordersRef, orderId));
+            if (orderDocSnap.exists()) {
+                order = { id: orderDocSnap.id, ...orderDocSnap.data() };
+                break; // Found the order, exit loop
+            }
+        }
+
+
+        if (order) {
+            document.getElementById('admin-detail-order-id').textContent = order.id;
+            document.getElementById('admin-detail-user-id').textContent = order.userId;
+            document.getElementById('admin-detail-roblox-username').textContent = order.robloxUsername || 'Not provided';
+            document.getElementById('admin-detail-order-date').textContent = order.timestamp ? new Date(order.timestamp.toDate()).toLocaleString() : 'N/A';
+            document.getElementById('admin-detail-order-price').textContent = `₱${order.totalPrice.toFixed(2)}`;
+            document.getElementById('admin-detail-payment-method').textContent = order.paymentMethod;
+            document.getElementById('admin-detail-order-status').textContent = order.status; // Display current status
+            orderStatusSelect.value = order.status; // Set dropdown to current status
+            orderStatusSelect.dataset.currentOrderId = order.id; // Store order ID on select for update
+
+            const adminDetailItemsList = document.getElementById('admin-detail-items-list');
+            adminDetailItemsList.innerHTML = '';
+            order.items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('admin-order-detail-item');
+                itemDiv.innerHTML = `
+                    <span class="admin-order-detail-item-name">${item.name}</span>
+                    <span class="admin-order-detail-item-qty-price">${item.quantity} x ₱${item.price.toFixed(2)}</span>
+                `;
+                adminDetailItemsList.appendChild(itemDiv);
+            });
+
+            adminOrderManagement.style.display = 'none';
+            adminOrderDetailsView.style.display = 'block';
+
+        } else {
+            console.log("No such order found for admin view!");
+            showCustomAlert("Order details not found for admin view.");
+        }
+    } catch (error) {
+        console.error("Error fetching admin order details:", error);
+        showCustomAlert("Failed to load admin order details.");
+    }
+}
+
+async function handleUpdateOrderStatus() {
+    const orderId = orderStatusSelect.dataset.currentOrderId;
+    const newStatus = orderStatusSelect.value;
+
+    if (!orderId) {
+        showCustomAlert('No order selected for status update.');
+        return;
+    }
+
+    try {
+        // Find the user who owns this order to update it
+        let orderOwnerUserId = null;
+        const usersRef = collection(db, "artifacts", appId, "users");
+        const userSnapshots = await getDocs(usersRef);
+
+        for (const userDoc of userSnapshots.docs) {
+            const orderDocRef = doc(db, "artifacts", appId, "users", userDoc.id, "orders", orderId);
+            const orderDocSnap = await getDoc(orderDocRef);
+            if (orderDocSnap.exists()) {
+                orderOwnerUserId = userDoc.id;
+                break;
+            }
+        }
+
+        if (orderOwnerUserId) {
+            const orderDocRef = doc(db, "artifacts", appId, "users", orderOwnerUserId, "orders", orderId);
+            await updateDoc(orderDocRef, {
+                status: newStatus
+            });
+            showCustomAlert(`Order ${orderId.substring(0,8)}... status updated to ${newStatus}!`);
+        } else {
+            showCustomAlert('Could not find the user associated with this order.');
+        }
+
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        showCustomAlert('Failed to update order status. Please try again.');
+    }
+}
+
+
+// --- Store Settings Functions (Admin Only) ---
+async function listenForStoreSettings() {
+    if (unsubscribeStoreSettingsListener) {
+        unsubscribeStoreSettingsListener();
+    }
+
+    const storeSettingsDocRef = doc(db, "artifacts", appId, "public", "data", "storeSettings", "main");
+
+    unsubscribeStoreSettingsListener = onSnapshot(storeSettingsDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const settings = docSnap.data();
+            // Update seller status display on main page
+            if (sellerStatusDisplay) {
+                if (settings.isSellerOnline) {
+                    sellerStatusDisplay.textContent = 'Seller Status: Online';
+                    sellerStatusDisplay.classList.remove('status-offline');
+                    sellerStatusDisplay.classList.add('status-online');
+                } else {
+                    sellerStatusDisplay.textContent = 'Seller Status: Offline';
+                    sellerStatusDisplay.classList.remove('status-online');
+                    sellerStatusDisplay.classList.add('status-offline');
+                }
+            }
+            // Update toggle in admin panel
+            if (sellerOnlineToggle) {
+                sellerOnlineToggle.checked = settings.isSellerOnline;
+                sellerStatusText.textContent = settings.isSellerOnline ? 'Online' : 'Offline';
+            }
+        } else {
+            console.log("No store settings found, initializing default.");
+            // Initialize default settings if not present
+            setDoc(storeSettingsDocRef, { isSellerOnline: false });
+        }
+    }, (error) => {
+        console.error("Error listening to store settings:", error);
+    });
+}
+
+async function updateStoreSettings(settingsData) {
+    try {
+        const storeSettingsDocRef = doc(db, "artifacts", appId, "public", "data", "storeSettings", "main");
+        await setDoc(storeSettingsDocRef, settingsData, { merge: true });
+        console.log("Store settings updated.");
+    } catch (error) {
+        console.error("Error updating store settings:", error);
+        showCustomAlert("Failed to update store settings.");
+    }
+}
+
+
+// --- Custom Modals (Alert and Confirm) ---
+function showCustomAlert(message) {
+    const modalId = 'custom-alert-modal';
+    let modal = document.getElementById(modalId);
+    if (!modal) {
+        // Create modal if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.classList.add('custom-modal');
+        modal.innerHTML = `
+            <div class="custom-modal-content">
+                <button class="custom-modal-close-btn">&times;</button>
+                <p id="custom-alert-message"></p>
+                <div class="custom-modal-buttons">
+                    <button class="custom-modal-ok-btn">OK</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector('.custom-modal-ok-btn').addEventListener('click', () => modal.classList.remove('show'));
+        modal.querySelector('.custom-modal-close-btn').addEventListener('click', () => modal.classList.remove('show'));
+    }
+    modal.querySelector('#custom-alert-message').textContent = message;
+    modal.classList.add('show');
+}
+
+function showConfirmModal(message, onConfirmCallback) {
+    const modalId = 'custom-confirm-modal';
+    let modal = document.getElementById(modalId);
+    if (!modal) {
+        // Create modal if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.classList.add('custom-modal');
+        modal.innerHTML = `
+            <div class="custom-modal-content">
+                <button class="custom-modal-close-btn">&times;</button>
+                <p id="custom-confirm-message"></p>
+                <div class="custom-modal-buttons">
+                    <button class="custom-modal-cancel-btn">Cancel</button>
+                    <button class="custom-modal-confirm-btn">Confirm</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    const confirmBtn = modal.querySelector('.custom-modal-confirm-btn');
+    const cancelBtn = modal.querySelector('.custom-modal-cancel-btn');
+    const closeBtn = modal.querySelector('.custom-modal-close-btn');
+
+    // Clear previous listeners to prevent multiple calls
+    confirmBtn.onclick = null;
+    cancelBtn.onclick = null;
+    closeBtn.onclick = null;
+
+    confirmBtn.onclick = () => {
+        modal.classList.remove('show');
+        onConfirmCallback();
+    };
+    cancelBtn.onclick = () => modal.classList.remove('show');
+    closeBtn.onclick = () => modal.classList.remove('show');
+
+    modal.querySelector('#custom-confirm-message').textContent = message;
+    modal.classList.add('show');
+}
