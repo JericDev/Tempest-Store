@@ -452,9 +452,16 @@ async function saveCartToFirestore(userId, cartData) {
         const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
         await setDoc(userCartRef, { items: JSON.stringify(cartData) });
         console.log("Cart saved to Firestore for user:", userId);
-    } catch (e) {
-        console.error("Error saving cart to Firestore:", e);
-        showMessageBox("Cart Error", "Could not save cart to cloud: " + e.message);
+    }
+    // Added specific catch for Firebase errors
+    catch (e) {
+        if (e.code === 'permission-denied' || e.code === 'unauthenticated') {
+            showMessageBox("Cart Error", "Please log in to save your cart permanently. Your cart will not persist across sessions without logging in.");
+            console.error("Permission denied to save cart:", e);
+        } else {
+            console.error("Error saving cart to Firestore:", e);
+            showMessageBox("Cart Error", "Could not save cart to cloud: " + e.message);
+        }
     }
 }
 
@@ -477,10 +484,17 @@ async function loadCartFromFirestore(userId) {
             console.log("No cart found in Firestore for user:", userId);
         }
         console.log("Cart state after loadCartFromFirestore:", cart); // Debugging line
-    } catch (e) {
-        console.error("Error loading cart from Firestore, or parsing data:", e);
-        showMessageBox("Cart Error", "Could not load cart from cloud: " + e.message + " (Your cart might be reset if data was malformed or permissions are incorrect.)");
-        cart = []; // Ensure cart is always an array on error
+    }
+    // Added specific catch for Firebase errors
+    catch (e) {
+        if (e.code === 'permission-denied' || e.code === 'unauthenticated') {
+            console.warn("Permission denied to load cart. User might not be logged in or rules restrict access.");
+            cart = []; // Ensure cart is empty if not allowed to load
+        } else {
+            console.error("Error loading cart from Firestore, or parsing data:", e);
+            showMessageBox("Cart Error", "Could not load cart from cloud: " + e.message + " (Your cart might be reset if data was malformed or permissions are incorrect.)");
+        }
+        cart = []; // Ensure cart is always an array on error or permission issue
     }
 }
 
@@ -636,7 +650,10 @@ function saveCart() {
     if (currentUserId) {
         saveCartToFirestore(currentUserId, cart);
     } else {
-        saveCartToLocalStorage(cart); // This will attempt to use localStorage, which may fail in Canvas
+        // If no user is logged in, attempt to save to local storage (will fail in Canvas)
+        saveCartToLocalStorage(cart); 
+        // Display a message if not logged in and trying to save cart
+        showMessageBox("Login Required", "Please log in to save your cart permanently. Your cart will not persist across sessions without logging in.");
     }
     updateCartCountBadge();
 }
@@ -651,8 +668,7 @@ function updateCartCountBadge() {
     placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
 
     // Disable place order button if cart is empty or seller is offline (if logged in)
-    // If not logged in, currentUserId is null, so the robloxUsernameInput check is skipped for anonymous users.
-    // However, since anonymous is removed, if currentUserId is null, it means no user is logged in at all.
+    // If not logged in (currentUserId is null), user cannot place order if cart has items.
     placeOrderBtn.disabled = totalItems === 0 || (!currentUserId && totalItems > 0) || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline;
 
     // Optional: Add a tooltip or message if disabled due to seller being offline
