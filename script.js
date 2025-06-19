@@ -248,8 +248,7 @@ onAuthStateChanged(auth, async (user) => {
             }
             if (initAdminPanelModule) {
                 // Pass Firestore and Auth instances, plus user info to admin module
-                // MODIFIED: Pass sellerStatusText to admin module
-                initAdminPanelModule(db, auth, currentUserId, isAdmin, sellerStatusText);
+                initAdminPanelModule(db, auth, currentUserId, isAdmin, sellerStatusText); // Pass sellerStatusText
             }
         } else {
             adminPanelButton.style.display = "none";
@@ -841,4 +840,3 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
-
