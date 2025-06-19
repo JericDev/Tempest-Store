@@ -661,6 +661,7 @@ main#product-list {
 .admin-product-table td img {
     width: 60px; /* Larger image */
     height: 60px;
+    object-fit: contain;
     border-radius: 8px;
 }
 .admin-product-actions button, .admin-order-actions button {
@@ -696,6 +697,7 @@ main#product-list {
 }
 #admin-order-details-items {
     margin-top: 25px;
+    border-top: 1px dashed #eee;
     padding-top: 20px;
 }
 #admin-order-details-items h4 {
@@ -754,6 +756,7 @@ main#product-list {
     }
     #user-display {
         font-size: 1.0em; /* Adjust font size */
+        text-align: center; /* Center user email */
     }
     #logout-button, #my-orders-button, #admin-panel-button, #login-register-button, .cart-icon-container {
         width: 100%; /* Full width for all buttons in header */
@@ -804,7 +807,7 @@ main#product-list {
     .card img {
         width: 100px; /* Smaller images in single column */
         height: 100px;
-        margin-bottom: 10px;
+        margin: 0 auto 10px; /* Center image */
     }
     .badge {
         top: 10px;
