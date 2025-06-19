@@ -736,7 +736,7 @@ function renderProducts(items) {
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
             ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
-            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
+            <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
             <h4>${product.name}</h4>
             <div class="price">${displayPrice}</div>
             <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
@@ -791,6 +791,20 @@ window.addEventListener("DOMContentLoaded", () => {
     updateCartCountBadge();
     // Initial product rendering is now handled by setupProductsListener
     // Initial auth state check is handled by onAuthStateChanged
+
+    // Attach event listeners for filter buttons
+    document.querySelectorAll(".filters button").forEach(button => {
+        button.addEventListener("click", (event) => {
+            const category = event.target.dataset.cat;
+            setFilter(category);
+        });
+    });
+
+    // Attach event listener for search box
+    const searchBox = document.getElementById("searchBox");
+    if (searchBox) {
+        searchBox.addEventListener("input", applyFilters);
+    }
 
     // ✅ Payment method preview image change
     document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
