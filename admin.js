@@ -11,7 +11,7 @@ let authInstance = null; // Auth instance passed from script.js
 let adminUserId = null; // Admin user ID passed from script.js
 let isAdminUser = false; // Is Admin flag passed from script.js
 let toggleSellerStatusCallback = null; // Callback function to update seller status in script.js
-let initialSellerStatus = false; // Initial seller status from script.js
+let getSellerStatusFn = null; // Function to get the current seller status from script.js
 
 // --- DOM elements for Admin Panel ---
 const adminPanelModal = document.getElementById("admin-panel-modal");
@@ -19,7 +19,7 @@ const closeAdminPanelModalBtn = document.getElementById("close-admin-panel-modal
 const adminTabButtons = document.querySelectorAll(".admin-tab-btn");
 const adminProductManagement = document.getElementById("admin-product-management");
 const adminOrderManagement = document.getElementById("admin-order-management");
-const adminSiteSettings = document.getElementById("admin-site-settings"); // New: Site Settings container
+const adminSiteSettings = document.getElementById("admin-site-settings"); // Site Settings container
 
 // Product Form elements
 const productFormTitle = document.getElementById("product-form-title");
@@ -53,7 +53,7 @@ const adminBackToOrderListBtn = document.getElementById("admin-back-to-order-lis
 let currentEditingOrderId = null;
 let currentEditingOrderUserId = null;
 
-// New: Seller Status Toggle elements
+// Seller Status Toggle elements
 const sellerOnlineToggle = document.getElementById("seller-online-toggle");
 const sellerStatusText = document.getElementById("seller-status-text");
 
@@ -62,37 +62,35 @@ const APP_ID = 'tempest-store-app'; // Ensure this matches APP_ID in script.js
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
-const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New: Path for site settings
+const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // Path for site settings
 
 
 // --- Admin Panel Functions ---
-function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStatus) {
+// Modified to accept a function to get seller status
+function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerStatusCurrentFn) {
     dbInstance = db;
     authInstance = auth;
     adminUserId = userId;
     isAdminUser = adminFlag;
     toggleSellerStatusCallback = toggleStatusFn; // Store the callback function
-    initialSellerStatus = initialStatus; // Store the initial status
+    getSellerStatusFn = getSellerStatusCurrentFn; // Store the getter function
 
     // Attach event listener for the admin panel button
-    // This button is controlled by script.js's onAuthStateChanged for visibility
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton) {
-        // Remove existing listener to prevent duplicates on re-init
         if (adminPanelButton._adminListener) {
             adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
         }
         const listener = () => {
             if (!isAdminUser) {
-                alert("You are not authorized to access the Admin Panel.");
+                showCustomAlert("You are not authorized to access the Admin Panel.");
                 return;
             }
             adminPanelModal.classList.add('show');
-            // Default to product management tab when opening
-            showAdminTab('products');
+            showAdminTab('products'); // Default to product management tab when opening
         };
         adminPanelButton.addEventListener('click', listener);
-        adminPanelButton._adminListener = listener; // Store reference to listener for removal
+        adminPanelButton._adminListener = listener;
     }
 
     closeAdminPanelModalBtn.addEventListener('click', () => {
@@ -106,7 +104,6 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStat
     });
 
     adminTabButtons.forEach(button => {
-        // Remove existing listeners to prevent duplicates on re-init
         if (button._tabListener) {
             button.removeEventListener('click', button._tabListener);
         }
@@ -115,7 +112,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStat
             showAdminTab(tab);
         };
         button.addEventListener('click', listener);
-        button._tabListener = listener; // Store reference to listener
+        button._tabListener = listener;
     });
 
     // Remove existing listeners for product form buttons to prevent duplicates
@@ -123,7 +120,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStat
     if (cancelEditProductBtn._cancelListener) cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener);
     if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
     if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
-    if (sellerOnlineToggle._toggleListener) sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener); // New: Remove old toggle listener
+    if (sellerOnlineToggle._toggleListener) sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener);
 
 
     saveProductBtn._saveListener = async () => {
@@ -151,11 +148,11 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStat
         };
 
         if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
-            alert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
+            showCustomAlert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
             return;
         }
         if (isSale && (salePrice === null || isNaN(parseFloat(salePrice.replace('₱', ''))))) {
-            alert("Please enter a valid Sale Price if the product is On Sale.");
+            showCustomAlert("Please enter a valid Sale Price if the product is On Sale.");
             return;
         }
 
@@ -179,7 +176,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStat
 
     updateOrderStatusBtn._updateListener = async () => {
         if (!currentEditingOrderId || !currentEditingOrderUserId) {
-            alert("No order selected or user ID is missing. Cannot update status.");
+            showCustomAlert("No order selected or user ID is missing. Cannot update status.");
             return;
         }
 
@@ -195,29 +192,27 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, initialStat
             await updateDoc(allOrdersRef, { status: newStatus });
             await updateDoc(userOrderRef, { status: newStatus });
 
-            alert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
+            showCustomAlert(`Order ${currentEditingOrderId.substring(0, 8)}... status updated to ${newStatus}.`);
             adminBackToOrderListBtn.click(); // Return to the list view
 
         } catch (e) {
             console.error("Error updating order status in both locations:", e);
-            alert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
+            showCustomAlert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
         }
     };
     updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
 
-    // New: Event listener for the seller online toggle
+    // Event listener for the seller online toggle
     sellerOnlineToggle._toggleListener = (event) => {
         const isChecked = event.target.checked;
         if (toggleSellerStatusCallback) {
             toggleSellerStatusCallback(isChecked);
         }
-        renderSellerStatusToggle(isChecked); // Update UI immediately
+        renderSellerStatusToggle(isChecked); // Keep this for immediate visual feedback
     };
     sellerOnlineToggle.addEventListener('change', sellerOnlineToggle._toggleListener);
 
-
-    // Initialize admin listeners if an admin is already logged in
-    setupAllOrdersListener();
+    setupAllOrdersListener(); // Initialize admin listeners if an admin is already logged in
 }
 
 // Cleanup function for admin panel when user logs out
@@ -226,7 +221,6 @@ function cleanupAdminPanel() {
         unsubscribeAllOrders();
         unsubscribeAllOrders = null;
     }
-    // Remove specific event listeners to prevent memory leaks/duplicate calls
     const adminPanelButton = document.getElementById("admin-panel-button");
     if (adminPanelButton && adminPanelButton._adminListener) {
         adminPanelButton.removeEventListener('click', adminPanelButton._adminListener);
@@ -242,10 +236,9 @@ function cleanupAdminPanel() {
     if (cancelEditProductBtn._cancelListener) { cancelEditProductBtn.removeEventListener('click', cancelEditProductBtn._cancelListener); cancelEditProductBtn._cancelListener = null; }
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
-    if (sellerOnlineToggle._toggleListener) { sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener); sellerOnlineToggle._toggleListener = null; } // New: Cleanup toggle listener
+    if (sellerOnlineToggle._toggleListener) { sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener); sellerOnlineToggle._toggleListener = null; }
 
 
-    // Any other cleanup for admin UI goes here
     adminPanelModal.classList.remove('show'); // Ensure admin modal is closed
 }
 
@@ -254,7 +247,6 @@ function cleanupAdminPanel() {
 async function saveProductToFirestore(productData) {
     try {
         if (productData.id) {
-            // Using a custom modal/dialog for confirmation instead of alert/confirm
             showCustomConfirm("Are you sure you want to save changes to this product?", async () => {
                 const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
                 await updateDoc(productRef, productData);
@@ -277,7 +269,6 @@ async function saveProductToFirestore(productData) {
 
 // Deletes a product from Firestore.
 async function deleteProductFromFirestore(productId) {
-    // Using a custom modal/dialog for confirmation instead of alert/confirm
     showCustomConfirm("Are you sure you want to delete this product?", async () => {
         try {
             const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
@@ -329,7 +320,6 @@ function renderAdminProducts() {
         });
 
         adminProductsList.querySelectorAll('.edit').forEach(button => {
-            // Remove existing listeners to prevent duplicates
             if (button._editListener) button.removeEventListener('click', button._editListener);
             const listener = (e) => {
                 const productId = e.target.dataset.id;
@@ -343,7 +333,6 @@ function renderAdminProducts() {
         });
 
         adminProductsList.querySelectorAll('.delete').forEach(button => {
-            // Remove existing listeners to prevent duplicates
             if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
             const listener = (e) => {
                 const productId = e.target.dataset.id;
@@ -396,7 +385,7 @@ function showAdminTab(tabName) {
 
     adminProductManagement.style.display = 'none';
     adminOrderManagement.style.display = 'none';
-    adminSiteSettings.style.display = 'none'; // New: Hide site settings by default
+    adminSiteSettings.style.display = 'none';
 
     if (tabName === 'products') {
         adminProductManagement.style.display = 'block';
@@ -406,10 +395,16 @@ function showAdminTab(tabName) {
         adminOrderManagement.style.display = 'block';
         adminOrderDetailsView.style.display = 'none';
         renderAdminOrders();
-    } else if (tabName === 'settings') { // New: Handle 'settings' tab
+    } else if (tabName === 'settings') {
         adminSiteSettings.style.display = 'block';
-        // Initialize the toggle state based on the current sellerIsOnline status from script.js
-        renderSellerStatusToggle(initialSellerStatus);
+        // Get the latest seller status from script.js using the passed getter function
+        if (getSellerStatusFn) {
+            const currentSellerStatus = getSellerStatusFn();
+            console.log('Admin Panel: Initializing toggle with sellerIsOnline:', currentSellerStatus); // Debugging line
+            renderSellerStatusToggle(currentSellerStatus);
+        } else {
+            console.error("getSellerStatusFn is not defined in admin.js. Cannot sync seller status toggle.");
+        }
     }
 }
 
@@ -455,7 +450,6 @@ function renderAdminOrders() {
     });
 
     adminOrdersList.querySelectorAll('.view').forEach(button => {
-        // Remove existing listeners to prevent duplicates
         if (button._viewListener) button.removeEventListener('click', button._viewListener);
         const listener = (e) => {
             const orderId = e.target.dataset.id;
@@ -469,10 +463,9 @@ function renderAdminOrders() {
     });
 }
 
-// --- MODIFICATION: This function now also stores the userId of the selected order ---
 function showAdminOrderDetails(order) {
     currentEditingOrderId = order.id;
-    currentEditingOrderUserId = order.userId; // Store the user ID for the update function
+    currentEditingOrderUserId = order.userId;
     adminOrdersList.parentElement.style.display = 'none';
     adminOrderDetailsView.style.display = 'block';
 
@@ -504,7 +497,6 @@ function showAdminOrderDetails(order) {
     }
 }
 
-// New: Function to render the seller status toggle and text
 function renderSellerStatusToggle(isOnline) {
     sellerOnlineToggle.checked = isOnline;
     sellerStatusText.textContent = isOnline ? "Online" : "Offline";
@@ -513,7 +505,6 @@ function renderSellerStatusToggle(isOnline) {
 }
 
 // Custom Alert/Confirm functions to replace native ones
-// (These are basic implementations, you might want to style them further)
 function showCustomAlert(message) {
     const alertModal = document.createElement('div');
     alertModal.className = 'custom-modal';
@@ -531,7 +522,7 @@ function showCustomAlert(message) {
 
     const closeModal = () => {
         alertModal.classList.remove('show');
-        setTimeout(() => alertModal.remove(), 300); // Remove after transition
+        setTimeout(() => alertModal.remove(), 300);
     };
 
     closeBtn.addEventListener('click', closeModal);
@@ -542,7 +533,6 @@ function showCustomAlert(message) {
         }
     });
 
-    // Animate in
     setTimeout(() => alertModal.classList.add('show'), 10);
 }
 
@@ -567,7 +557,7 @@ function showCustomConfirm(message, onConfirm) {
 
     const closeModal = () => {
         confirmModal.classList.remove('show');
-        setTimeout(() => confirmModal.remove(), 300); // Remove after transition
+        setTimeout(() => confirmModal.remove(), 300);
     };
 
     closeBtn.addEventListener('click', closeModal);
@@ -582,10 +572,8 @@ function showCustomConfirm(message, onConfirm) {
         }
     });
 
-    // Animate in
     setTimeout(() => confirmModal.classList.add('show'), 10);
 }
-
 
 // Export the initialization function for script.js to call
 export { initAdminPanel, cleanupAdminPanel };
