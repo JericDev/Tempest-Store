@@ -10,22 +10,23 @@
 <body>
     <header>
         <div class="logo">🌪️ <strong>Tempest Store</strong></div>
-        <!-- Seller Status added here -->
-        <div class="seller-status">Seller Status: <span id="seller-status-text">Online</span></div>
         <div class="auth-section">
             <span id="user-display"></span>
             <button id="login-register-button">Login / Register</button>
             <button id="logout-button" style="display: none;">Logout</button>
             <button id="my-orders-button" style="display: none;">My Orders</button>
             <button id="admin-panel-button" style="display: none;">Admin Panel</button>
-            <!-- Cart Button: SVG icon removed -->
-            <button class="cart-button" id="cart-icon-btn">
-                Cart <span class="cart-count-badge" id="cart-count">0</span>
-            </button>
+            <div class="cart-icon-container" id="cart-icon-btn">
+                🛒 <span class="cart-count-badge" id="cart-count">0</span>
+            </div>
         </div>
     </header>
 
     <div class="contact-center">
+        <!-- New Seller Status Display - Added Here -->
+        <div class="seller-status-container">
+            <span id="seller-status-display" class="status-offline">Seller Status: Offline</span>
+        </div>
         <a href="https://www.facebook.com/jerictt" target="_blank">Facebook</a>
         <a href="https://discord.com/users/938483476670337195" target="_blank">Discord</a>
     </div>
@@ -44,13 +45,15 @@
         </div>
     </div>
 
-        <div class="filters">
+       <div class="filters">
+            <!-- Removed onclick attributes here, listeners will be added in script.js -->
             <button data-cat="all" class="active">All</button>
             <button data-cat="pets">Pets</button>
             <button data-cat="gears">Gears</button>
             <button data-cat="sheckles">Sheckles</button>
+            <!-- Removed oninput attribute here, listener will be added in script.js -->
             <input type="text" id="searchBox" placeholder="Search..." />
-        </div>
+       </div>
 
     <main id="product-list"></main>
 
@@ -70,23 +73,24 @@
             </div>
 
             <div class="payment-methods">
-                <h3>Payment Method</h3>
-                <label class="payment-option">
-                    <input type="radio" name="payment-method" value="GCash" checked>
-                    <img src="https://placehold.co/30x30/007bff/fff?text=G" alt="GCash">
-                    <span>GCash</span>
-                </label>
-                <label class="payment-option">
-                    <input type="radio" name="payment-method" value="Maya">
-                    <img src="https://placehold.co/30x30/00BCD4/fff?text=M" alt="Maya">
-                    <span>Maya</span>
-                </label>
-                <label class="payment-option">
-                    <input type="radio" name="payment-method" value="Paypal">
-                    <img src="https://placehold.co/30x30/003087/fff?text=P" alt="Paypal">
-                    <span>Paypal</span>
-                </label>
-            </div>
+    <h3>Payment Method</h3>
+    <label class="payment-option">
+        <input type="radio" name="payment-method" value="GCash" checked>
+        <img src="images/gcash.png" alt="GCash" style="width: 30px; height: 30px; margin-left: 10px;">
+        <span>GCash</span>
+    </label>
+    <label class="payment-option">
+        <input type="radio" name="payment-method" value="Maya">
+        <img src="images/maya.png" alt="Maya" style="width: 30px; height: 30px; margin-left: 10px;">
+        <span>Maya</span>
+    </label>
+    <label class="payment-option">
+        <input type="radio" name="payment-method" value="Paypal">
+        <img src="images/paypal.png" alt="Paypal" style="width: 30px; height: 30px; margin-left: 10px;">
+        <span>Paypal</span>
+    </label>
+</div>
+
             <!-- Payment Preview Image -->
             <div class="payment-preview" style="text-align: center; margin-top: 10px;">
                     <img
@@ -149,7 +153,8 @@
             <div class="admin-tabs">
                 <button class="admin-tab-btn active" data-tab="products">Product Management</button>
                 <button class="admin-tab-btn" data-tab="orders">Order Management</button>
-                <button class="admin-tab-btn" data-tab="settings">Store Settings</button>
+                <!-- New Admin Tab for Site Settings - Added Here -->
+                <button class="admin-tab-btn" data-tab="settings">Site Settings</button>
             </div>
 
             <div id="admin-product-management" class="admin-tab-content">
@@ -166,6 +171,7 @@
                     </select>
                     <label for="product-price">Price (₱):</label>
                     <input type="number" id="product-price" placeholder="e.g., 100" min="0" required />
+                    <!-- New Sale Price input -->
                     <label for="product-sale-price">Sale Price (₱):</label>
                     <input type="number" id="product-sale-price" placeholder="e.g., 80 (optional)" min="0" />
                     <label for="product-stock">Stock:</label>
@@ -255,15 +261,20 @@
                 </div>
             </div>
 
-            <!-- New Store Settings tab content -->
-            <div id="admin-store-settings" class="admin-tab-content" style="display: none;">
+            <!-- New Admin Tab Content for Site Settings - Added Here -->
+            <div id="admin-site-settings" class="admin-tab-content" style="display: none;">
                 <h3>Store Settings</h3>
                 <div class="settings-group">
-                    <label for="seller-status-toggle">Seller Status:</label>
-                    <span id="admin-seller-status-display">Online</span>
-                    <button id="toggle-seller-status-btn">Toggle Status</button>
+                    <label for="seller-online-toggle">Seller Status:</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="seller-online-toggle">
+                        <label for="seller-online-toggle" class="slider"></label>
+                        <span id="seller-status-text">Offline</span>
+                    </div>
                 </div>
+                <!-- Add other site settings here if needed in the future -->
             </div>
+
         </div>
     </div>
 
