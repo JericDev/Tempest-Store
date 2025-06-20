@@ -453,28 +453,10 @@ main#product-list {
     text-align: left;
 }
 .cart-item-details h4 {
-    margin: 0; /* Adjusted to allow status message below */
+    margin: 0 0 8px 0;
     font-size: 1.2em;
     color: #333;
 }
-
-/* New style for out of stock message below product name */
-.cart-item-out-of-stock-message {
-    color: #dc3545; /* Red for out of stock */
-    font-weight: bold;
-    font-size: 0.9em; /* Smaller font size */
-    margin-top: 5px; /* Space below product name */
-}
-
-/* New style for quantity adjusted message */
-.cart-item-status-message {
-    color: orange; /* Orange for quantity adjusted */
-    font-weight: bold;
-    font-size: 0.9em; /* Smaller font size */
-    margin-top: 5px; /* Space below product name */
-}
-
-
 .cart-item-price {
     font-weight: bold;
     color: #28a745;
@@ -496,19 +478,10 @@ main#product-list {
     padding: 8px;
     font-size: 1.1em;
     border-radius: 8px;
-    border: 1px solid #ccc; /* Ensure border is visible */
 }
 .cart-item-remove {
     font-size: 28px;
     margin-left: 10px;
-    background: none; /* Make background transparent */
-    color: #dc3545; /* Red color for removal icon */
-    box-shadow: none; /* No shadow for icon button */
-}
-.cart-item-remove:hover {
-    background: none;
-    transform: none; /* No transform on hover for icon button */
-    color: #a71d2a;
 }
 .cart-summary {
     padding-top: 20px;
@@ -544,85 +517,14 @@ main#product-list {
     border-radius: 10px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-.payment-option input[type="radio"] {
-    /* Style radio button directly if needed, or rely on default browser style */
-    margin-right: 5px;
-    transform: scale(1.2); /* Slightly larger radio buttons */
-}
-.payment-option label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    flex-grow: 1; /* Allow label to take available space for clickability */
-}
 .payment-option img {
     width: 35px;
     height: 35px;
-    object-fit: contain;
-    border-radius: 5px; /* Slight roundness for payment logos */
 }
 .payment-option span {
     font-weight: 500;
     font-size: 1.1em;
 }
-
-/* New: Styles for Payment Details Area */
-.payment-details-area {
-    background-color: #f9f9f9;
-    padding: 20px;
-    border-radius: 12px;
-    margin-top: 25px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    text-align: center; /* Center QR code and info */
-}
-.payment-details-area .qr-code-img {
-    width: 180px; /* Adjust size as needed */
-    height: 180px; /* Adjust size as needed */
-    object-fit: contain;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-}
-.payment-details-area .account-info p {
-    margin: 8px 0;
-    font-size: 1.05em;
-    color: #444;
-    display: flex; /* Use flex to align text and button */
-    align-items: center;
-    justify-content: center; /* Center horizontally */
-    gap: 10px; /* Space between text and copy button */
-    flex-wrap: wrap; /* Allow wrapping on small screens */
-}
-.payment-details-area .account-info p strong {
-    color: #333;
-    flex-shrink: 0; /* Prevent label from shrinking */
-}
-.payment-details-area .account-info span {
-    background-color: #e9ecef; /* Light background for copyable text */
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-weight: bold;
-    color: #333;
-    flex-grow: 1; /* Allow number/name to grow */
-    text-align: left; /* Keep text left-aligned within its span */
-    max-width: 250px; /* Limit width */
-    overflow-wrap: break-word; /* Break long words */
-}
-.payment-details-area .copy-btn {
-    background-color: #28a745; /* Green copy button */
-    color: white;
-    padding: 6px 12px;
-    font-size: 0.9em;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    flex-shrink: 0; /* Prevent button from shrinking */
-}
-.payment-details-area .copy-btn:hover {
-    background-color: #218838;
-    transform: translateY(-1px);
-}
-
 
 .roblox-username-input {
     width: calc(100% - 24px);
@@ -1419,33 +1321,6 @@ main#product-list {
     .payment-option span {
         font-size: 1em;
     }
-    /* Payment details area for mobile */
-    .payment-details-area {
-        padding: 15px;
-    }
-    .payment-details-area .qr-code-img {
-        width: 150px;
-        height: 150px;
-    }
-    .payment-details-area .account-info p {
-        flex-direction: column; /* Stack label, value, button */
-        align-items: center;
-        gap: 5px;
-        font-size: 0.95em;
-    }
-    .payment-details-area .account-info p strong {
-        width: 100%; /* Make label take full width */
-        text-align: center;
-    }
-    .payment-details-area .account-info span {
-        width: calc(100% - 20px); /* Adjust width */
-        text-align: center;
-    }
-    .payment-details-area .copy-btn {
-        padding: 5px 10px;
-        font-size: 0.8em;
-    }
-
     .roblox-username-input {
         padding: 12px;
         font-size: 15px;
