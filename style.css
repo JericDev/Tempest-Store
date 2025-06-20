@@ -163,6 +163,7 @@ header {
     padding-left: 40px; /* Space for search icon */
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
     background-repeat: no-repeat;
+    background-position: 12px center; /* Centered icon */
     background-size: 22px; /* Larger icon */
 }
 
@@ -244,30 +245,14 @@ main#product-list {
     padding: 0; /* Remove padding from container, let internal spans manage */
     border-radius: 10px;
     display: flex; /* Use flex to align internal spans */
-    align-items: center; /* Vertically center content */
+    align-items: stretch; /* Stretch children to fill height */
     box-shadow: 0 3px 10px rgba(0,0,0,0.4);
     font-size: 14px;
     z-index: 7; /* Highest z-index */
     overflow: hidden; /* Crucial for clipping the angled gradient */
     min-width: 130px; /* Ensure enough width for text and countdown */
     height: 30px; /* Fixed height for consistent look */
-    position: relative; /* Needed for ::after positioning */
 }
-
-/* Angled yellow background for the right side of Flash Sale badge */
-.badge.flash-sale::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 65%; /* Adjust width to control the diagonal cut position */
-    height: 100%;
-    background-color: #facc15; /* Yellow background */
-    transform-origin: bottom left; /* Pivot point for skewing */
-    transform: skewX(-25deg); /* Angle of the diagonal cut */
-    z-index: -1; /* Place behind the content */
-}
-
 
 /* "Flash Sale" text segment on the left */
 .badge.flash-sale .flash-sale-label {
@@ -279,7 +264,7 @@ main#product-list {
     box-sizing: border-box;
 }
 
-/* Countdown segment on the right with lightning bolt */
+/* Countdown segment on the right with angled gradient and lightning bolt */
 .badge.flash-sale .flash-sale-countdown {
     display: flex;
     align-items: center;
@@ -292,21 +277,42 @@ main#product-list {
     min-width: 65px; /* Ensures space for HH:MM:SS */
     border-radius: 0 10px 10px 0; /* Only right corners rounded */
     box-sizing: border-box;
-    background: transparent; /* Now transparent as ::after provides the background */
+
+    /* Angled background gradient matching the image */
+    background: linear-gradient(
+        to bottom left,
+        #facc15 0%, /* Yellow start */
+        #facc15 50%, /* Yellow continues */
+        #ffe4e6 50%, /* Pink start */
+        #ffe4e6 100% /* Pink end */
+    );
+    /* Use mask to create the jagged lightning bolt edge */
+    -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="0,0 70,0 30,100 100,100 0,100"/></svg>');
+    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="0,0 70,0 30,100 100,100 0,100"/></svg>');
+    -webkit-mask-size: cover;
+    mask-size: cover;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: right center;
+    mask-position: right center;
+
     margin-left: auto; /* Pushes this segment to the right */
-    position: relative; /* Needed for z-index to overlay ::after */
-    z-index: 1; /* Ensure it's above the ::after pseudo-element */
 }
 
-/* Lightning bolt emoji within the countdown segment */
+/* Lightning bolt icon within the countdown segment */
 .badge.flash-sale .flash-sale-countdown::before {
-    content: '⚡'; /* The lightning bolt emoji! */
+    content: '';
     display: inline-block;
-    font-size: 1em; /* Adjust size of the emoji */
-    line-height: 1;
-    vertical-align: middle;
-    margin-right: 5px; /* Space between emoji and numbers */
-    color: #333; /* Dark color for the emoji to stand out on yellow */
+    width: 18px; /* Size of the SVG icon */
+    height: 18px;
+    /* SVG for a black lightning bolt fill, matching the image */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333" stroke="none"><path d="M13 2H3l9 12h-9l1 8l10-12h-9l-1-8z"/></svg>');
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+    margin-right: 5px; /* Space between lightning bolt and numbers */
+    vertical-align: middle; /* Align with text */
+    flex-shrink: 0; /* Prevent from shrinking */
 }
 
 
@@ -1003,237 +1009,6 @@ main#product-list {
     text-align: left;
     flex-basis: 100%;
 }
-.back-to-orders-btn {
-    padding: 12px 18px;
-    font-size: 1.1em;
-    margin-top: 25px;
-    border-radius: 10px;
-}
-
-/* Admin Panel Styles */
-#admin-panel-modal .modal-box {
-    max-width: 900px;
-    padding: 25px;
-}
-.admin-tabs {
-    margin-bottom: 25px;
-    padding-bottom: 12px;
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 2px solid #eee;
-}
-.admin-tab-btn {
-    padding: 12px 25px;
-    margin: 5px;
-    font-size: 1.15em;
-    border-radius: 10px 10px 0 0;
-    white-space: nowrap;
-    background-color: #f8f8f8;
-    color: #555;
-    border-bottom: none;
-}
-.admin-tab-btn.active {
-    background-color: white;
-    color: #333;
-    box-shadow: 0 -4px 10px rgba(0,0,0,0.15);
-    border-bottom: none;
-    z-index: 1;
-    position: relative;
-}
-.admin-tab-btn:not(.active):hover {
-    background-color: #e8e8e8;
-}
-
-.admin-tab-content {
-    padding: 25px 0;
-    background-color: white;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-    margin-top: -12px;
-    position: relative;
-    z-index: 0;
-}
-.admin-section h3 {
-    font-size: 2em;
-    margin-bottom: 20px;
-}
-
-/* Product Management Form */
-#product-form-container {
-    padding: 25px;
-    border-radius: 12px;
-    margin-bottom: 35px;
-    border: 1px solid #eee;
-    background-color: #fcfcfc;
-}
-#product-form-container h3 {
-    text-align: center;
-    color: #333;
-    margin-bottom: 25px;
-}
-#product-form-container label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 1.05em;
-    font-weight: bold;
-    color: #444;
-}
-#product-form-container input[type="text"],
-#product-form-container input[type="number"],
-#product-form-container input[type="datetime-local"], /* Added for flash sale end time */
-#product-form-container select {
-    width: calc(100% - 22px);
-    padding: 12px;
-    margin-bottom: 18px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    font-size: 1.05em;
-    background-color: white;
-}
-#product-form-container input[type="checkbox"] {
-    margin-right: 12px;
-    transform: scale(1.3);
-}
-#product-form-container .checkbox-group {
-    display: flex;
-    align-items: center;
-    margin-bottom: 18px;
-}
-#product-form-container button {
-    padding: 14px 22px;
-    font-size: 1.05em;
-    border-radius: 10px;
-    min-width: 130px;
-    margin-right: 12px;
-}
-#save-product-btn { background-color: #007bff; color: white; }
-#save-product-btn:hover { background-color: #0056b3; }
-#cancel-edit-product { background-color: #6c757d; color: white; }
-#cancel-edit-product:hover { background-color: #5a6268; }
-
-/* Product List in Admin Panel */
-.admin-product-table, .admin-order-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin-top: 25px;
-    background-color: white;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.admin-product-table th, .admin-product-table td,
-.admin-order-table th, .admin-order-table td {
-    border-bottom: 1px solid #eee;
-    padding: 12px;
-    text-align: left;
-    vertical-align: middle;
-    font-size: 1em;
-}
-.admin-product-table th:first-child, .admin-order-table th:first-child { border-top-left-radius: 12px; }
-.admin-product-table th:last-child, .admin-order-table th:last-child { border-top-right-radius: 12px; }
-.admin-product-table tr:last-child td, .admin-order-table tr:last-child td { border-bottom: none; }
-
-
-.admin-product-table th, .admin-order-table th {
-    background-color: #f0f0f0;
-    font-weight: bold;
-    color: #333;
-}
-.admin-product-table td img {
-    width: 60px;
-    height: 60px;
-    object-fit: contain;
-    border-radius: 8px;
-}
-.admin-product-actions, .admin-order-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: flex-end;
-}
-.admin-product-actions button, .admin-order-actions button {
-    padding: 8px 12px;
-    font-size: 0.95em;
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-}
-.admin-product-actions button.edit, .admin-order-actions button.view {
-    background-color: #28a745;
-    color: white;
-}
-.admin-product-actions button.edit:hover, .admin-order-actions button.view:hover {
-    background-color: #218838;
-}
-.admin-product-actions button.delete {
-    background-color: #dc3545;
-    color: white;
-}
-.admin-product-actions button.delete:hover {
-    background-color: #a71d2a;
-}
-
-/* Admin Order Details View */
-#admin-order-details-view {
-    display: none;
-    padding: 25px;
-    border-top: 1px solid #eee;
-    background-color: #fcfcfc;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    margin-top: 25px;
-}
-#admin-order-details-view h3 {
-    margin-top: 0;
-    color: #333;
-    font-size: 1.8em;
-    margin-bottom: 20px;
-    text-align: center;
-}
-#admin-order-details-info p {
-    margin: 10px 0;
-    color: #555;
-    font-size: 1.05em;
-}
-#admin-order-details-info strong {
-    color: #333;
-    margin-right: 5px;
-}
-#admin-order-details-items {
-    margin-top: 25px;
-    border-top: 1px dashed #eee;
-    padding-top: 20px;
-}
-#admin-order-details-items h4 {
-    margin-top: 0;
-    margin-bottom: 12px;
-    color: #333;
-    font-size: 1.4em;
-}
-.admin-order-detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px dotted #eee;
-    flex-wrap: wrap;
-}
-.admin-order-detail-item:last-child {
-    border-bottom: none;
-}
-.admin-order-detail-item-name {
-    font-weight: bold;
-    color: #444;
-    flex-basis: 100%;
-    margin-bottom: 5px;
-    font-size: 1.05em;
-}
-.admin-order-detail-item-qty-price {
-    font-size: 0.95em;
-    color: #666;
-    text-align: left;
-    flex-basis: 100%;
-}
 .order-status-update-section {
     display: flex;
     flex-direction: column;
@@ -1577,9 +1352,6 @@ main#product-list {
     .badge.flash-sale { /* Specific mobile adjustments */
         height: 25px; /* Adjust height */
         min-width: 110px;
-    }
-    .badge.flash-sale::after {
-        width: 60%; /* Adjust width for mobile */
     }
     .badge.flash-sale .flash-sale-label {
         padding: 0 8px;
@@ -1970,9 +1742,6 @@ main#product-list {
         height: 28px; /* Adjust height */
         min-width: 120px;
     }
-    .badge.flash-sale::after {
-        width: 65%; /* Consistent width for medium */
-    }
     .badge.flash-sale .flash-sale-label {
         padding: 0 9px;
     }
@@ -2095,9 +1864,6 @@ main#product-list {
     .badge.flash-sale { /* Specific tablet adjustments */
         height: 30px; /* Consistent height */
         min-width: 130px;
-    }
-    .badge.flash-sale::after {
-        width: 65%; /* Consistent width for medium */
     }
     .badge.flash-sale .flash-sale-label {
         padding: 0 10px;
