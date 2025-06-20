@@ -466,7 +466,8 @@ async function loadCartFromFirestore(userId) {
             cart = [];
             console.log("No cart found in Firestore for user:", userId);
         }
-    } catch (e) {
+    }
+    catch (e) {
         console.error("Error loading cart from Firestore:", e);
         cart = [];
     }
@@ -786,6 +787,7 @@ robloxUsernameInput.addEventListener('input', updateCartCountBadge);
 
 // NEW: Event listener for the Copy button
 copyContactNumberBtn.addEventListener('click', () => {
+    console.log("Copy button clicked."); // Debugging: Check if this logs for admin
     const contactNumber = paymentContactNumberSpan.textContent;
     const tempInput = document.createElement('textarea'); // Use textarea for multi-line support / better copy behavior
     tempInput.value = contactNumber;
