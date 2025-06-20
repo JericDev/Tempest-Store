@@ -513,7 +513,8 @@ async function syncCartOnLogin(userId) {
                 }
             }
         });
-        cart = firestoreCart.filter(item => item.quantity > 0); // Filter out items with 0 quantity
+        // Now, we do NOT filter out items with 0 quantity here, allowing them to remain in the cart for visual display.
+        cart = firestoreCart; 
         await saveCartToFirestore(userId, cart);
         localStorage.removeItem('tempestStoreCart');
         renderCart();
@@ -578,14 +579,11 @@ function updateCartQuantity(productId, newQuantity) {
         const currentStock = productDetails ? productDetails.stock : 0;
 
         if (newQuantity <= 0) {
-            // If new quantity is 0 or less, don't remove, just set to 0 and disable.
-            // This is the main change from previous logic.
+            // Set quantity to 0 and visually mark as out of stock/disabled
             cart[itemIndex].quantity = 0;
-            // No alert here, renderCart will show status
         } else if (newQuantity > currentStock) {
             cart[itemIndex].quantity = currentStock; // Cap quantity at available stock
-            if (currentStock === 0) {
-                // Should already be handled by newQuantity <= 0, but as a safeguard
+            if (currentStock === 0) { // Should be covered by newQuantity <= 0, but as safeguard
                 cart[itemIndex].quantity = 0;
             } else {
                 showCustomAlert(`Cannot set quantity for ${cart[itemIndex].name} to ${newQuantity}. Only ${currentStock} available. Quantity adjusted.`);
@@ -608,7 +606,8 @@ function saveCart() {
 }
 
 function updateCartCountBadge() {
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    // Only count items with quantity > 0 for the badge
+    const totalItems = cart.reduce((sum, item) => sum + (item.quantity > 0 ? item.quantity : 0), 0);
     cartCountBadge.textContent = totalItems;
     cartCountBadge.style.display = totalItems > 0 ? 'inline-block' : 'none';
 
@@ -617,7 +616,6 @@ function updateCartCountBadge() {
 
     // Disable place order button if cart is empty,
     // Roblox username not entered (if logged in), or if there are items with zero quantity.
-    // Removed the check for !sellerIsOnline
     placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || itemsWithZeroQuantity > 0;
 
     // Optional: Add a tooltip or message if disabled due to seller being offline
@@ -638,7 +636,7 @@ function renderCart() {
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
     } else {
-        const updatedCart = []; // Create a new array to build the cart items
+        const itemsToRender = []; // Use this to collect items before filtering
         cart.forEach(item => {
             const productDetails = allProducts.find(p => p.id === item.id);
             let priceToDisplay;
@@ -651,10 +649,10 @@ function renderCart() {
                 if (currentStock === 0) { // If product is truly out of stock
                     item.quantity = 0; // Force quantity to 0
                     isItemOutOfStock = true;
-                    itemStatusMessage = '<span style="color:red; font-weight:bold;">Out of Stock!</span>';
+                    itemStatusMessage = '<div class="cart-item-out-of-stock-message">Out of Stock!</div>'; // New div for message
                 } else if (item.quantity > currentStock) { // If user has more than available stock
                     item.quantity = currentStock; // Cap quantity at available stock
-                    itemStatusMessage = `<span style="color:orange;">Qty adjusted (Max: ${currentStock})</span>`;
+                    itemStatusMessage = `<div class="cart-item-status-message">Qty adjusted (Max: ${currentStock})</div>`; // New div for message
                 }
                 priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
                 item.effectivePrice = priceToDisplay; // Update item's effectivePrice in cart to match latest
@@ -662,13 +660,12 @@ function renderCart() {
                 // Product no longer exists (deleted by admin or sync issue)
                 item.quantity = 0; // Set quantity to 0
                 isItemOutOfStock = true;
-                itemStatusMessage = '<span style="color:red; font-weight:bold;">Product Not Found / Out of Stock!</span>';
+                itemStatusMessage = '<div class="cart-item-out-of-stock-message">Product Not Found / Out of Stock!</div>'; // New div for message
                 priceToDisplay = item.effectivePrice || item.price || '₱0.00'; // Fallback price
             }
 
-            // Only add item to updatedCart if it's not meant to be visually removed (quantity > 0 OR it's out of stock but we keep it)
-            // We want to KEEP out-of-stock items with quantity 0 visible in the cart as requested.
-            updatedCart.push(item);
+            // Always add the item to itemsToRender, regardless of its quantity, to keep it in the cart visually
+            itemsToRender.push(item);
 
             const imageUrl = `images/${item.image}`;
             const cartItemDiv = document.createElement('div');
@@ -679,7 +676,8 @@ function renderCart() {
             cartItemDiv.innerHTML = `
                 <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
                 <div class="cart-item-details">
-                    <h4>${item.name} ${itemStatusMessage}</h4>
+                    <h4>${item.name}</h4>
+                    ${itemStatusMessage} <!-- Display the status message here -->
                     <div class="cart-item-price">${priceToDisplay}</div>
                 </div>
                 <div class="cart-item-quantity-control">
@@ -692,11 +690,10 @@ function renderCart() {
             cartItemsContainer.appendChild(cartItemDiv);
         });
 
-        // Now, update the global cart with the visually adjusted items (including those with quantity 0)
-        cart = updatedCart;
-        saveCart(); // This call will persist the quantity adjustments
-        // The filter in saveCart() will not be used to *remove* quantity 0 items for render,
-        // but rather to accurately calculate total quantity for badge/order.
+        // Update the global cart with the (potentially adjusted) items. This now explicitly includes
+        // items with quantity 0, as per your request to keep them visually in the cart.
+        cart = itemsToRender; 
+        saveCart(); // This will persist the quantity adjustments in Firestore/Local Storage
 
         cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
             button.addEventListener('click', (event) => {
@@ -743,14 +740,14 @@ function calculateCartTotals() {
     let itemsWithZeroQuantity = 0; // New: Counter for items forced to 0 quantity
 
     cart.forEach(item => {
-        // Here, we check if quantity is > 0 for calculating totals,
-        // but out-of-stock items with quantity 0 will still be in the cart array.
+        // Only count items with quantity > 0 for calculating totals and for the totalItemsInCart count
         if (item.quantity > 0) { 
             const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
             subtotal += priceValue * item.quantity;
             totalItemsInCart += item.quantity;
         } else {
-            itemsWithZeroQuantity++; // Count items that are forced to 0 quantity
+            // Count items that are in the cart array but have a quantity of 0
+            itemsWithZeroQuantity++; 
         }
     });
 
@@ -794,14 +791,6 @@ placeOrderBtn.addEventListener('click', async () => {
         showCustomAlert("Cannot place order: Some items in your cart are out of stock or quantities were adjusted. Please review your cart.");
         return;
     }
-
-    // Removed the sellerIsOnline check
-    /*
-    if (!sellerIsOnline) {
-        showCustomAlert("Cannot place order: The seller is currently offline. Please try again later.");
-        return;
-    }
-    */
 
     const robloxUsername = robloxUsernameInput.value.trim();
 
