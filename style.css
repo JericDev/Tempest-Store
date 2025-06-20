@@ -245,14 +245,30 @@ main#product-list {
     padding: 0; /* Remove padding from container, let internal spans manage */
     border-radius: 10px;
     display: flex; /* Use flex to align internal spans */
-    align-items: stretch; /* Stretch children to fill height */
+    align-items: center; /* Vertically center content */
     box-shadow: 0 3px 10px rgba(0,0,0,0.4);
     font-size: 14px;
     z-index: 7; /* Highest z-index */
     overflow: hidden; /* Crucial for clipping the angled gradient */
     min-width: 130px; /* Ensure enough width for text and countdown */
     height: 30px; /* Fixed height for consistent look */
+    position: relative; /* Needed for ::after positioning */
 }
+
+/* Angled yellow background for the right side of Flash Sale badge */
+.badge.flash-sale::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 65%; /* Adjust width to control the diagonal cut position */
+    height: 100%;
+    background-color: #facc15; /* Yellow background */
+    transform-origin: bottom left; /* Pivot point for skewing */
+    transform: skewX(-25deg); /* Angle of the diagonal cut */
+    z-index: -1; /* Place behind the content */
+}
+
 
 /* "Flash Sale" text segment on the left */
 .badge.flash-sale .flash-sale-label {
@@ -264,7 +280,7 @@ main#product-list {
     box-sizing: border-box;
 }
 
-/* Countdown segment on the right with angled gradient and lightning bolt */
+/* Countdown segment on the right with lightning bolt */
 .badge.flash-sale .flash-sale-countdown {
     display: flex;
     align-items: center;
@@ -277,26 +293,10 @@ main#product-list {
     min-width: 65px; /* Ensures space for HH:MM:SS */
     border-radius: 0 10px 10px 0; /* Only right corners rounded */
     box-sizing: border-box;
-
-    /* Angled background gradient matching the image */
-    background: linear-gradient(
-        to bottom left,
-        #facc15 0%, /* Yellow start */
-        #facc15 50%, /* Yellow continues */
-        #ffe4e6 50%, /* Pink start */
-        #ffe4e6 100% /* Pink end */
-    );
-    /* Use mask to create the jagged lightning bolt edge */
-    -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="0,0 70,0 30,100 100,100 0,100"/></svg>');
-    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="0,0 70,0 30,100 100,100 0,100"/></svg>');
-    -webkit-mask-size: cover;
-    mask-size: cover;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: right center;
-    mask-position: right center;
-
+    background: transparent; /* Now transparent as ::after provides the background */
     margin-left: auto; /* Pushes this segment to the right */
+    position: relative; /* Needed for z-index to overlay ::after */
+    z-index: 1; /* Ensure it's above the ::after pseudo-element */
 }
 
 /* Lightning bolt icon within the countdown segment */
@@ -1353,6 +1353,9 @@ main#product-list {
         height: 25px; /* Adjust height */
         min-width: 110px;
     }
+    .badge.flash-sale::after {
+        width: 60%; /* Adjust width for mobile */
+    }
     .badge.flash-sale .flash-sale-label {
         padding: 0 8px;
     }
@@ -1742,6 +1745,9 @@ main#product-list {
         height: 28px; /* Adjust height */
         min-width: 120px;
     }
+    .badge.flash-sale::after {
+        width: 65%; /* Consistent width for medium */
+    }
     .badge.flash-sale .flash-sale-label {
         padding: 0 9px;
     }
@@ -1864,6 +1870,9 @@ main#product-list {
     .badge.flash-sale { /* Specific tablet adjustments */
         height: 30px; /* Consistent height */
         min-width: 130px;
+    }
+    .badge.flash-sale::after {
+        width: 65%; /* Consistent width for medium */
     }
     .badge.flash-sale .flash-sale-label {
         padding: 0 10px;
