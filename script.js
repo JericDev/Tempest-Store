@@ -38,6 +38,7 @@ let currentCategory = 'all'; // Initialize with 'all' category
 let unsubscribeUserOrders = null;
 let unsubscribeProducts = null;
 let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listener
+let flashSaleTimers = {}; // Object to store setInterval IDs for flash sale countdowns
 
 // Reference to the admin panel initialization function from admin.js
 let initAdminPanelModule = null;
@@ -303,6 +304,8 @@ onAuthStateChanged(auth, async (user) => {
         adminCleanupFunction();
         adminCleanupFunction = null;
     }
+    // Clear all existing flash sale timers when auth state changes (e.g., logout)
+    stopAllFlashSaleTimers();
 
     if (user) {
         currentUserId = user.uid; // Set current user ID
@@ -403,7 +406,6 @@ function setupSiteSettingsListener() {
             const data = docSnap.data();
             sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
             updateSellerStatusDisplay();
-            // Removed updateCartCountBadge() call from here as it's not needed for seller status
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
@@ -494,33 +496,36 @@ async function syncCartOnLogin(userId) {
 
         localCart.forEach(localItem => {
             const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
+            const productDetails = allProducts.find(p => p.id === localItem.id);
+            
+            // Determine the current effective price for the product from allProducts
+            let currentEffectivePrice = productDetails ? (
+                productDetails.flashSale && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > new Date()
+                ? productDetails.flashSalePrice :
+                (productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price)
+            ) : localItem.effectivePrice || localItem.price; // Fallback to item's price if productDetails not found
+
             if (existingItemIndex > -1) {
                 // Merge quantity if item exists, ensuring it doesn't exceed current stock
-                const productDetails = allProducts.find(p => p.id === localItem.id);
                 if (productDetails) {
                     const combinedQuantity = firestoreCart[existingItemIndex].quantity + localItem.quantity;
                     firestoreCart[existingItemIndex].quantity = Math.min(combinedQuantity, productDetails.stock || 0);
-                    // Update effectivePrice in case product details changed
-                    const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                    firestoreCart[existingItemIndex].effectivePrice = priceToUse;
+                    firestoreCart[existingItemIndex].effectivePrice = currentEffectivePrice;
                 } else {
-                    // If product no longer exists, remove it or set quantity to 0
-                    firestoreCart[existingItemIndex].quantity = 0; // Effectively remove from consideration
+                    // If product no longer exists, set quantity to 0
+                    firestoreCart[existingItemIndex].quantity = 0;
                 }
             } else {
                 // Add new item, checking stock
-                const productDetails = allProducts.find(p => p.id === localItem.id);
                 if (productDetails && productDetails.stock > 0) {
-                    const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                    firestoreCart.push({ ...localItem, quantity: Math.min(localItem.quantity, productDetails.stock), effectivePrice: priceToUse });
+                    firestoreCart.push({ ...localItem, quantity: Math.min(localItem.quantity, productDetails.stock), effectivePrice: currentEffectivePrice });
                 } else {
-                    // If product not found or out of stock, do not add from local storage
                     console.warn(`Product ${localItem.name} not found or out of stock during sync, not adding from local storage.`);
                 }
             }
         });
         // Now, we do NOT filter out items with 0 quantity here, allowing them to remain in the cart for visual display.
-        cart = firestoreCart;  
+        cart = firestoreCart;
         await saveCartToFirestore(userId, cart);
         localStorage.removeItem('tempestStoreCart');
         renderCart();
@@ -552,18 +557,30 @@ function addToCart(product) {
     }
 
     const existingItem = cart.find(item => item.id === product.id);
+
+    // Determine the effective price at the time of adding to cart
+    let effectivePrice;
+    const now = new Date();
+    if (productDetails.flashSale && productDetails.flashSalePrice && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > now) {
+        effectivePrice = productDetails.flashSalePrice;
+    } else if (productDetails.sale && productDetails.salePrice) {
+        effectivePrice = productDetails.salePrice;
+    } else {
+        effectivePrice = productDetails.price;
+    }
+
+
     if (existingItem) {
         if (existingItem.quantity < productDetails.stock) {
             existingItem.quantity++;
+            existingItem.effectivePrice = effectivePrice; // Update effective price in cart item
             showCustomAlert(`Added another ${product.name} to cart. Total: ${existingItem.quantity}`);
         } else {
             showCustomAlert(`Cannot add more ${product.name}. Max stock reached: ${productDetails.stock}.`);
             return; // Don't save/render if no change
         }
     } else {
-        // Ensure effectivePrice is based on product's current sale status/price
-        const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-        cart.push({ ...product, quantity: 1, effectivePrice: priceToUse });
+        cart.push({ ...product, quantity: 1, effectivePrice: effectivePrice }); // Use effectivePrice
         showCustomAlert(`Added ${product.name} to cart.`);
     }
     saveCart();
@@ -617,7 +634,7 @@ function updateCartCountBadge() {
     const totalDistinctItemsInCart = cart.length;
 
     // Get the actual countable items for the place order button and total.
-    const { total, itemsWithZeroQuantity, totalItemsInCart } = calculateCartTotals(); 
+    const { total, itemsWithZeroQuantity, totalItemsInCart } = calculateCartTotals();
 
     cartCountBadge.textContent = totalDistinctItemsInCart;
     cartCountBadge.style.display = totalDistinctItemsInCart > 0 ? 'inline-block' : 'none';
@@ -665,7 +682,16 @@ function renderCart() {
                     item.quantity = currentStock; // Cap quantity at available stock
                     itemStatusMessage = `<div class="cart-item-status-message">Qty adjusted (Max: ${currentStock})</div>`; // New div for message
                 }
-                priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+
+                // Determine the effective price based on current flash sale status
+                const now = new Date();
+                if (productDetails.flashSale && productDetails.flashSalePrice && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > now) {
+                    priceToDisplay = productDetails.flashSalePrice;
+                } else if (productDetails.sale && productDetails.salePrice) {
+                    priceToDisplay = productDetails.salePrice;
+                } else {
+                    priceToDisplay = productDetails.price;
+                }
                 item.effectivePrice = priceToDisplay; // Update item's effectivePrice in cart to match latest
             } else {
                 // Product no longer exists (deleted by admin or sync issue)
@@ -696,14 +722,14 @@ function renderCart() {
                     <input type="number" value="${item.quantity}" min="0" data-id="${item.id}" ${isItemOutOfStock ? 'readonly' : ''}>
                     <button data-id="${item.id}" data-action="increase" ${isItemOutOfStock || item.quantity >= currentStock ? 'disabled' : ''}>+</button>
                 </div>
-                <button class="cart-item-remove" data-id="${item.id}">&times;
+                <button class="cart-item-remove" data-id="${item.id}">&times;</button>
             `;
             cartItemsContainer.appendChild(cartItemDiv);
         });
 
         // Update the global cart with the (potentially adjusted) items. This now explicitly includes
         // items with quantity 0, as per your request to keep them visually in the cart.
-        cart = itemsToRender;  
+        cart = itemsToRender;
         saveCart(); // This will persist the quantity adjustments in Firestore/Local Storage
 
         cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
@@ -752,13 +778,14 @@ function calculateCartTotals() {
 
     cart.forEach(item => {
         // Only count items with quantity > 0 for calculating totals and for the totalItemsInCart count
-        if (item.quantity > 0) {  
+        if (item.quantity > 0) {
+            // Use item.effectivePrice, which is updated in renderCart to reflect current sale status
             const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
             subtotal += priceValue * item.quantity;
             totalItemsInCart += item.quantity;
         } else {
             // Count items that are in the cart array but have a quantity of 0
-            itemsWithZeroQuantity++;  
+            itemsWithZeroQuantity++;
         }
     });
 
@@ -849,7 +876,7 @@ placeOrderBtn.addEventListener('click', async () => {
     for (const item of cart) {
         // Skip stock verification for items that are already 0 quantity in cart
         if (item.quantity === 0) {
-            continue;  
+            continue;
         }
 
         const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
@@ -887,7 +914,7 @@ placeOrderBtn.addEventListener('click', async () => {
                 const productDataForUpdate = productSnapshots.get(item.id); // Retrieve the stored product data
                 if (productDataForUpdate) { // Defensive check
                     batch.update(productRef, {
-                        stock: productDataForUpdate.stock - item.quantity  
+                        stock: productDataForUpdate.stock - item.quantity
                     });
                 }
             }
@@ -899,7 +926,7 @@ placeOrderBtn.addEventListener('click', async () => {
             userId: currentUserId,
             // Deep copy cart items to ensure order details are immutable if cart changes later
             // IMPORTANT: Filter out items with 0 quantity from the order details themselves.
-            items: JSON.parse(JSON.stringify(cart.filter(item => item.quantity > 0))),  
+            items: JSON.parse(JSON.stringify(cart.filter(item => item.quantity > 0))),
             subtotal: subtotal,
             total: total,
             orderDate: new Date().toISOString(),
@@ -1034,8 +1061,101 @@ function showOrderDetails(order) {
 // --- Product Display Functions (Main Store Page) ---
 const productListElement = document.getElementById("product-list"); // Rename for clarity
 
+// Function to format time for countdown (HH:MM:SS)
+function formatTime(seconds) {
+    if (seconds < 0) return "00:00:00";
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+// Function to start a flash sale timer for a specific product card
+function startFlashSaleTimer(product) {
+    const cardElement = document.querySelector(`.card[data-product-id="${product.id}"]`);
+    if (!cardElement) return;
+
+    const countdownSpan = cardElement.querySelector('.flash-sale-countdown');
+    const flashSaleBadge = cardElement.querySelector('.badge.flash-sale');
+    const priceElement = cardElement.querySelector('.price');
+    const addToCartBtn = cardElement.querySelector('.add-to-cart-btn');
+
+    if (!countdownSpan || !flashSaleBadge || !priceElement || !addToCartBtn) return;
+
+    // Clear any existing timer for this product
+    if (flashSaleTimers[product.id]) {
+        clearInterval(flashSaleTimers[product.id]);
+    }
+
+    const updateCountdown = () => {
+        const now = new Date().getTime();
+        const endTime = new Date(product.flashSaleEndTime).getTime();
+        let timeLeft = Math.max(0, Math.floor((endTime - now) / 1000)); // Time left in seconds
+
+        if (timeLeft > 0) {
+            countdownSpan.textContent = formatTime(timeLeft);
+            flashSaleBadge.style.display = 'flex'; // Ensure badge is visible
+
+            // Update price display if not already updated
+            if (!priceElement.classList.contains('flash-sale-active')) {
+                priceElement.innerHTML = `
+                    <span class="original-price-strikethrough">${product.price}</span>
+                    <span class="flash-sale-price">${product.flashSalePrice}</span>
+                `;
+                priceElement.classList.add('flash-sale-active');
+            }
+            // Ensure effectivePrice in memory is correctly set for cart additions
+            product.effectivePrice = product.flashSalePrice;
+
+        } else {
+            // Flash sale ended
+            clearInterval(flashSaleTimers[product.id]);
+            delete flashSaleTimers[product.id];
+            flashSaleBadge.style.display = 'none'; // Hide badge
+
+            // Revert price to original or regular sale price
+            if (product.sale && product.salePrice) {
+                priceElement.textContent = product.salePrice;
+                priceElement.classList.remove('flash-sale-active');
+                product.effectivePrice = product.salePrice;
+            } else {
+                priceElement.textContent = product.price;
+                priceElement.classList.remove('flash-sale-active');
+                product.effectivePrice = product.price;
+            }
+            
+            // Re-enable add to cart if not out of stock otherwise
+            if (product.stock > 0) {
+                addToCartBtn.disabled = false;
+                addToCartBtn.textContent = 'Add to Cart';
+            }
+            console.log(`Flash sale for ${product.name} has ended.`);
+            // Trigger a re-render of products to ensure all products are updated
+            // applyFilters(); // This might cause too many re-renders, better to update specific card or re-filter
+        }
+    };
+
+    updateCountdown(); // Initial call to display immediately
+    flashSaleTimers[product.id] = setInterval(updateCountdown, 1000); // Update every second
+}
+
+// Function to stop all active flash sale timers
+function stopAllFlashSaleTimers() {
+    for (const productId in flashSaleTimers) {
+        if (flashSaleTimers.hasOwnProperty(productId)) {
+            clearInterval(flashSaleTimers[productId]);
+            delete flashSaleTimers[productId];
+        }
+    }
+    console.log("All flash sale timers stopped.");
+}
+
+
 function renderProducts(items) {
     productListElement.innerHTML = ""; // Use the renamed element
+
+    // Clear existing timers before re-rendering products
+    stopAllFlashSaleTimers();
 
     if (items.length === 0) {
         productListElement.innerHTML = '<p class="empty-message" style="width: 100%;">No products available. Please add some from the Admin Panel!</p>';
@@ -1045,19 +1165,60 @@ function renderProducts(items) {
     items.forEach(product => {
         const card = document.createElement("div");
         card.className = "card";
+        card.dataset.productId = product.id; // Add product ID as data attribute
+
         const isOutOfStock = !product.stock || product.stock <= 0;
         if (isOutOfStock) card.classList.add("out-of-stock");
 
-        const displayPrice = product.sale && product.salePrice ?
-                                        `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}` :
-                                        product.price;
+        const now = new Date();
+        const isFlashSaleActive = product.flashSale && product.flashSalePrice && product.flashSaleEndTime && new Date(product.flashSaleEndTime) > now;
+        
+        let displayPriceHtml = '';
+        let currentEffectivePrice; // Price to be used for cart calculations
+
+        if (isFlashSaleActive) {
+            displayPriceHtml = `<span class="original-price-strikethrough">${product.price}</span> <span class="price flash-sale-active">${product.flashSalePrice}</span>`;
+            currentEffectivePrice = product.flashSalePrice;
+        } else if (product.sale && product.salePrice) {
+            displayPriceHtml = `<span class="original-price-strikethrough">${product.price}</span> <span class="price">${product.salePrice}</span>`;
+            currentEffectivePrice = product.salePrice;
+        } else {
+            displayPriceHtml = `<span class="price">${product.price}</span>`;
+            currentEffectivePrice = product.price;
+        }
+
+        // Store the determined effective price on the product object for cart functions
+        product.effectivePrice = currentEffectivePrice;
+
         const imageUrl = `images/${product.image}`;
+        
+        // Construct badge HTML dynamically based on priority
+        let badgeHtml = '';
+        const badgesToDisplay = [];
+
+        if (isFlashSaleActive) {
+            badgesToDisplay.push('<div class="badge flash-sale"><span class="flash-sale-countdown"></span></div>');
+        } else { // Only display NEW/SALE if no active flash sale
+            if (product.new) {
+                badgesToDisplay.push('<span class="badge new">NEW</span>');
+            }
+            if (product.sale && product.salePrice) { // Only add sale badge if it has a sale price
+                badgesToDisplay.push('<span class="badge sale">SALE</span>');
+            }
+        }
+        
+        // Position badges based on their order of appearance if multiple
+        // This is a simplified approach; for complex overlapping, specific CSS might be better.
+        // For now, if flash sale is active, it's the only one at top-left.
+        // If not flash sale, NEW and SALE can be positioned relative to each other.
+        // This relies on the CSS to handle the .badge.sale { left: 60px; } for adjacent NEW.
+        badgeHtml = badgesToDisplay.join('');
+
         card.innerHTML = `
-            ${product.new ? `<span class="badge">NEW</span>` : ""}
-            ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
+            ${badgeHtml}
             <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20N/A';" />
             <h4>${product.name}</h4>
-            <div class="price">${displayPrice}</div>
+            <div class="price-container">${displayPriceHtml}</div> <!-- Wrapper for price -->
             <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
                 ${isOutOfStock ? 'Out of Stock' : `Stock: ${product.stock}`}
             </div>
@@ -1066,6 +1227,11 @@ function renderProducts(items) {
             </button>
         `;
         productListElement.appendChild(card);
+
+        // Start countdown for active flash sales
+        if (isFlashSaleActive) {
+            startFlashSaleTimer(product);
+        }
     });
 
     document.querySelectorAll('.add-to-cart-btn').forEach(button => {
@@ -1078,6 +1244,7 @@ function renderProducts(items) {
         });
     });
 }
+
 
 function setFilter(category) {
     currentCategory = category;
@@ -1135,3 +1302,6 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
+// Stop all flash sale timers when the page is closed or navigated away from
+window.addEventListener('beforeunload', stopAllFlashSaleTimers);
