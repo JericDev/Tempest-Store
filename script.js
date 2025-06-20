@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"; // Added writeBatch
+import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"; // Added writeBatch
 
 // Your web app's Firebase configuration
 // IMPORTANT: Ensure this configuration matches your Firebase project's config.
@@ -1201,34 +1201,35 @@ function renderProducts(items) {
         
         // --- Dynamic Badge Creation and Positioning ---
         const badgeContainer = document.createElement('div');
-        badgeContainer.className = 'badge-container'; // Optional: if you want a wrapper around badges for more complex positioning
+        badgeContainer.className = 'badge-container';
 
         if (isFlashSaleActive) {
             const flashSaleBadge = document.createElement('div');
             flashSaleBadge.className = 'badge flash-sale';
+            // The structure here MUST match the CSS
             flashSaleBadge.innerHTML = `
                 <span class="flash-sale-label">Flash Sale</span>
                 <span class="flash-sale-countdown"></span>
             `;
             badgeContainer.appendChild(flashSaleBadge);
-            // The startFlashSaleTimer will manage display of this badge
+            // startFlashSaleTimer will be called below to populate the countdown
         } else {
-            let newBadge = null;
+            let newBadgeElement = null;
             if (product.new) {
-                newBadge = document.createElement('span');
-                newBadge.className = 'badge new';
-                newBadge.textContent = 'NEW';
-                badgeContainer.appendChild(newBadge);
+                newBadgeElement = document.createElement('span');
+                newBadgeElement.className = 'badge new';
+                newBadgeElement.textContent = 'NEW';
+                badgeContainer.appendChild(newBadgeElement);
             }
             if (product.sale && product.salePrice) {
-                const saleBadge = document.createElement('span');
-                saleBadge.className = 'badge sale';
-                saleBadge.textContent = 'SALE';
-                // If there's a 'NEW' badge, position 'SALE' next to it
-                if (newBadge) {
-                    saleBadge.style.left = '60px'; // Adjust based on 'NEW' badge width + gap
-                }
-                badgeContainer.appendChild(saleBadge);
+                const saleBadgeElement = document.createElement('span');
+                saleBadgeElement.className = 'badge sale';
+                saleBadgeElement.textContent = 'SALE';
+                // No need for inline style.left here. CSS `gap` on .badge-container will handle spacing
+                // and if the previous badge is fixed width, the next one will just flow.
+                // The earlier `left: 60px` was a specific adjustment which might not be needed
+                // with `display: flex` and `gap` on the container.
+                badgeContainer.appendChild(saleBadgeElement);
             }
         }
         card.appendChild(badgeContainer); // Add the badge container to the card
