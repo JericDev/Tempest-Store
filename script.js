@@ -348,8 +348,7 @@ onAuthStateChanged(auth, async (user) => {
                     const adminModule = await import('./admin.js');
                     initAdminPanelModule = adminModule.initAdminPanel;
                     adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
-                } <<<<<<< Updated upstream
-                catch (error) {
+                } catch (error) {
                     console.error("Error loading admin.js:", error);
                     // Hide admin button if load fails
                     adminPanelButton.style.display = "none";
@@ -797,6 +796,7 @@ cartIconBtn.addEventListener('click', () => {
     renderCart(); // Call renderCart to ensure stock checks are done before showing
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
+    updatePaymentDetailsDisplay(); // Ensure payment details are updated when cart opens
 });
 
 closeCartModalBtn.addEventListener('click', () => {
@@ -1132,7 +1132,10 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     // Initial call to hide payment details until a method is selected
-    paymentDetailsDisplay.style.display = 'none';
+    // and then call updatePaymentDetailsDisplay to show the default checked one
+    paymentDetailsDisplay.style.display = 'none'; 
+    updatePaymentDetailsDisplay(); // Call initially to show details for the default checked radio
+    
 
     // Add event listeners for copy buttons
     copyAccountNumberBtn.addEventListener('click', () => {
@@ -1155,27 +1158,56 @@ function updatePaymentDetailsDisplay() {
             accountNumberSpan.textContent = details.number;
             accountNameSpan.textContent = details.name;
             paymentDetailsDisplay.style.display = 'block'; // Show the section
+            console.log(`Displaying payment details for: ${method}`);
+            console.log(`QR: ${details.qr}, Number: ${details.number}, Name: ${details.name}`);
         } else {
             // Hide if details not found (shouldn't happen with correct setup)
             paymentDetailsDisplay.style.display = 'none';
+            console.warn("No details found for payment method:", method);
         }
     } else {
         paymentDetailsDisplay.style.display = 'none'; // Hide if no method selected
+        console.log("No payment method selected.");
     }
 }
 
 // Function to copy text to clipboard
 function copyTextToClipboard(text) {
-    const tempInput = document.createElement('textarea');
-    tempInput.value = text;
-    document.body.appendChild(tempInput);
-    tempInput.select();
-    try {
-        document.execCommand('copy');
-        showCustomAlert('Copied to clipboard!');
-    } catch (err) {
-        console.error('Failed to copy text: ', err);
-        showCustomAlert('Failed to copy text. Please try manually.');
+    // Check if the browser supports the Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                showCustomAlert('Copied to clipboard!');
+            })
+            .catch(err => {
+                console.error('Failed to copy text using Clipboard API: ', err);
+                // Fallback to execCommand if Clipboard API fails
+                try {
+                    const tempInput = document.createElement('textarea');
+                    tempInput.value = text;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    showCustomAlert('Copied to clipboard (fallback)!');
+                    document.body.removeChild(tempInput);
+                } catch (fallbackErr) {
+                    console.error('Failed to copy text using execCommand fallback: ', fallbackErr);
+                    showCustomAlert('Failed to copy text. Please try manually.');
+                }
+            });
+    } else {
+        // Fallback for browsers that do not support Clipboard API
+        try {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            showCustomAlert('Copied to clipboard (fallback)!');
+            document.body.removeChild(tempInput);
+        } catch (err) {
+            console.error('Failed to copy text using execCommand: ', err);
+            showCustomAlert('Failed to copy text. Please try manually.');
+        }
     }
-    document.body.removeChild(tempInput);
 }
