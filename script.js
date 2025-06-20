@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"; // Added writeBatch
 
 // Your web app's Firebase configuration
 // IMPORTANT: Ensure this configuration matches your Firebase project's config.
@@ -21,7 +21,7 @@ const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
 
 let currentUserId = null; // To store the current authenticated user's ID
-let isAdmin = false; // Flag to check if the current user is an anpmdmin
+let isAdmin = false; // Flag to check if the current user is an admin
 // IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
 const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
@@ -89,6 +89,80 @@ const backToOrderListBtn = document.getElementById("back-to-order-list");
 
 // --- New DOM elements for Seller Status ---
 const sellerStatusDisplay = document.getElementById("seller-status-display");
+
+// --- Custom Alert/Confirm Modals ---
+// Function to show a custom alert modal instead of native alert()
+function showCustomAlert(message) {
+    const alertModal = document.createElement('div');
+    alertModal.className = 'custom-modal';
+    alertModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <button class="custom-modal-ok-btn">OK</button>
+        </div>
+    `;
+    document.body.appendChild(alertModal);
+
+    const closeBtn = alertModal.querySelector('.custom-modal-close-btn');
+    const okBtn = alertModal.querySelector('.custom-modal-ok-btn');
+
+    const closeModal = () => {
+        alertModal.classList.remove('show');
+        setTimeout(() => alertModal.remove(), 300);
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    okBtn.addEventListener('click', closeModal);
+    alertModal.addEventListener('click', (event) => {
+        if (event.target === alertModal) {
+            closeModal();
+        }
+    });
+
+    setTimeout(() => alertModal.classList.add('show'), 10);
+}
+
+// Function to show a custom confirmation modal instead of native confirm()
+function showCustomConfirm(message, onConfirm, onCancel = () => {}) {
+    const confirmModal = document.createElement('div');
+    confirmModal.className = 'custom-modal';
+    confirmModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <div class="custom-modal-buttons">
+                <button class="custom-modal-confirm-btn">Yes</button>
+                <button class="custom-modal-cancel-btn">No</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmModal);
+
+    const closeBtn = confirmModal.querySelector('.custom-modal-close-btn');
+    const confirmBtn = confirmModal.querySelector('.custom-modal-confirm-btn');
+    const cancelBtn = confirmModal.querySelector('.custom-modal-cancel-btn');
+
+    const closeModal = () => {
+        confirmModal.classList.remove('show');
+        setTimeout(() => confirmModal.remove(), 300);
+    };
+
+    closeBtn.addEventListener('click', () => { closeModal(); onCancel(); });
+    cancelBtn.addEventListener('click', () => { closeModal(); onCancel(); });
+    confirmBtn.addEventListener('click', () => {
+        onConfirm();
+        closeModal();
+    });
+    confirmModal.addEventListener('click', (event) => {
+        if (event.target === confirmModal) {
+            closeModal();
+            onCancel();
+        }
+    });
+
+    setTimeout(() => confirmModal.classList.add('show'), 10);
+}
 
 
 // --- Authentication Functions ---
@@ -283,7 +357,7 @@ onAuthStateChanged(auth, async (user) => {
     authPasswordInput.value = "";
     authMessage.textContent = "";
     authMessage.style.color = 'red';
-    renderCart();
+    renderCart(); // Re-render cart after auth state changes to reflect stock adjustments or pricing for guest
     // Products are always rendered via the setupProductsListener called globally.
 });
 
@@ -306,6 +380,7 @@ function setupProductsListener() {
         allProducts = fetchedProducts;
         console.log("Fetched Products from Firestore:", allProducts); // Added for debugging
         applyFilters(); // Call applyFilters after products are fetched and updated
+        renderCart(); // Also re-render the cart to update any stock-related warnings/quantity adjustments
     }, (error) => {
         console.error("Error listening to products:", error);
     });
@@ -323,9 +398,7 @@ function setupSiteSettingsListener() {
             const data = docSnap.data();
             sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
             updateSellerStatusDisplay();
-            // No need to explicitly call renderSellerStatusToggle here anymore.
-            // When admin panel is opened or tab is switched, admin.js will fetch the current state
-            // using the getter function provided during initAdminPanel.
+            updateCartCountBadge(); // Update cart button state based on seller status
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
@@ -357,7 +430,7 @@ async function toggleSellerStatus(isOnline) {
         console.log("Seller status updated to:", isOnline);
     } catch (e) {
         console.error("Error updating seller status:", e);
-        alert("Error updating seller status: " + e.message);
+        showCustomAlert("Error updating seller status: " + e.message); // Using custom alert
     }
 }
 
@@ -416,20 +489,31 @@ async function syncCartOnLogin(userId) {
         localCart.forEach(localItem => {
             const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
             if (existingItemIndex > -1) {
-                firestoreCart[existingItemIndex].quantity += localItem.quantity;
-            } else {
-                // When syncing, ensure effectivePrice is correctly set based on current product data.
+                // Merge quantity if item exists, ensuring it doesn't exceed current stock
                 const productDetails = allProducts.find(p => p.id === localItem.id);
                 if (productDetails) {
+                    const combinedQuantity = firestoreCart[existingItemIndex].quantity + localItem.quantity;
+                    firestoreCart[existingItemIndex].quantity = Math.min(combinedQuantity, productDetails.stock || 0);
+                    // Update effectivePrice in case product details changed
                     const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                    firestoreCart.push({ ...localItem, effectivePrice: priceToUse });
+                    firestoreCart[existingItemIndex].effectivePrice = priceToUse;
                 } else {
-                    // Fallback if product not found (e.g., deleted by admin)
-                    firestoreCart.push(localItem);
+                    // If product no longer exists, remove it or set quantity to 0
+                    firestoreCart[existingItemIndex].quantity = 0; // Effectively remove from consideration
+                }
+            } else {
+                // Add new item, checking stock
+                const productDetails = allProducts.find(p => p.id === localItem.id);
+                if (productDetails && productDetails.stock > 0) {
+                    const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+                    firestoreCart.push({ ...localItem, quantity: Math.min(localItem.quantity, productDetails.stock), effectivePrice: priceToUse });
+                } else {
+                    // If product not found or out of stock, do not add from local storage
+                    console.warn(`Product ${localItem.name} not found or out of stock during sync, not adding from local storage.`);
                 }
             }
         });
-        cart = firestoreCart;
+        cart = firestoreCart.filter(item => item.quantity > 0); // Filter out items with 0 quantity
         await saveCartToFirestore(userId, cart);
         localStorage.removeItem('tempestStoreCart');
         renderCart();
@@ -454,14 +538,26 @@ function setupUserOrderHistoryListener(userId) {
 
 // --- Cart Management Functions ---
 function addToCart(product) {
+    const productDetails = allProducts.find(p => p.id === product.id);
+    if (!productDetails || productDetails.stock <= 0) {
+        showCustomAlert(`${product.name} is currently out of stock.`);
+        return;
+    }
+
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
-        existingItem.quantity++;
+        if (existingItem.quantity < productDetails.stock) {
+            existingItem.quantity++;
+            showCustomAlert(`Added another ${product.name} to cart. Total: ${existingItem.quantity}`);
+        } else {
+            showCustomAlert(`Cannot add more ${product.name}. Max stock reached: ${productDetails.stock}.`);
+            return; // Don't save/render if no change
+        }
     } else {
         // Ensure effectivePrice is based on product's current sale status/price
-        const productDetails = allProducts.find(p => p.id === product.id);
-        const priceToUse = productDetails && productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
+        const priceToUse = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
         cart.push({ ...product, quantity: 1, effectivePrice: priceToUse });
+        showCustomAlert(`Added ${product.name} to cart.`);
     }
     saveCart();
     renderCart();
@@ -472,12 +568,33 @@ function removeFromCart(productId) {
     cart = cart.filter(item => item.id !== productId);
     saveCart();
     renderCart();
+    showCustomAlert("Item removed from cart.");
 }
 
 function updateCartQuantity(productId, newQuantity) {
-    const item = cart.find(item => item.id === productId);
-    if (item) {
-        item.quantity = Math.max(1, newQuantity);
+    const itemIndex = cart.findIndex(item => item.id === productId);
+    if (itemIndex > -1) {
+        const productDetails = allProducts.find(p => p.id === productId);
+        const currentStock = productDetails ? productDetails.stock : 0;
+
+        if (newQuantity <= 0) {
+            // If new quantity is 0 or less, remove the item
+            removeFromCart(productId);
+            return;
+        }
+
+        if (newQuantity > currentStock) {
+            cart[itemIndex].quantity = currentStock; // Cap quantity at available stock
+            if (currentStock === 0) {
+                showCustomAlert(`${cart[itemIndex].name} is out of stock. Item removed.`);
+                removeFromCart(productId); // Remove if stock becomes 0
+                return;
+            } else {
+                showCustomAlert(`Cannot set quantity for ${cart[itemIndex].name} to ${newQuantity}. Only ${currentStock} available. Quantity adjusted.`);
+            }
+        } else {
+            cart[itemIndex].quantity = newQuantity;
+        }
         saveCart();
         renderCart();
     }
@@ -497,14 +614,17 @@ function updateCartCountBadge() {
     cartCountBadge.textContent = totalItems;
     cartCountBadge.style.display = totalItems > 0 ? 'inline-block' : 'none';
 
-    const { total } = calculateCartTotals();
+    const { total, itemsWithZeroQuantity } = calculateCartTotals(); // Get items with zero quantity
     placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
 
-    // Disable place order button if cart is empty or seller is offline (if logged in)
-    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline;
+    // Disable place order button if cart is empty, seller is offline (if logged in),
+    // Roblox username not entered (if logged in), or if there are items with zero quantity.
+    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline || itemsWithZeroQuantity > 0;
 
     // Optional: Add a tooltip or message if disabled due to seller being offline
-    if (!sellerIsOnline && currentUserId) {
+    if (itemsWithZeroQuantity > 0) {
+        placeOrderBtn.title = "Cannot place order: Some items in your cart are out of stock.";
+    } else if (!sellerIsOnline && currentUserId) {
         placeOrderBtn.title = "Cannot place order: Seller is currently offline.";
     } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
         placeOrderBtn.title = "Please enter your Roblox Username.";
@@ -517,41 +637,75 @@ function updateCartCountBadge() {
 
 function renderCart() {
     cartItemsContainer.innerHTML = '';
+    let hasOutOfStockItems = false; // Flag to track if any item is out of stock
 
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
     } else {
         cart.forEach(item => {
-            // Find the latest product details from allProducts
             const productDetails = allProducts.find(p => p.id === item.id);
             let priceToDisplay;
+            let currentStock = productDetails ? productDetails.stock : 0;
+            let itemStatusMessage = '';
+            let isItemOutOfStock = false;
+
             if (productDetails) {
+                // Adjust quantity if it exceeds available stock
+                if (item.quantity > currentStock) {
+                    item.quantity = currentStock; // Cap at available stock
+                    if (currentStock === 0) {
+                        isItemOutOfStock = true;
+                        hasOutOfStockItems = true;
+                        itemStatusMessage = '<span style="color:red; font-weight:bold;">Out of Stock!</span>';
+                    } else {
+                        itemStatusMessage = `<span style="color:orange;">Qty adjusted (Max: ${currentStock})</span>`;
+                    }
+                    // Update cart in memory, but saveCart will handle persistence later.
+                    // This change reflects in the current rendering.
+                } else if (currentStock === 0 && item.quantity > 0) { // If previously in stock but now 0
+                     item.quantity = 0; // Set quantity to 0
+                     isItemOutOfStock = true;
+                     hasOutOfStockItems = true;
+                     itemStatusMessage = '<span style="color:red; font-weight:bold;">Out of Stock! Quantity set to 0.</span>';
+                }
+
                 priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
-                // Update item's effectivePrice in cart to match latest
-                item.effectivePrice = priceToDisplay;
+                item.effectivePrice = priceToDisplay; // Update item's effectivePrice in cart to match latest
             } else {
-                // Fallback if product is no longer found (e.g., deleted by admin)
-                priceToDisplay = item.effectivePrice || item.price;
+                // Product no longer exists (deleted by admin or sync issue)
+                item.quantity = 0; // Set quantity to 0
+                isItemOutOfStock = true;
+                hasOutOfStockItems = true;
+                priceToDisplay = item.effectivePrice || item.price || '₱0.00'; // Fallback price
+                itemStatusMessage = '<span style="color:red; font-weight:bold;">Product Not Found / Out of Stock! Quantity set to 0.</span>';
             }
 
             const imageUrl = `images/${item.image}`;
             const cartItemDiv = document.createElement('div');
             cartItemDiv.className = 'cart-item';
+            if (isItemOutOfStock) {
+                cartItemDiv.classList.add('out-of-stock-cart-item');
+            }
             cartItemDiv.innerHTML = `
                 <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
                 <div class="cart-item-details">
-                    <h4>${item.name}</h4>
+                    <h4>${item.name} ${itemStatusMessage}</h4>
                     <div class="cart-item-price">${priceToDisplay}</div>
                 </div>
                 <div class="cart-item-quantity-control">
-                    <button data-id="${item.id}" data-action="decrease">-</button>
-                    <input type="number" value="${item.quantity}" min="1" data-id="${item.id}">
-                    <button data-id="${item.id}" data-action="increase">+</button>
+                    <button data-id="${item.id}" data-action="decrease" ${isItemOutOfStock ? 'disabled' : ''}>-</button>
+                    <input type="number" value="${item.quantity}" min="0" data-id="${item.id}" ${isItemOutOfStock ? 'readonly' : ''}>
+                    <button data-id="${item.id}" data-action="increase" ${isItemOutOfStock || item.quantity >= currentStock ? 'disabled' : ''}>+</button>
                 </div>
                 <button class="cart-item-remove" data-id="${item.id}">&times;</button>
             `;
             cartItemsContainer.appendChild(cartItemDiv);
         });
+
+        // Filter out any items that were forced to 0 quantity because they are out of stock
+        // and then save the cart, so these changes are persistent.
+        cart = cart.filter(item => item.quantity > 0);
+        saveCart(); // This call will persist the quantity adjustments
 
         cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
             button.addEventListener('click', (event) => {
@@ -569,27 +723,42 @@ function renderCart() {
             });
         });
 
+        cartItemsContainer.querySelectorAll('.cart-item-quantity-control input[type="number"]').forEach(input => {
+            input.addEventListener('change', (event) => {
+                const productId = event.target.dataset.id;
+                const newQuantity = parseInt(event.target.value);
+                updateCartQuantity(productId, newQuantity);
+            });
+        });
+
+
         cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
             button.addEventListener('click', (event) => {
                 const productId = event.target.dataset.id;
-                removeFromCart(productId);
+                showCustomConfirm("Are you sure you want to remove this item from your cart?", () => {
+                    removeFromCart(productId);
+                });
             });
         });
     }
 
     calculateCartTotals();
-    updateCartCountBadge();
+    updateCartCountBadge(); // This will also disable the place order button if hasOutOfStockItems is true
 }
 
 function calculateCartTotals() {
     let subtotal = 0;
     let totalItemsInCart = 0;
+    let itemsWithZeroQuantity = 0; // New: Counter for items forced to 0 quantity
+
     cart.forEach(item => {
-        // IMPORTANT: Use the effectivePrice from the cart item, which is updated in renderCart()
-        // or fall back to item.price if effectivePrice isn't set (shouldn't happen with updated logic)
-        const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
-        subtotal += priceValue * item.quantity;
-        totalItemsInCart += item.quantity;
+        if (item.quantity > 0) { // Only count items that are actually in stock
+            const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
+            subtotal += priceValue * item.quantity;
+            totalItemsInCart += item.quantity;
+        } else {
+            itemsWithZeroQuantity++;
+        }
     });
 
     const total = subtotal;
@@ -597,13 +766,13 @@ function calculateCartTotals() {
     cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
     cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
 
-    return { subtotal, total, totalItemsInCart };
+    return { subtotal, total, totalItemsInCart, itemsWithZeroQuantity };
 }
 
 // --- Cart Modal Event Listeners ---
 cartIconBtn.addEventListener('click', () => {
     cartModal.classList.add('show');
-    renderCart();
+    renderCart(); // Call renderCart to ensure stock checks are done before showing
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
 });
@@ -623,33 +792,77 @@ robloxUsernameInput.addEventListener('input', updateCartCountBadge);
 // Handles the process of placing an order.
 placeOrderBtn.addEventListener('click', async () => {
     if (cart.length === 0) {
-        alert("Your cart is empty. Please add items before placing an order.");
+        showCustomAlert("Your cart is empty. Please add items before placing an order.");
+        return;
+    }
+
+    const { totalItemsInCart, itemsWithZeroQuantity } = calculateCartTotals();
+    if (itemsWithZeroQuantity > 0) {
+        showCustomAlert("Cannot place order: Some items in your cart are out of stock or quantities were adjusted. Please review your cart.");
         return;
     }
 
     if (!sellerIsOnline) {
-        alert("Cannot place order: The seller is currently offline. Please try again later.");
+        showCustomAlert("Cannot place order: The seller is currently offline. Please try again later.");
         return;
     }
 
     const robloxUsername = robloxUsernameInput.value.trim();
 
-    placeOrderBtn.disabled = true;
+    if (!currentUserId) {
+        showCustomAlert("Please login or register to complete your order.");
+        authModal.classList.add('show'); // Open auth modal
+        authMessage.textContent = "Please login or register to complete your order.";
+        authEmailInput.value = "";
+        authPasswordInput.value = "";
+        return;
+    }
 
-    try {
-        if (!currentUserId) {
-            authModal.classList.add('show');
-            authMessage.textContent = "Please login or register to complete your order.";
-            authEmailInput.value = "";
-            authPasswordInput.value = "";
-            placeOrderBtn.disabled = false;
-            return;
+    if (robloxUsername === '') {
+        showCustomAlert("Please enter your Roblox Username to proceed with the order.");
+        return;
+    }
+
+    placeOrderBtn.disabled = true; // Disable button immediately to prevent double clicks
+
+    const batch = writeBatch(db); // Initialize a new batch for atomic updates
+    let orderCanProceed = true;
+    let outOfStockProductNames = [];
+
+    // First, verify stock for all items within the transaction
+    for (const item of cart) {
+        const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
+        const productSnap = await getDoc(productRef); // Get latest product data
+        
+        if (!productSnap.exists()) {
+            orderCanProceed = false;
+            outOfStockProductNames.push(`${item.name} (Product Not Found)`);
+            break;
         }
 
-        if (robloxUsername === '') {
-            alert("Please enter your Roblox Username to proceed with the order.");
-            placeOrderBtn.disabled = false;
-            return;
+        const productData = productSnap.data();
+        const availableStock = productData.stock || 0;
+
+        if (item.quantity > availableStock) {
+            orderCanProceed = false;
+            outOfStockProductNames.push(`${item.name} (Only ${availableStock} left)`);
+            break;
+        }
+    }
+
+    if (!orderCanProceed) {
+        showCustomAlert(`Order cannot be placed due to insufficient stock for: ${outOfStockProductNames.join(', ')}. Please adjust your cart.`);
+        placeOrderBtn.disabled = false;
+        return;
+    }
+
+    try {
+        // If all checks pass, proceed with deducting stock and creating order
+        for (const item of cart) {
+            const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
+            batch.update(productRef, {
+                stock: productData.stock - item.quantity // Use productData.stock from inside the loop
+            });
         }
 
         // Recalculate totals right before placing order with latest effective prices
@@ -657,8 +870,7 @@ placeOrderBtn.addEventListener('click', async () => {
         const orderDetails = {
             userId: currentUserId,
             // Deep copy cart items to ensure order details are immutable if cart changes later
-            // Items in cart will have updated effectivePrice from renderCart()
-            items: JSON.parse(JSON.stringify(cart)),
+            items: JSON.parse(JSON.stringify(cart)), // Cart items should have updated effectivePrice from renderCart()
             subtotal: subtotal,
             total: total,
             orderDate: new Date().toISOString(),
@@ -670,33 +882,36 @@ placeOrderBtn.addEventListener('click', async () => {
         console.log("Placing Order:", orderDetails);
 
         const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
-        const userOrderDocRef = await addDoc(userOrdersColRef, orderDetails);
+        // Add to user-specific collection
+        const newUserOrderRef = doc(userOrdersColRef); // Create a new document reference with an auto-generated ID
+        batch.set(newUserOrderRef, orderDetails); // Use set for new document
 
         const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
         // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
-        await setDoc(doc(allOrdersColRef, userOrderDocRef.id), orderDetails);
+        batch.set(doc(allOrdersColRef, newUserOrderRef.id), orderDetails); // Use same ID for allOrders
 
-        alert("Successfully Placed Order!");
-        console.log("Order saved to Firestore!");
+        await batch.commit(); // Commit all batch operations atomically
 
-        cart = [];
-        saveCart();
-        renderCart();
+        showCustomAlert("Successfully Placed Order! Your stock has been deducted.");
+        console.log("Order saved to Firestore and stock deducted!");
+
+        cart = []; // Clear cart after successful order
+        saveCart(); // This will clear local storage/Firestore cart and update badge
         cartModal.classList.remove('show');
         robloxUsernameInput.value = '';
 
     } catch (e) {
-        console.error("Error placing order to Firestore:", e);
-        alert("There was an error placing your order. Please try again.");
+        console.error("Error placing order and deducting stock:", e);
+        showCustomAlert("There was an error placing your order or deducting stock. Please try again. Error: " + e.message);
     } finally {
-        placeOrderBtn.disabled = false;
+        placeOrderBtn.disabled = false; // Re-enable button
     }
 });
 
 // --- Order History Functions (User-side) ---
 myOrdersButton.addEventListener('click', () => {
     if (!currentUserId) {
-        alert("Please log in to view your order history.");
+        showCustomAlert("Please log in to view your order history.");
         return;
     }
     orderHistoryModal.classList.add('show');
@@ -788,12 +1003,13 @@ function showOrderDetails(order) {
 }
 
 // --- Product Display Functions (Main Store Page) ---
+const productListElement = document.getElementById("product-list"); // Rename for clarity
+
 function renderProducts(items) {
-    const list = document.getElementById("product-list");
-    list.innerHTML = "";
+    productListElement.innerHTML = ""; // Use the renamed element
 
     if (items.length === 0) {
-        list.innerHTML = '<p class="empty-message" style="width: 100%;">No products available. Please add some from the Admin Panel!</p>';
+        productListElement.innerHTML = '<p class="empty-message" style="width: 100%;">No products available. Please add some from the Admin Panel!</p>';
         return;
     }
 
@@ -820,7 +1036,7 @@ function renderProducts(items) {
                 ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
             </button>
         `;
-        list.appendChild(card);
+        productListElement.appendChild(card);
     });
 
     document.querySelectorAll('.add-to-cart-btn').forEach(button => {
