@@ -126,14 +126,16 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
     if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
     if (sellerOnlineToggle._toggleListener) sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener);
+    // Remove existing listeners for checkbox logic to prevent duplicates
+    if (productSaleCheckbox._saleListener) productSaleCheckbox.removeEventListener('change', productSaleCheckbox._saleListener);
     if (productFlashSaleCheckbox._flashSaleListener) productFlashSaleCheckbox.removeEventListener('change', productFlashSaleCheckbox._flashSaleListener);
 
 
     saveProductBtn._saveListener = async () => {
         const productId = productIdInput.value;
         const isNew = productNewCheckbox.checked;
-        const isSale = productSaleCheckbox.checked;
-        const isFlashSale = productFlashSaleCheckbox.checked;
+        let isSale = productSaleCheckbox.checked;
+        let isFlashSale = productFlashSaleCheckbox.checked;
 
         let salePrice = null;
         if (isSale && productSalePriceInput.value.trim() !== '') {
@@ -178,7 +180,9 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
             showCustomAlert("Please enter a valid Flash Sale Price and End Time if the product is On Flash Sale.");
             return;
         }
+        
         // If flash sale is active, it should ideally override standard sale
+        // This is handled by the checkbox logic, but a final check here doesn't hurt.
         if (isFlashSale) {
             newProduct.sale = false; // Disable regular sale if flash sale is active
             newProduct.salePrice = null; // Clear regular sale price
@@ -241,12 +245,35 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     };
     sellerOnlineToggle.addEventListener('change', sellerOnlineToggle._toggleListener);
 
-    // Event listener for Flash Sale checkbox to toggle price/time inputs
+    // --- Checkbox Logic for Sale and Flash Sale ---
+    productSaleCheckbox._saleListener = () => {
+        if (productSaleCheckbox.checked && productFlashSaleCheckbox.checked) {
+            // If Sale is checked AND Flash Sale is already checked, uncheck Flash Sale
+            productFlashSaleCheckbox.checked = false;
+            productFlashSalePriceInput.disabled = true;
+            productFlashSaleEndTimeInput.disabled = true;
+            productFlashSalePriceInput.value = '';
+            productFlashSaleEndTimeInput.value = '';
+        }
+        // Enable/disable sale price input based on sale checkbox
+        productSalePriceInput.disabled = !productSaleCheckbox.checked;
+        if (!productSaleCheckbox.checked) {
+            productSalePriceInput.value = ''; // Clear value if unchecked
+        }
+    };
+    productSaleCheckbox.addEventListener('change', productSaleCheckbox._saleListener);
+
     productFlashSaleCheckbox._flashSaleListener = () => {
         const isChecked = productFlashSaleCheckbox.checked;
+        if (isChecked && productSaleCheckbox.checked) {
+            // If Flash Sale is checked AND Sale is already checked, uncheck Sale
+            productSaleCheckbox.checked = false;
+            productSalePriceInput.disabled = true;
+            productSalePriceInput.value = '';
+        }
+        // Enable/disable flash sale price/time inputs based on flash sale checkbox
         productFlashSalePriceInput.disabled = !isChecked;
         productFlashSaleEndTimeInput.disabled = !isChecked;
-        // Optionally, clear values if disabled
         if (!isChecked) {
             productFlashSalePriceInput.value = '';
             productFlashSaleEndTimeInput.value = '';
@@ -280,6 +307,8 @@ function cleanupAdminPanel() {
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
     if (sellerOnlineToggle._toggleListener) { sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener); sellerOnlineToggle._toggleListener = null; }
+    // Clean up checkbox listeners
+    if (productSaleCheckbox._saleListener) { productSaleCheckbox.removeEventListener('change', productSaleCheckbox._saleListener); productSaleCheckbox._saleListener = null; }
     if (productFlashSaleCheckbox._flashSaleListener) { productFlashSaleCheckbox.removeEventListener('change', productFlashSaleCheckbox._flashSaleListener); productFlashSaleCheckbox._flashSaleListener = null; }
 
 
@@ -348,7 +377,10 @@ function renderAdminProducts() {
             let adminPriceDisplay = product.price;
             let statusBadges = [];
 
-            if (product.flashSale && product.flashSalePrice && new Date(product.flashSaleEndTime) > new Date()) {
+            const now = new Date();
+            const isFlashSaleActive = product.flashSale && product.flashSaleEndTime && new Date(product.flashSaleEndTime) > now;
+
+            if (isFlashSaleActive) {
                 adminPriceDisplay = `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.flashSalePrice}`;
                 statusBadges.push('FLASH SALE');
             } else if (product.sale && product.salePrice) {
@@ -434,11 +466,10 @@ function editProduct(product) {
         productFlashSaleEndTimeInput.value = '';
     }
 
-    // Toggle disabled state based on checkbox
-    const isFlashSaleChecked = productFlashSaleCheckbox.checked;
-    productFlashSalePriceInput.disabled = !isFlashSaleChecked;
-    productFlashSaleEndTimeInput.disabled = !isFlashSaleChecked;
-
+    // Call the checkbox logic to correctly enable/disable inputs and handle mutual exclusivity
+    // This simulates a 'change' event for each checkbox to apply the rules
+    productSaleCheckbox.dispatchEvent(new Event('change'));
+    productFlashSaleCheckbox.dispatchEvent(new Event('change'));
 
     saveProductBtn.textContent = "Save Changes";
     cancelEditProductBtn.style.display = "inline-block";
@@ -459,8 +490,11 @@ function resetProductForm() {
     productFlashSaleCheckbox.checked = false;
     productFlashSalePriceInput.value = '';
     productFlashSaleEndTimeInput.value = '';
-    productFlashSalePriceInput.disabled = true; // Disable by default
-    productFlashSaleEndTimeInput.disabled = true; // Disable by default
+    
+    // Ensure inputs are disabled when form is reset
+    productSalePriceInput.disabled = true;
+    productFlashSalePriceInput.disabled = true;
+    productFlashSaleEndTimeInput.disabled = true;
 
     saveProductBtn.textContent = "Add Product";
     cancelEditProductBtn.style.display = "none";
@@ -529,7 +563,7 @@ function renderAdminOrders() {
             <td data-label="User ID">${order.userId ? order.userId.substring(0, 8) + '...' : 'N/A'}</td>
             <td data-label="Date">${new Date(order.orderDate).toLocaleDateString()}</td>
             <td data-label="Total">₱${order.total.toFixed(2)}</td>
-            <td data-label="Status"><span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span></td>
+            <td data-label="Status"><span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span></td>
             <td data-label="Actions" class="admin-order-actions">
                 <button class="view" data-id="${order.id}">View</button>
             </td>
