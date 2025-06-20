@@ -96,7 +96,7 @@ const qrCodeImage = document.getElementById("qr-code-image");
 const accountNumberSpan = document.getElementById("account-number");
 const accountNameSpan = document.getElementById("account-name");
 const copyAccountNumberBtn = document.getElementById("copy-account-number-btn");
-const copyAccountNameBtn = document.getElementById("copy-account-name-btn");
+// Removed copyAccountNameBtn reference as per user request
 
 
 // --- Payment Method Details (QR Codes, Account Numbers, Names) ---
@@ -1092,13 +1092,14 @@ function setFilter(category) {
 
 function applyFilters() {
     const searchBox = document.getElementById("searchBox");
-    if (!searchBox) { // Added a check in case searchBox isn't available for some reason
+    if (!searchBox) { 
         console.error("Search box element not found.");
         return;
     }
     const query = searchBox.value.toLowerCase();
 
     const filtered = allProducts.filter(product => {
+        // Updated filter logic to match the new categories
         const matchesCategory = currentCategory === "all" || product.category === currentCategory;
         const matchesSearch = product.name.toLowerCase().includes(query);
         return matchesCategory && matchesSearch;
@@ -1141,9 +1142,7 @@ window.addEventListener("DOMContentLoaded", () => {
     copyAccountNumberBtn.addEventListener('click', () => {
         copyTextToClipboard(accountNumberSpan.textContent);
     });
-    copyAccountNameBtn.addEventListener('click', () => {
-        copyTextToClipboard(accountNameSpan.textContent);
-    });
+    // Removed copyAccountNameBtn.addEventListener as per user request
 });
 
 // Function to update the displayed payment details (QR, number, name)
