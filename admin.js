@@ -32,6 +32,11 @@ const productStockInput = document.getElementById("product-stock");
 const productImageInput = document.getElementById("product-image");
 const productNewCheckbox = document.getElementById("product-new");
 const productSaleCheckbox = document.getElementById("product-sale");
+// New Flash Sale elements
+const productFlashSaleCheckbox = document.getElementById("product-flash-sale");
+const productFlashSalePriceInput = document.getElementById("product-flash-sale-price");
+const productFlashSaleEndTimeInput = document.getElementById("product-flash-sale-end-time"); // New input for datetime-local
+
 const saveProductBtn = document.getElementById("save-product-btn");
 const cancelEditProductBtn = document.getElementById("cancel-edit-product");
 const adminProductsList = document.getElementById("admin-products-list");
@@ -121,20 +126,29 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     if (adminBackToOrderListBtn._backListener) adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener);
     if (updateOrderStatusBtn._updateListener) updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener);
     if (sellerOnlineToggle._toggleListener) sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener);
+    if (productFlashSaleCheckbox._flashSaleListener) productFlashSaleCheckbox.removeEventListener('change', productFlashSaleCheckbox._flashSaleListener);
 
 
     saveProductBtn._saveListener = async () => {
         const productId = productIdInput.value;
         const isNew = productNewCheckbox.checked;
         const isSale = productSaleCheckbox.checked;
-        let salePrice = null;
-        let productImage = productImageInput.value.trim();
+        const isFlashSale = productFlashSaleCheckbox.checked;
 
+        let salePrice = null;
         if (isSale && productSalePriceInput.value.trim() !== '') {
             salePrice = `₱${parseFloat(productSalePriceInput.value).toFixed(2)}`;
-        } else {
-            salePrice = null;
         }
+
+        let flashSalePrice = null;
+        let flashSaleEndTime = null;
+        if (isFlashSale && productFlashSalePriceInput.value.trim() !== '' && productFlashSaleEndTimeInput.value.trim() !== '') {
+            flashSalePrice = `₱${parseFloat(productFlashSalePriceInput.value).toFixed(2)}`;
+            // Store ISO string for consistency and easier comparison
+            flashSaleEndTime = new Date(productFlashSaleEndTimeInput.value).toISOString();
+        }
+
+        let productImage = productImageInput.value.trim();
 
         const newProduct = {
             name: productNameInput.value.trim(),
@@ -144,17 +158,32 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
             stock: parseInt(productStockInput.value),
             image: productImage,
             new: isNew,
-            sale: isSale
+            sale: isSale,
+            // New Flash Sale fields
+            flashSale: isFlashSale,
+            flashSalePrice: flashSalePrice,
+            flashSaleEndTime: flashSaleEndTime
         };
 
+        // Basic validation
         if (!newProduct.name || !newProduct.image || isNaN(newProduct.stock) || isNaN(parseFloat(newProduct.price.replace('₱', '')))) {
-            showCustomAlert("Please fill in all product fields correctly, including an image filename (e.g., product.png).");
+            showCustomAlert("Please fill in all product fields correctly (Name, Image Filename, Price, Stock).");
             return;
         }
         if (isSale && (salePrice === null || isNaN(parseFloat(salePrice.replace('₱', ''))))) {
             showCustomAlert("Please enter a valid Sale Price if the product is On Sale.");
             return;
         }
+        if (isFlashSale && (flashSalePrice === null || isNaN(parseFloat(flashSalePrice.replace('₱', ''))) || flashSaleEndTime === null)) {
+            showCustomAlert("Please enter a valid Flash Sale Price and End Time if the product is On Flash Sale.");
+            return;
+        }
+        // If flash sale is active, it should ideally override standard sale
+        if (isFlashSale) {
+            newProduct.sale = false; // Disable regular sale if flash sale is active
+            newProduct.salePrice = null; // Clear regular sale price
+        }
+
 
         if (productId) {
             newProduct.id = productId;
@@ -212,6 +241,20 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
     };
     sellerOnlineToggle.addEventListener('change', sellerOnlineToggle._toggleListener);
 
+    // Event listener for Flash Sale checkbox to toggle price/time inputs
+    productFlashSaleCheckbox._flashSaleListener = () => {
+        const isChecked = productFlashSaleCheckbox.checked;
+        productFlashSalePriceInput.disabled = !isChecked;
+        productFlashSaleEndTimeInput.disabled = !isChecked;
+        // Optionally, clear values if disabled
+        if (!isChecked) {
+            productFlashSalePriceInput.value = '';
+            productFlashSaleEndTimeInput.value = '';
+        }
+    };
+    productFlashSaleCheckbox.addEventListener('change', productFlashSaleCheckbox._flashSaleListener);
+
+
     setupAllOrdersListener(); // Initialize admin listeners if an admin is already logged in
 }
 
@@ -237,6 +280,7 @@ function cleanupAdminPanel() {
     if (adminBackToOrderListBtn._backListener) { adminBackToOrderListBtn.removeEventListener('click', adminBackToOrderListBtn._backListener); adminBackToOrderListBtn._backListener = null; }
     if (updateOrderStatusBtn._updateListener) { updateOrderStatusBtn.removeEventListener('click', updateOrderStatusBtn._updateListener); updateOrderStatusBtn._updateListener = null; }
     if (sellerOnlineToggle._toggleListener) { sellerOnlineToggle.removeEventListener('change', sellerOnlineToggle._toggleListener); sellerOnlineToggle._toggleListener = null; }
+    if (productFlashSaleCheckbox._flashSaleListener) { productFlashSaleCheckbox.removeEventListener('change', productFlashSaleCheckbox._flashSaleListener); productFlashSaleCheckbox._flashSaleListener = null; }
 
 
     adminPanelModal.classList.remove('show'); // Ensure admin modal is closed
@@ -293,24 +337,37 @@ function renderAdminProducts() {
         });
 
         if (fetchedProducts.length === 0) {
-            adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">No products found.</td></tr>';
+            adminProductsList.innerHTML = '<tr><td colspan="8" class="empty-message">No products found.</td></tr>'; // Adjusted colspan
             return;
         }
 
         fetchedProducts.forEach(product => {
             const row = document.createElement('tr');
             const imageUrl = `images/${product.image}`;
+            // Determine the price display for admin table
+            let adminPriceDisplay = product.price;
+            let statusBadges = [];
+
+            if (product.flashSale && product.flashSalePrice && new Date(product.flashSaleEndTime) > new Date()) {
+                adminPriceDisplay = `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.flashSalePrice}`;
+                statusBadges.push('FLASH SALE');
+            } else if (product.sale && product.salePrice) {
+                adminPriceDisplay = `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}`;
+                statusBadges.push('SALE');
+            }
+
+            if (product.new) {
+                statusBadges.push('NEW');
+            }
+
             row.innerHTML = `
                 <td data-label="Image"><img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/50x50/f0f0f0/888?text=N/A';" /></td>
                 <td data-label="Name">${product.name}</td>
                 <td data-label="Category">${product.category}</td>
-                <td data-label="Price">
-                    ${product.sale && product.salePrice ?
-                        `<span style="text-decoration: line-through; color: #888;">${product.price}</span> ${product.salePrice}` :
-                        product.price}
-                </td>
+                <td data-label="Price">${adminPriceDisplay}</td>
                 <td data-label="Stock">${product.stock}</td>
-                <td data-label="Status">${product.new ? 'NEW ' : ''}${product.sale ? 'SALE' : ''}</td>
+                <td data-label="Status">${statusBadges.join(' / ')}</td>
+                <td data-label="Flash Sale End">${product.flashSale && product.flashSaleEndTime ? new Date(product.flashSaleEndTime).toLocaleString() : 'N/A'}</td>
                 <td data-label="Actions" class="admin-product-actions">
                     <button class="edit" data-id="${product.id}">Edit</button>
                     <button class="delete" data-id="${product.id}">Delete</button>
@@ -343,7 +400,7 @@ function renderAdminProducts() {
         });
     }).catch(error => {
         console.error("Error rendering admin products:", error);
-        adminProductsList.innerHTML = '<tr><td colspan="7" class="empty-message">Error loading products.</td></tr>';
+        adminProductsList.innerHTML = '<tr><td colspan="8" class="empty-message">Error loading products.</td></tr>'; // Adjusted colspan
     });
 }
 
@@ -359,6 +416,30 @@ function editProduct(product) {
     productImageInput.value = product.image;
     productNewCheckbox.checked = product.new || false;
     productSaleCheckbox.checked = product.sale || false;
+    
+    // Flash Sale fields
+    productFlashSaleCheckbox.checked = product.flashSale || false;
+    productFlashSalePriceInput.value = product.flashSalePrice ? parseFloat(product.flashSalePrice.replace('₱', '')) : '';
+    // Format ISO string to datetime-local format (YYYY-MM-DDTHH:MM)
+    if (product.flashSaleEndTime) {
+        const date = new Date(product.flashSaleEndTime);
+        // Ensure leading zeros for month, day, hour, minute
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        productFlashSaleEndTimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    } else {
+        productFlashSaleEndTimeInput.value = '';
+    }
+
+    // Toggle disabled state based on checkbox
+    const isFlashSaleChecked = productFlashSaleCheckbox.checked;
+    productFlashSalePriceInput.disabled = !isFlashSaleChecked;
+    productFlashSaleEndTimeInput.disabled = !isFlashSaleChecked;
+
+
     saveProductBtn.textContent = "Save Changes";
     cancelEditProductBtn.style.display = "inline-block";
 }
@@ -374,6 +455,13 @@ function resetProductForm() {
     productImageInput.value = '';
     productNewCheckbox.checked = false;
     productSaleCheckbox.checked = false;
+    // Reset Flash Sale fields
+    productFlashSaleCheckbox.checked = false;
+    productFlashSalePriceInput.value = '';
+    productFlashSaleEndTimeInput.value = '';
+    productFlashSalePriceInput.disabled = true; // Disable by default
+    productFlashSaleEndTimeInput.disabled = true; // Disable by default
+
     saveProductBtn.textContent = "Add Product";
     cancelEditProductBtn.style.display = "none";
 }
