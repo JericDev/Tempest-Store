@@ -71,6 +71,10 @@ const cartSubtotalSpan = document.getElementById("cart-subtotal");
 const cartTotalSpan = document.getElementById("cart-total");
 const placeOrderBtn = document.getElementById("place-order-btn");
 const robloxUsernameInput = document.getElementById("roblox-username-input");
+// NEW: DOM elements for payment contact details
+const paymentContactNumberSpan = document.getElementById("payment-contact-number");
+const copyContactNumberBtn = document.getElementById("copy-contact-number-btn");
+
 
 // --- DOM elements for Order History ---
 const orderHistoryModal = document.getElementById("order-history-modal");
@@ -243,6 +247,7 @@ loginRegisterButton.addEventListener('click', () => {
 });
 
 closeAuthModalBtn.addEventListener('click', () => {
+    cartModal.classList.remove('show'); // Make sure cart modal is closed if auth is opened from it
     authModal.classList.remove('show');
 });
 
@@ -514,7 +519,7 @@ async function syncCartOnLogin(userId) {
             }
         });
         // Now, we do NOT filter out items with 0 quantity here, allowing them to remain in the cart for visual display.
-        cart = firestoreCart; 
+        cart = firestoreCart;  
         await saveCartToFirestore(userId, cart);
         localStorage.removeItem('tempestStoreCart');
         renderCart();
@@ -692,7 +697,7 @@ function renderCart() {
 
         // Update the global cart with the (potentially adjusted) items. This now explicitly includes
         // items with quantity 0, as per your request to keep them visually in the cart.
-        cart = itemsToRender; 
+        cart = itemsToRender;  
         saveCart(); // This will persist the quantity adjustments in Firestore/Local Storage
 
         cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
@@ -741,13 +746,13 @@ function calculateCartTotals() {
 
     cart.forEach(item => {
         // Only count items with quantity > 0 for calculating totals and for the totalItemsInCart count
-        if (item.quantity > 0) { 
+        if (item.quantity > 0) {  
             const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
             subtotal += priceValue * item.quantity;
             totalItemsInCart += item.quantity;
         } else {
             // Count items that are in the cart array but have a quantity of 0
-            itemsWithZeroQuantity++; 
+            itemsWithZeroQuantity++;  
         }
     });
 
@@ -778,6 +783,24 @@ cartModal.addEventListener('click', (event) => {
 });
 
 robloxUsernameInput.addEventListener('input', updateCartCountBadge);
+
+// NEW: Event listener for the Copy button
+copyContactNumberBtn.addEventListener('click', () => {
+    const contactNumber = paymentContactNumberSpan.textContent;
+    const tempInput = document.createElement('textarea'); // Use textarea for multi-line support / better copy behavior
+    tempInput.value = contactNumber;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    try {
+        document.execCommand('copy');
+        showCustomAlert("Number copied to clipboard!");
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+        showCustomAlert("Failed to copy number. Please copy it manually.");
+    }
+    document.body.removeChild(tempInput);
+});
+
 
 // Handles the process of placing an order.
 placeOrderBtn.addEventListener('click', async () => {
@@ -819,7 +842,7 @@ placeOrderBtn.addEventListener('click', async () => {
     for (const item of cart) {
         // Skip stock verification for items that are already 0 quantity in cart
         if (item.quantity === 0) {
-            continue; 
+            continue;  
         }
 
         const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
@@ -857,7 +880,7 @@ placeOrderBtn.addEventListener('click', async () => {
                 const productDataForUpdate = productSnapshots.get(item.id); // Retrieve the stored product data
                 if (productDataForUpdate) { // Defensive check
                     batch.update(productRef, {
-                        stock: productDataForUpdate.stock - item.quantity 
+                        stock: productDataForUpdate.stock - item.quantity  
                     });
                 }
             }
@@ -869,7 +892,7 @@ placeOrderBtn.addEventListener('click', async () => {
             userId: currentUserId,
             // Deep copy cart items to ensure order details are immutable if cart changes later
             // IMPORTANT: Filter out items with 0 quantity from the order details themselves.
-            items: JSON.parse(JSON.stringify(cart.filter(item => item.quantity > 0))), 
+            items: JSON.parse(JSON.stringify(cart.filter(item => item.quantity > 0))),  
             subtotal: subtotal,
             total: total,
             orderDate: new Date().toISOString(),
@@ -1095,7 +1118,7 @@ window.addEventListener("DOMContentLoaded", () => {
         searchBox.addEventListener("input", applyFilters);
     }
 
-    // ✅ Payment method preview image change
+    // Payment method preview image change
     document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
