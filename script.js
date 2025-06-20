@@ -578,17 +578,15 @@ function updateCartQuantity(productId, newQuantity) {
         const currentStock = productDetails ? productDetails.stock : 0;
 
         if (newQuantity <= 0) {
-            // If new quantity is 0 or less, remove the item
-            removeFromCart(productId);
-            return;
-        }
-
-        if (newQuantity > currentStock) {
+            // If new quantity is 0 or less, don't remove, just set to 0 and disable.
+            // This is the main change from previous logic.
+            cart[itemIndex].quantity = 0;
+            // No alert here, renderCart will show status
+        } else if (newQuantity > currentStock) {
             cart[itemIndex].quantity = currentStock; // Cap quantity at available stock
             if (currentStock === 0) {
-                showCustomAlert(`${cart[itemIndex].name} is out of stock. Item removed.`);
-                removeFromCart(productId); // Remove if stock becomes 0
-                return;
+                // Should already be handled by newQuantity <= 0, but as a safeguard
+                cart[itemIndex].quantity = 0;
             } else {
                 showCustomAlert(`Cannot set quantity for ${cart[itemIndex].name} to ${newQuantity}. Only ${currentStock} available. Quantity adjusted.`);
             }
@@ -636,11 +634,11 @@ function updateCartCountBadge() {
 
 function renderCart() {
     cartItemsContainer.innerHTML = '';
-    let hasOutOfStockItems = false; // Flag to track if any item is out of stock
-
+    
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
     } else {
+        const updatedCart = []; // Create a new array to build the cart items
         cart.forEach(item => {
             const productDetails = allProducts.find(p => p.id === item.id);
             let priceToDisplay;
@@ -648,36 +646,29 @@ function renderCart() {
             let itemStatusMessage = '';
             let isItemOutOfStock = false;
 
+            // Logic to adjust quantity and set status based on current stock
             if (productDetails) {
-                // Adjust quantity if it exceeds available stock
-                if (item.quantity > currentStock) {
-                    item.quantity = currentStock; // Cap at available stock
-                    if (currentStock === 0) {
-                        isItemOutOfStock = true;
-                        hasOutOfStockItems = true;
-                        itemStatusMessage = '<span style="color:red; font-weight:bold;">Out of Stock!</span>';
-                    } else {
-                        itemStatusMessage = `<span style="color:orange;">Qty adjusted (Max: ${currentStock})</span>`;
-                    }
-                    // Update cart in memory, but saveCart will handle persistence later.
-                    // This change reflects in the current rendering.
-                } else if (currentStock === 0 && item.quantity > 0) { // If previously in stock but now 0
-                     item.quantity = 0; // Set quantity to 0
-                     isItemOutOfStock = true;
-                     hasOutOfStockItems = true;
-                     itemStatusMessage = '<span style="color:red; font-weight:bold;">Out of Stock! Quantity set to 0.</span>';
+                if (currentStock === 0) { // If product is truly out of stock
+                    item.quantity = 0; // Force quantity to 0
+                    isItemOutOfStock = true;
+                    itemStatusMessage = '<span style="color:red; font-weight:bold;">Out of Stock!</span>';
+                } else if (item.quantity > currentStock) { // If user has more than available stock
+                    item.quantity = currentStock; // Cap quantity at available stock
+                    itemStatusMessage = `<span style="color:orange;">Qty adjusted (Max: ${currentStock})</span>`;
                 }
-
                 priceToDisplay = productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price;
                 item.effectivePrice = priceToDisplay; // Update item's effectivePrice in cart to match latest
             } else {
                 // Product no longer exists (deleted by admin or sync issue)
                 item.quantity = 0; // Set quantity to 0
                 isItemOutOfStock = true;
-                hasOutOfStockItems = true;
+                itemStatusMessage = '<span style="color:red; font-weight:bold;">Product Not Found / Out of Stock!</span>';
                 priceToDisplay = item.effectivePrice || item.price || '₱0.00'; // Fallback price
-                itemStatusMessage = '<span style="color:red; font-weight:bold;">Product Not Found / Out of Stock! Quantity set to 0.</span>';
             }
+
+            // Only add item to updatedCart if it's not meant to be visually removed (quantity > 0 OR it's out of stock but we keep it)
+            // We want to KEEP out-of-stock items with quantity 0 visible in the cart as requested.
+            updatedCart.push(item);
 
             const imageUrl = `images/${item.image}`;
             const cartItemDiv = document.createElement('div');
@@ -692,18 +683,20 @@ function renderCart() {
                     <div class="cart-item-price">${priceToDisplay}</div>
                 </div>
                 <div class="cart-item-quantity-control">
-                    <button data-id="${item.id}" data-action="decrease" ${isItemOutOfStock ? 'disabled' : ''}>-</button>
+                    <button data-id="${item.id}" data-action="decrease" ${isItemOutOfStock || item.quantity === 0 ? 'disabled' : ''}>-</button>
                     <input type="number" value="${item.quantity}" min="0" data-id="${item.id}" ${isItemOutOfStock ? 'readonly' : ''}>
                     <button data-id="${item.id}" data-action="increase" ${isItemOutOfStock || item.quantity >= currentStock ? 'disabled' : ''}>+</button>
                 </div>
-                <button class="cart-item-remove" data-id="${item.id}">&times;`;
+                <button class="cart-item-remove" data-id="${item.id}">&times;
+            `;
             cartItemsContainer.appendChild(cartItemDiv);
         });
 
-        // Filter out any items that were forced to 0 quantity because they are out of stock
-        // and then save the cart, so these changes are persistent.
-        cart = cart.filter(item => item.quantity > 0);
+        // Now, update the global cart with the visually adjusted items (including those with quantity 0)
+        cart = updatedCart;
         saveCart(); // This call will persist the quantity adjustments
+        // The filter in saveCart() will not be used to *remove* quantity 0 items for render,
+        // but rather to accurately calculate total quantity for badge/order.
 
         cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
             button.addEventListener('click', (event) => {
@@ -750,12 +743,14 @@ function calculateCartTotals() {
     let itemsWithZeroQuantity = 0; // New: Counter for items forced to 0 quantity
 
     cart.forEach(item => {
-        if (item.quantity > 0) { // Only count items that are actually in stock
+        // Here, we check if quantity is > 0 for calculating totals,
+        // but out-of-stock items with quantity 0 will still be in the cart array.
+        if (item.quantity > 0) { 
             const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
             subtotal += priceValue * item.quantity;
             totalItemsInCart += item.quantity;
         } else {
-            itemsWithZeroQuantity++;
+            itemsWithZeroQuantity++; // Count items that are forced to 0 quantity
         }
     });
 
@@ -833,6 +828,11 @@ placeOrderBtn.addEventListener('click', async () => {
 
     // First, verify stock for all items within the transaction
     for (const item of cart) {
+        // Skip stock verification for items that are already 0 quantity in cart
+        if (item.quantity === 0) {
+            continue; 
+        }
+
         const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
         const productSnap = await getDoc(productRef); // Get latest product data
         
@@ -862,12 +862,15 @@ placeOrderBtn.addEventListener('click', async () => {
     try {
         // If all checks pass, proceed with deducting stock and creating order
         for (const item of cart) {
-            const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
-            const productDataForUpdate = productSnapshots.get(item.id); // Retrieve the stored product data
-            if (productDataForUpdate) { // Defensive check
-                batch.update(productRef, {
-                    stock: productDataForUpdate.stock - item.quantity 
-                });
+            // Only deduct stock for items with quantity > 0
+            if (item.quantity > 0) {
+                const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
+                const productDataForUpdate = productSnapshots.get(item.id); // Retrieve the stored product data
+                if (productDataForUpdate) { // Defensive check
+                    batch.update(productRef, {
+                        stock: productDataForUpdate.stock - item.quantity 
+                    });
+                }
             }
         }
 
@@ -876,7 +879,8 @@ placeOrderBtn.addEventListener('click', async () => {
         const orderDetails = {
             userId: currentUserId,
             // Deep copy cart items to ensure order details are immutable if cart changes later
-            items: JSON.parse(JSON.stringify(cart)), // Cart items should have updated effectivePrice from renderCart()
+            // IMPORTANT: Filter out items with 0 quantity from the order details themselves.
+            items: JSON.parse(JSON.stringify(cart.filter(item => item.quantity > 0))), 
             subtotal: subtotal,
             total: total,
             orderDate: new Date().toISOString(),
@@ -1112,3 +1116,4 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
