@@ -207,29 +207,93 @@ main#product-list {
     border: 1px solid #eee;
 }
 
+/* Improved Tags (NEW, SALE, FLASH SALE) */
 .badge {
     position: absolute;
-    top: 15px; /* Adjusted position */
-    left: 15px;
-    background: #FFD700; /* Gold */
-    color: #333;
-    padding: 6px 12px; /* Larger badge */
-    border-radius: 10px;
+    padding: 6px 12px; /* Larger padding for all badges */
+    border-radius: 10px; /* Consistent rounded corners */
     font-size: 14px;
     font-weight: bold;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     z-index: 5; /* Ensure badges are on top */
+    white-space: nowrap; /* Prevent text wrapping */
+    transition: background-color 0.3s ease; /* Smooth transition for background color */
 }
+
+.badge.new {
+    background: #FFD700; /* Gold */
+    color: #333;
+    /* Default position for single badge or first in stack */
+    top: 15px;
+    left: 15px;
+}
+
 .badge.sale {
     background: #dc3545; /* Red for Sale */
     color: white;
+    /* Default position for single badge */
+    top: 15px;
+    left: 15px;
 }
+
+/* New: Flash Sale Badge - Overrides default badge styles */
+.badge.flash-sale {
+    background: linear-gradient(to right, #e74c3c 0%, #e74c3c 55%, #f1c40f 55%, #f1c40f 100%); /* Red to Yellow gradient */
+    color: white;
+    top: 15px; /* Prioritized top-left position */
+    left: 15px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    display: flex; /* Use flexbox for text and countdown */
+    align-items: center;
+    gap: 5px; /* Space between text and countdown */
+    box-shadow: 0 3px 10px rgba(0,0,0,0.4); /* More prominent shadow */
+    font-size: 14px; /* Consistent font size */
+    z-index: 7; /* Highest z-index for flash sale badge */
+}
+
+/* Specific styling for the countdown part */
+.badge.flash-sale .flash-sale-countdown {
+    background-color: rgba(255, 255, 255, 0.2); /* Slightly transparent white for the countdown background */
+    color: #f1c40f; /* Yellow text for countdown */
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: bold;
+    white-space: nowrap;
+    min-width: 65px; /* Ensure enough space for HH:MM:SS */
+    text-align: center;
+}
+.badge.flash-sale::before {
+    content: "⚡ "; /* Lightning bolt icon */
+    color: #f1c40f; /* Yellow lightning bolt */
+    font-size: 1.1em;
+}
+
+
+/* Price display adjustments for Flash Sale */
 .price {
     font-weight: bold;
     font-size: 1.3em; /* Slightly larger price */
     margin-top: 12px;
-    color: #28a745; /* Green for price */
+    color: #28a745; /* Default Green for price */
 }
+
+.price.flash-sale-active {
+    color: #e74c3c; /* Red for the active flash sale price */
+    font-size: 1.4em; /* Make it slightly larger */
+}
+
+/* Strikethrough original price when flash sale is active */
+.original-price-strikethrough {
+    text-decoration: line-through;
+    color: #888;
+    font-size: 0.9em;
+    margin-left: 8px;
+    display: inline-block; /* To allow it next to the flash sale price */
+    vertical-align: middle;
+}
+
 .stock-info {
     font-size: 0.95em;
     margin-bottom: 12px;
@@ -462,6 +526,24 @@ main#product-list {
     color: #28a745;
     font-size: 1.1em;
 }
+/* Styles for cart items that are out of stock */
+.cart-item.out-of-stock-cart-item {
+    opacity: 0.6;
+    filter: grayscale(50%);
+}
+.cart-item-out-of-stock-message {
+    color: #dc3545; /* Red */
+    font-weight: bold;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+.cart-item-status-message { /* For quantity adjusted message */
+    color: #ff9800; /* Orange */
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+
 .cart-item-quantity-control {
     display: flex;
     align-items: center;
@@ -728,6 +810,7 @@ main#product-list {
 }
 #product-form-container input[type="text"],
 #product-form-container input[type="number"],
+#product-form-container input[type="datetime-local"], /* Added for flash sale end time */
 #product-form-container select {
     width: calc(100% - 22px);
     padding: 12px;
@@ -1086,9 +1169,7 @@ main#product-list {
     background-color: #5a6268;
 }
 
-
 /* Responsive adjustments */
-/* No more flex-direction: column for contact-center within media queries to force side-by-side */
 @media (max-width: 480px) {
     header {
         padding: 15px;
@@ -1137,7 +1218,6 @@ main#product-list {
     }
 
     .contact-center {
-        /* Keep as column to stack seller status and social links group */
         flex-direction: column;
         gap: 8px; /* Reduced gap for smaller screens */
     }
@@ -1215,14 +1295,25 @@ main#product-list {
         height: 100px;
         margin: 0 auto 10px;
     }
-    .badge {
-        top: 10px;
-        left: 10px;
+    .badge { /* Adjusted for mobile */
+        top: 8px;
+        left: 8px;
         padding: 4px 8px;
         font-size: 12px;
     }
     .badge.sale {
-        left: 55px;
+        left: 55px; /* Adjust if NEW is present */
+    }
+    .badge.flash-sale { /* Adjusted for mobile */
+        top: 8px;
+        left: 8px;
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+    .badge.flash-sale .flash-sale-countdown {
+        font-size: 0.7em;
+        padding: 2px 5px;
+        min-width: 50px;
     }
     .price {
         font-size: 1.1em;
@@ -1411,6 +1502,7 @@ main#product-list {
     }
     #product-form-container input[type="text"],
     #product-form-container input[type="number"],
+    #product-form-container input[type="datetime-local"], /* Added for mobile input */
     #product-form-container select {
         padding: 10px;
         font-size: 0.95em;
@@ -1585,6 +1677,27 @@ main#product-list {
         padding: 11px 16px;
         font-size: 15px;
     }
+    /* Tags for medium screens */
+    .badge { /* Adjusted for medium screens */
+        top: 10px;
+        left: 10px;
+        padding: 5px 10px;
+        font-size: 13px;
+    }
+    .badge.sale {
+        left: 60px; /* Adjusted if NEW is present */
+    }
+    .badge.flash-sale { /* Adjusted for medium screens */
+        top: 10px;
+        left: 10px;
+        font-size: 13px;
+        padding: 5px 10px;
+    }
+    .badge.flash-sale .flash-sale-countdown {
+        font-size: 0.8em;
+        padding: 2px 6px;
+        min-width: 60px;
+    }
 
     .modal-box {
         padding: 25px;
@@ -1644,7 +1757,7 @@ main#product-list {
         padding: 8px 12px;
         font-size: 0.9em;
     }
-    .admin-product-actions button:first-child {
+    .admin-product-actions button:first-child, .admin-order-actions button:first-child {
         margin-left: 0;
     }
 
@@ -1694,3 +1807,4 @@ main#product-list {
         max-width: 950px;
     }
 }
+
