@@ -90,37 +90,6 @@ const backToOrderListBtn = document.getElementById("back-to-order-list");
 // --- New DOM elements for Seller Status ---
 const sellerStatusDisplay = document.getElementById("seller-status-display");
 
-// --- New DOM elements for Payment Method Details Display ---
-const paymentDetailsDisplay = document.getElementById("payment-details-display");
-const qrCodeImage = document.getElementById("qr-code-image");
-const accountNumberSpan = document.getElementById("account-number");
-const accountNameSpan = document.getElementById("account-name");
-const copyAccountNumberBtn = document.getElementById("copy-account-number-btn");
-// Removed copyAccountNameBtn reference as per user request
-
-
-// --- Payment Method Details (QR Codes, Account Numbers, Names) ---
-// IMPORTANT: Replace placeholder image URLs with your actual QR code image paths.
-// Ensure these images are in your 'images/' directory.
-const paymentMethodDetails = {
-    'gcash': {
-        qr: 'https://placehold.co/200x200/F0F0F0/007bff?text=GCash+QR', // Placeholder. Replace with actual QR path, e.g., 'images/gcash_qr.png'
-        number: '09123456789',
-        name: 'Juan Dela Cruz (GCash)'
-    },
-    'maya': {
-        qr: 'https://placehold.co/200x200/F0F0F0/884e9d?text=Maya+QR', // Placeholder. Replace with actual QR path, e.g., 'images/maya_qr.png'
-        number: '09987654321',
-        name: 'Maria Clara (Maya)'
-    },
-    'paypal': {
-        qr: 'https://placehold.co/200x200/F0F0F0/0070ba?text=PayPal+QR', // Placeholder. Replace with actual QR path, e.g., 'images/paypal_qr.png'
-        number: 'seller@example.com', // PayPal usually uses email
-        name: 'Tempest Store (PayPal)'
-    }
-};
-
-
 // --- Custom Alert/Confirm Modals ---
 // Function to show a custom alert modal instead of native alert()
 function showCustomAlert(message) {
@@ -610,7 +579,7 @@ function updateCartQuantity(productId, newQuantity) {
         const currentStock = productDetails ? productDetails.stock : 0;
 
         if (newQuantity <= 0) {
-            // Set quantity to 0 and visually mark as out of stock/disabled.
+            // Set quantity to 0 and visually mark as out of stock/disabled
             cart[itemIndex].quantity = 0;
         } else if (newQuantity > currentStock) {
             cart[itemIndex].quantity = currentStock; // Cap quantity at available stock
@@ -796,7 +765,6 @@ cartIconBtn.addEventListener('click', () => {
     renderCart(); // Call renderCart to ensure stock checks are done before showing
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
-    updatePaymentDetailsDisplay(); // Ensure payment details are updated when cart opens
 });
 
 closeCartModalBtn.addEventListener('click', () => {
@@ -847,9 +815,10 @@ placeOrderBtn.addEventListener('click', async () => {
     let outOfStockProductNames = [];
     const productSnapshots = new Map(); // Store product data fetched in the first loop
 
-    // First, verify stock for all items with quantity > 0 within the transaction
+    // First, verify stock for all items within the transaction
     for (const item of cart) {
-        if (item.quantity === 0) { // Skip stock verification for items with 0 quantity
+        // Skip stock verification for items that are already 0 quantity in cart
+        if (item.quantity === 0) {
             continue; 
         }
 
@@ -1092,14 +1061,13 @@ function setFilter(category) {
 
 function applyFilters() {
     const searchBox = document.getElementById("searchBox");
-    if (!searchBox) { 
+    if (!searchBox) { // Added a check in case searchBox isn't available for some reason
         console.error("Search box element not found.");
         return;
     }
     const query = searchBox.value.toLowerCase();
 
     const filtered = allProducts.filter(product => {
-        // Updated filter logic to match the new categories
         const matchesCategory = currentCategory === "all" || product.category === currentCategory;
         const matchesSearch = product.name.toLowerCase().includes(query);
         return matchesCategory && matchesSearch;
@@ -1127,86 +1095,13 @@ window.addEventListener("DOMContentLoaded", () => {
         searchBox.addEventListener("input", applyFilters);
     }
 
-    // Attach event listener for payment method radio buttons
+    // ✅ Payment method preview image change
     document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
-        radio.addEventListener('change', updatePaymentDetailsDisplay);
+        radio.addEventListener('change', () => {
+            const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
+            const img = document.getElementById('payment-preview-img');
+            // Ensure the image source matches your file names (e.g., "gcash.png", "maya.png", "paypal.png")
+            img.src = `images/${selected}.png`;
+        });
     });
-
-    // Initial call to hide payment details until a method is selected
-    // and then call updatePaymentDetailsDisplay to show the default checked one
-    paymentDetailsDisplay.style.display = 'none'; 
-    updatePaymentDetailsDisplay(); // Call initially to show details for the default checked radio
-    
-
-    // Add event listeners for copy buttons
-    copyAccountNumberBtn.addEventListener('click', () => {
-        copyTextToClipboard(accountNumberSpan.textContent);
-    });
-    // Removed copyAccountNameBtn.addEventListener as per user request
 });
-
-// Function to update the displayed payment details (QR, number, name)
-function updatePaymentDetailsDisplay() {
-    const selected = document.querySelector('input[name="payment-method"]:checked');
-    if (selected) {
-        const method = selected.value.toLowerCase();
-        const details = paymentMethodDetails[method];
-
-        if (details) {
-            qrCodeImage.src = details.qr;
-            accountNumberSpan.textContent = details.number;
-            accountNameSpan.textContent = details.name;
-            paymentDetailsDisplay.style.display = 'block'; // Show the section
-            console.log(`Displaying payment details for: ${method}`);
-            console.log(`QR: ${details.qr}, Number: ${details.number}, Name: ${details.name}`);
-        } else {
-            // Hide if details not found (shouldn't happen with correct setup)
-            paymentDetailsDisplay.style.display = 'none';
-            console.warn("No details found for payment method:", method);
-        }
-    } else {
-        paymentDetailsDisplay.style.display = 'none'; // Hide if no method selected
-        console.log("No payment method selected.");
-    }
-}
-
-// Function to copy text to clipboard
-function copyTextToClipboard(text) {
-    // Check if the browser supports the Clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text)
-            .then(() => {
-                showCustomAlert('Copied to clipboard!');
-            })
-            .catch(err => {
-                console.error('Failed to copy text using Clipboard API: ', err);
-                // Fallback to execCommand if Clipboard API fails
-                try {
-                    const tempInput = document.createElement('textarea');
-                    tempInput.value = text;
-                    document.body.appendChild(tempInput);
-                    tempInput.select();
-                    document.execCommand('copy');
-                    showCustomAlert('Copied to clipboard (fallback)!');
-                    document.body.removeChild(tempInput);
-                } catch (fallbackErr) {
-                    console.error('Failed to copy text using execCommand fallback: ', fallbackErr);
-                    showCustomAlert('Failed to copy text. Please try manually.');
-                }
-            });
-    } else {
-        // Fallback for browsers that do not support Clipboard API
-        try {
-            const tempInput = document.createElement('textarea');
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            showCustomAlert('Copied to clipboard (fallback)!');
-            document.body.removeChild(tempInput);
-        } catch (err) {
-            console.error('Failed to copy text using execCommand: ', err);
-            showCustomAlert('Failed to copy text. Please try manually.');
-        }
-    }
-}
