@@ -696,8 +696,7 @@ function renderCart() {
                     <input type="number" value="${item.quantity}" min="0" data-id="${item.id}" ${isItemOutOfStock ? 'readonly' : ''}>
                     <button data-id="${item.id}" data-action="increase" ${isItemOutOfStock || item.quantity >= currentStock ? 'disabled' : ''}>+</button>
                 </div>
-                <button class="cart-item-remove" data-id="${item.id}">&times;</button>
-            `;
+                <button class="cart-item-remove" data-id="${item.id}">&times;`;
             cartItemsContainer.appendChild(cartItemDiv);
         });
 
@@ -830,6 +829,7 @@ placeOrderBtn.addEventListener('click', async () => {
     const batch = writeBatch(db); // Initialize a new batch for atomic updates
     let orderCanProceed = true;
     let outOfStockProductNames = [];
+    const productSnapshots = new Map(); // Store product data fetched in the first loop
 
     // First, verify stock for all items within the transaction
     for (const item of cart) {
@@ -843,6 +843,7 @@ placeOrderBtn.addEventListener('click', async () => {
         }
 
         const productData = productSnap.data();
+        productSnapshots.set(item.id, productData); // Store the fetched product data
         const availableStock = productData.stock || 0;
 
         if (item.quantity > availableStock) {
@@ -862,10 +863,12 @@ placeOrderBtn.addEventListener('click', async () => {
         // If all checks pass, proceed with deducting stock and creating order
         for (const item of cart) {
             const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
-            // Use productData.stock from inside the loop (fetched just before update)
-            batch.update(productRef, {
-                stock: productData.stock - item.quantity 
-            });
+            const productDataForUpdate = productSnapshots.get(item.id); // Retrieve the stored product data
+            if (productDataForUpdate) { // Defensive check
+                batch.update(productRef, {
+                    stock: productDataForUpdate.stock - item.quantity 
+                });
+            }
         }
 
         // Recalculate totals right before placing order with latest effective prices
@@ -1109,4 +1112,3 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
-
