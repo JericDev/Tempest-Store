@@ -1075,12 +1075,18 @@ function startFlashSaleTimer(product) {
     const cardElement = document.querySelector(`.card[data-product-id="${product.id}"]`);
     if (!cardElement) return;
 
-    const countdownSpan = cardElement.querySelector('.flash-sale-countdown');
+    // Select the flash-sale-label and flash-sale-countdown elements within the badge
     const flashSaleBadge = cardElement.querySelector('.badge.flash-sale');
+    const flashSaleLabel = flashSaleBadge ? flashSaleBadge.querySelector('.flash-sale-label') : null;
+    const countdownSpan = flashSaleBadge ? flashSaleBadge.querySelector('.flash-sale-countdown') : null;
+    
     const priceElement = cardElement.querySelector('.price');
     const addToCartBtn = cardElement.querySelector('.add-to-cart-btn');
 
-    if (!countdownSpan || !flashSaleBadge || !priceElement || !addToCartBtn) return;
+    if (!flashSaleBadge || !flashSaleLabel || !countdownSpan || !priceElement || !addToCartBtn) {
+        console.warn(`Missing elements for flash sale timer on product ${product.id}.`);
+        return;
+    }
 
     // Clear any existing timer for this product
     if (flashSaleTimers[product.id]) {
@@ -1130,8 +1136,9 @@ function startFlashSaleTimer(product) {
                 addToCartBtn.textContent = 'Add to Cart';
             }
             console.log(`Flash sale for ${product.name} has ended.`);
-            // Trigger a re-render of products to ensure all products are updated
-            // applyFilters(); // This might cause too many re-renders, better to update specific card or re-filter
+            // A simple re-render of products might be too much, but for clarity on specific product.
+            // A more efficient approach would be to specifically update the card's state if this causes performance issues.
+            applyFilters(); // Re-apply filters to refresh entire product list and remove expired flash sales.
         }
     };
 
@@ -1192,30 +1199,42 @@ function renderProducts(items) {
 
         const imageUrl = `images/${product.image}`;
         
-        // Construct badge HTML dynamically based on priority
-        let badgeHtml = '';
-        const badgesToDisplay = [];
+        // --- Dynamic Badge Creation and Positioning ---
+        const badgeContainer = document.createElement('div');
+        badgeContainer.className = 'badge-container'; // Optional: if you want a wrapper around badges for more complex positioning
 
         if (isFlashSaleActive) {
-            badgesToDisplay.push('<div class="badge flash-sale"><span class="flash-sale-countdown"></span></div>');
-        } else { // Only display NEW/SALE if no active flash sale
+            const flashSaleBadge = document.createElement('div');
+            flashSaleBadge.className = 'badge flash-sale';
+            flashSaleBadge.innerHTML = `
+                <span class="flash-sale-label">Flash Sale</span>
+                <span class="flash-sale-countdown"></span>
+            `;
+            badgeContainer.appendChild(flashSaleBadge);
+            // The startFlashSaleTimer will manage display of this badge
+        } else {
+            let newBadge = null;
             if (product.new) {
-                badgesToDisplay.push('<span class="badge new">NEW</span>');
+                newBadge = document.createElement('span');
+                newBadge.className = 'badge new';
+                newBadge.textContent = 'NEW';
+                badgeContainer.appendChild(newBadge);
             }
-            if (product.sale && product.salePrice) { // Only add sale badge if it has a sale price
-                badgesToDisplay.push('<span class="badge sale">SALE</span>');
+            if (product.sale && product.salePrice) {
+                const saleBadge = document.createElement('span');
+                saleBadge.className = 'badge sale';
+                saleBadge.textContent = 'SALE';
+                // If there's a 'NEW' badge, position 'SALE' next to it
+                if (newBadge) {
+                    saleBadge.style.left = '60px'; // Adjust based on 'NEW' badge width + gap
+                }
+                badgeContainer.appendChild(saleBadge);
             }
         }
-        
-        // Position badges based on their order of appearance if multiple
-        // This is a simplified approach; for complex overlapping, specific CSS might be better.
-        // For now, if flash sale is active, it's the only one at top-left.
-        // If not flash sale, NEW and SALE can be positioned relative to each other.
-        // This relies on the CSS to handle the .badge.sale { left: 60px; } for adjacent NEW.
-        badgeHtml = badgesToDisplay.join('');
+        card.appendChild(badgeContainer); // Add the badge container to the card
 
-        card.innerHTML = `
-            ${badgeHtml}
+
+        card.innerHTML += `
             <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20N/A';" />
             <h4>${product.name}</h4>
             <div class="price-container">${displayPriceHtml}</div> <!-- Wrapper for price -->
