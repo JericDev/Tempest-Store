@@ -612,24 +612,29 @@ function saveCart() {
 }
 
 function updateCartCountBadge() {
-    // Only count items with quantity > 0 for the badge
-    const totalItems = cart.reduce((sum, item) => sum + (item.quantity > 0 ? item.quantity : 0), 0);
-    cartCountBadge.textContent = totalItems;
-    cartCountBadge.style.display = totalItems > 0 ? 'inline-block' : 'none';
+    // The badge should show the count of unique items in the cart,
+    // regardless of their current stock quantity.
+    const totalDistinctItemsInCart = cart.length;
 
-    const { total, itemsWithZeroQuantity } = calculateCartTotals(); // Get items with zero quantity
-    placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
+    // Get the actual countable items for the place order button and total.
+    const { total, itemsWithZeroQuantity, totalItemsInCart } = calculateCartTotals(); 
 
-    // Disable place order button if cart is empty,
+    cartCountBadge.textContent = totalDistinctItemsInCart;
+    cartCountBadge.style.display = totalDistinctItemsInCart > 0 ? 'inline-block' : 'none';
+
+    // The place order button text should still reflect only items that can be ordered
+    placeOrderBtn.textContent = `Place Order (${totalItemsInCart} item${totalItemsInCart !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
+
+    // Disable place order button if cart is effectively empty (no items with >0 quantity),
     // Roblox username not entered (if logged in), or if there are items with zero quantity.
-    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || itemsWithZeroQuantity > 0;
+    placeOrderBtn.disabled = totalItemsInCart === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || itemsWithZeroQuantity > 0;
 
     // Optional: Add a tooltip or message if disabled due to seller being offline
     if (itemsWithZeroQuantity > 0) {
         placeOrderBtn.title = "Cannot place order: Some items in your cart are out of stock.";
     } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
         placeOrderBtn.title = "Please enter your Roblox Username.";
-    } else if (totalItems === 0) {
+    } else if (totalItemsInCart === 0) {
         placeOrderBtn.title = "Your cart is empty.";
     } else {
         placeOrderBtn.title = ""; // Clear tooltip
