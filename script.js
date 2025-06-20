@@ -398,7 +398,7 @@ function setupSiteSettingsListener() {
             const data = docSnap.data();
             sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
             updateSellerStatusDisplay();
-            updateCartCountBadge(); // Update cart button state based on seller status
+            // Removed updateCartCountBadge() call from here as it's not needed for seller status
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
@@ -617,15 +617,14 @@ function updateCartCountBadge() {
     const { total, itemsWithZeroQuantity } = calculateCartTotals(); // Get items with zero quantity
     placeOrderBtn.textContent = `Place Order (${totalItems} item${totalItems !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
 
-    // Disable place order button if cart is empty, seller is offline (if logged in),
+    // Disable place order button if cart is empty,
     // Roblox username not entered (if logged in), or if there are items with zero quantity.
-    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || !sellerIsOnline || itemsWithZeroQuantity > 0;
+    // Removed the check for !sellerIsOnline
+    placeOrderBtn.disabled = totalItems === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || itemsWithZeroQuantity > 0;
 
     // Optional: Add a tooltip or message if disabled due to seller being offline
     if (itemsWithZeroQuantity > 0) {
         placeOrderBtn.title = "Cannot place order: Some items in your cart are out of stock.";
-    } else if (!sellerIsOnline && currentUserId) {
-        placeOrderBtn.title = "Cannot place order: Seller is currently offline.";
     } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
         placeOrderBtn.title = "Please enter your Roblox Username.";
     } else if (totalItems === 0) {
@@ -802,10 +801,13 @@ placeOrderBtn.addEventListener('click', async () => {
         return;
     }
 
+    // Removed the sellerIsOnline check
+    /*
     if (!sellerIsOnline) {
         showCustomAlert("Cannot place order: The seller is currently offline. Please try again later.");
         return;
     }
+    */
 
     const robloxUsername = robloxUsernameInput.value.trim();
 
@@ -860,8 +862,9 @@ placeOrderBtn.addEventListener('click', async () => {
         // If all checks pass, proceed with deducting stock and creating order
         for (const item of cart) {
             const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
+            // Use productData.stock from inside the loop (fetched just before update)
             batch.update(productRef, {
-                stock: productData.stock - item.quantity // Use productData.stock from inside the loop
+                stock: productData.stock - item.quantity 
             });
         }
 
@@ -1026,7 +1029,7 @@ function renderProducts(items) {
         card.innerHTML = `
             ${product.new ? `<span class="badge">NEW</span>` : ""}
             ${product.sale ? `<span class="badge sale" style="${product.new ? 'left: 60px;' : ''}">SALE</span>` : ""}
-            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20Not%20Found';" />
+            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20N/A';" />
             <h4>${product.name}</h4>
             <div class="price">${displayPrice}</div>
             <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
@@ -1106,3 +1109,4 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
