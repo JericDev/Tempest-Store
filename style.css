@@ -1,4 +1,4 @@
-ur style.css content goes here, updated with new elements */
+/* Your style.css content goes here, updated with new elements */
 body {
     font-family: 'Inter', sans-serif; /* Using Inter font for modern look */
     background: #f5f5f5;
@@ -236,38 +236,65 @@ main#product-list {
     left: 15px;
 }
 
-/* New: Flash Sale Badge - Overrides default badge styles */
+/* New: Flash Sale Badge - Overrides default badge styles to match image */
 .badge.flash-sale {
-    background: linear-gradient(to right, #e74c3c 0%, #e74c3c 55%, #f1c40f 55%, #f1c40f 100%); /* Red to Yellow gradient */
-    color: white;
+    background-color: #e74c3c; /* Red background for the whole badge initially */
+    color: white; /* Text color for "Flash Sale" */
     top: 15px; /* Prioritized top-left position */
     left: 15px;
-    padding: 6px 12px;
+    padding: 6px 0; /* No horizontal padding on the container, children will provide */
     border-radius: 10px;
-    display: flex; /* Use flexbox for text and countdown */
+    display: flex; /* Use flexbox to lay out inner elements */
     align-items: center;
-    gap: 5px; /* Space between text and countdown */
     box-shadow: 0 3px 10px rgba(0,0,0,0.4); /* More prominent shadow */
     font-size: 14px; /* Consistent font size */
     z-index: 7; /* Highest z-index for flash sale badge */
+    overflow: hidden; /* Ensures rounded corners apply correctly */
+    gap: 5px; /* Default gap between text, bolt and countdown if all are in flex */
 }
 
-/* Specific styling for the countdown part */
+/* Style for the "Flash Sale" text label (assuming it's a direct span or text node) */
+.badge.flash-sale .flash-sale-label { /* Assuming script.js adds <span class="flash-sale-label">Flash Sale</span> */
+    white-space: nowrap;
+    padding-left: 12px; /* Left padding for the text part */
+    padding-right: 5px; /* Padding before the lightning bolt/countdown */
+}
+
+/* Specific styling for the countdown part, which includes the lightning bolt as ::before */
 .badge.flash-sale .flash-sale-countdown {
-    background-color: rgba(255, 255, 255, 0.2); /* Slightly transparent white for the countdown background */
-    color: #f1c40f; /* Yellow text for countdown */
-    padding: 3px 8px;
-    border-radius: 6px;
+    background-color: #f1c40f; /* Yellow background for countdown area */
+    color: #333; /* Darker text for countdown numbers */
+    padding: 3px 10px; /* Padding for the countdown numbers */
+    border-radius: 0 10px 10px 0; /* Rounded only on the right */
     font-size: 0.9em;
     font-weight: bold;
     white-space: nowrap;
     min-width: 65px; /* Ensure enough space for HH:MM:SS */
     text-align: center;
+    border-left: 1px solid rgba(0,0,0,0.1); /* Subtle separator line */
+    height: 100%; /* Make it fill the height of the badge */
+    display: flex; /* Use flex to vertically center content */
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+    /* Pushes countdown to the right, making the red background expand for "Flash Sale" text */
+    margin-left: auto;
 }
-.badge.flash-sale::before {
-    content: "⚡ "; /* Lightning bolt icon */
-    color: #f1c40f; /* Yellow lightning bolt */
-    font-size: 1.1em;
+
+/* Lightning bolt icon using a data URI as background image on a pseudo-element */
+.badge.flash-sale .flash-sale-countdown::before {
+    content: '';
+    display: inline-block;
+    width: 18px; /* Size of the SVG icon */
+    height: 18px;
+    /* SVG for a yellow lightning bolt with a dark stroke */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23F1C40F" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>');
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+    margin-right: 5px; /* Space between lightning bolt and numbers */
+    vertical-align: middle; /* Align with text */
+    flex-shrink: 0; /* Prevent from shrinking */
 }
 
 
@@ -1691,7 +1718,7 @@ main#product-list {
         top: 10px;
         left: 10px;
         font-size: 13px;
-        padding: 5px 10px;
+        padding: 4px 8px; /* Adjusted padding */
     }
     .badge.flash-sale .flash-sale-countdown {
         font-size: 0.8em;
