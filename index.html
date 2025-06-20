@@ -48,7 +48,7 @@
         </div>
     </div>
 
-       <div class="filters">
+        <div class="filters">
             <!-- Removed onclick attributes here, listeners will be added in script.js -->
             <button data-cat="all" class="active">All</button>
             <button data-cat="pets">Pets</button>
@@ -197,6 +197,17 @@
                         <input type="checkbox" id="product-sale" />
                         <label for="product-sale">On Sale</label>
                     </div>
+                    <!-- NEW: Flash Sale Checkbox and Inputs -->
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="product-flash-sale" />
+                        <label for="product-flash-sale">On Flash Sale</label>
+                    </div>
+                    <label for="product-flash-sale-price">Flash Sale Price (₱):</label>
+                    <input type="number" id="product-flash-sale-price" placeholder="e.g., 50" min="0" disabled />
+                    <label for="product-flash-sale-end-time">Flash Sale End Time:</label>
+                    <!-- Use datetime-local for easy date/time input -->
+                    <input type="datetime-local" id="product-flash-sale-end-time" disabled />
+
                     <button id="save-product-btn">Add Product</button>
                     <button id="cancel-edit-product" style="display: none;">Cancel Edit</button>
                 </div>
@@ -210,14 +221,15 @@
                             <th>Category</th>
                             <th>Price</th>
                             <th>Stock</th>
-                            <th>New/Sale</th>
+                            <th>Status</th>
+                            <th>Flash Sale End</th> <!-- New column -->
                             <th>Actions</th>
                         </tr>
-                        <tbody id="admin-products-list">
-                            <!-- Products will be rendered here -->
-                            <tr><td colspan="7" class="empty-message">No products found.</td></tr>
-                        </tbody>
                     </thead>
+                    <tbody id="admin-products-list">
+                        <!-- Products will be rendered here -->
+                        <tr><td colspan="8" class="empty-message">No products found.</td></tr> <!-- Adjusted colspan -->
+                    </tbody>
                 </table>
             </div>
 
