@@ -233,15 +233,21 @@ main#product-list {
     background: #e74c3c; /* Red for Sale */
     color: white;
     top: 18px;
-    left: 80px; /* Adjusted position to prevent overlap with NEW badge */
+    left: 18px; /* Default position for single badge */
 }
+
+/* If NEW and SALE are on the same card, position SALE next to NEW */
+.card .badge.new + .badge.sale {
+    left: 95px; /* Calculated based on NEW badge width + desired spacing */
+}
+
 
 /* Flash Sale Badge - Designed to match the provided image */
 .badge.flash-sale {
     background-color: #e74c3c; /* Red background for the main badge */
     color: white; /* Text color for "Flash Sale" */
     top: 18px; /* Prioritized top-left position on the product card */
-    left: 18px;
+    left: 18px; /* Default position for single badge */
     padding: 0; /* Remove padding from the container itself, handled by children */
     border-radius: 12px;
     display: flex; /* Use flexbox to lay out inner elements (text and countdown) */
@@ -252,6 +258,12 @@ main#product-list {
     overflow: hidden; /* Ensures rounded corners apply correctly to children */
     min-width: 130px; /* Ensure enough space for content */
 }
+
+/* If NEW and FLASH SALE are on the same card, position FLASH SALE next to NEW */
+.card .badge.new + .badge.flash-sale {
+    left: 95px; /* Calculated based on NEW badge width + desired spacing */
+}
+
 
 .badge.flash-sale .flash-sale-label {
     white-space: nowrap;
@@ -973,9 +985,7 @@ main#product-list {
     padding-top: 25px;
 }
 #admin-order-details-items h4 {
-    margin-top: 0;
     margin-bottom: 15px;
-    color: #333;
     font-size: 1.5em;
 }
 .admin-order-detail-item {
@@ -1349,14 +1359,22 @@ main#product-list {
         border-radius: 10px;
     }
     .badge.sale {
-        left: 60px; /* Adjusted if NEW is present */
+        left: 10px; /* Default position for single badge */
+    }
+    /* If NEW and SALE are on the same card (mobile) */
+    .card .badge.new + .badge.sale {
+        left: 60px; /* Adjusted for mobile */
     }
     .badge.flash-sale { /* Adjusted for mobile */
         min-width: unset; /* Allow it to shrink */
         top: 10px;
-        left: 10px;
+        left: 10px; /* Default position for single badge */
         font-size: 12px; /* Adjusted font size */
         padding: 0; /* Parent padding handled by children */
+    }
+    /* If NEW and FLASH SALE are on the same card (mobile) */
+    .card .badge.new + .badge.flash-sale {
+        left: 60px; /* Adjusted for mobile */
     }
     .badge.flash-sale .flash-sale-label {
         padding-left: 10px; /* Reduced padding for mobile */
@@ -1747,13 +1765,21 @@ main#product-list {
         border-radius: 10px;
     }
     .badge.sale {
-        left: 65px; /* Adjusted if NEW is present */
+        left: 15px; /* Default position for single badge */
+    }
+    /* If NEW and SALE are on the same card (medium) */
+    .card .badge.new + .badge.sale {
+        left: 75px; /* Adjusted for medium screens */
     }
     .badge.flash-sale { /* Adjusted for medium screens */
         top: 15px;
-        left: 15px;
+        left: 15px; /* Default position for single badge */
         font-size: 14px;
         padding: 0; /* Parent padding handled by children */
+    }
+    /* If NEW and FLASH SALE are on the same card (medium) */
+    .card .badge.new + .badge.flash-sale {
+        left: 75px; /* Adjusted for medium screens */
     }
     .badge.flash-sale .flash-sale-label {
         padding-left: 12px;
