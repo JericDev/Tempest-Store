@@ -1,7 +1,7 @@
 // admin.js
 // This file contains all logic and DOM manipulations specific to the admin panel.
 
-import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+import { collection, doc, setDoc, updateDoc, onSnapshot, query, orderBy, addDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Global variables for admin-specific data and listeners
 let allOrders = []; // Global array to store all orders for admin view
@@ -88,7 +88,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
         }
         const listener = () => {
             if (!isAdminUser) {
-                showCustomAlert("You are not authorized to access the Admin Panel.");
+                showCustomAlert("You are not authorized to access the Admin Panel. Please log in with an admin account.");
                 return;
             }
             adminPanelModal.classList.add('show');
@@ -230,7 +230,7 @@ function initAdminPanel(db, auth, userId, adminFlag, toggleStatusFn, getSellerSt
 
         } catch (e) {
             console.error("Error updating order status in both locations:", e);
-            showCustomAlert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. The admin account must have permission to write to user-specific order documents.");
+            showCustomAlert("Error updating order status: " + e.message + "\n\nNote: This may be due to Firestore Security Rules. Ensure the admin account's UID is correctly set in your rules.");
         }
     };
     updateOrderStatusBtn.addEventListener('click', updateOrderStatusBtn._updateListener);
@@ -315,135 +315,13 @@ function cleanupAdminPanel() {
     adminPanelModal.classList.remove('show'); // Ensure admin modal is closed
 }
 
-
-// Saves a product (new or existing) to Firestore.
-async function saveProductToFirestore(productData) {
-    try {
-        if (productData.id) {
-            showCustomConfirm("Are you sure you want to save changes to this product?", async () => {
-                const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
-                await updateDoc(productRef, productData);
-                console.log("Product updated:", productData.id);
-                resetProductForm();
-                showCustomAlert("Product saved successfully!");
-            });
-        } else {
-            const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
-            await addDoc(productsColRef, productData);
-            console.log("Product added:", productData.name);
-            resetProductForm();
-            showCustomAlert("Product saved successfully!");
-        }
-    } catch (e) {
-        console.error("Error saving product:", e);
-        showCustomAlert("Error saving product: " + e.message);
-    }
-}
-
-// Deletes a product from Firestore.
-async function deleteProductFromFirestore(productId) {
-    showCustomConfirm("Are you sure you want to delete this product?", async () => {
-        try {
-            const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
-            await deleteDoc(productRef);
-            console.log("Product deleted:", productId);
-            showCustomAlert("Product deleted successfully!");
-        } catch (e) {
-            console.error("Error deleting product:", e);
-            showCustomAlert("Error deleting product: " + e.message);
-        }
-    });
-}
-
-// Renders the list of products in the admin panel's product management table.
-function renderAdminProducts() {
-    adminProductsList.innerHTML = '';
-    const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
-    getDocs(productsColRef).then((snapshot) => {
-        const fetchedProducts = [];
-        snapshot.forEach(doc => {
-            fetchedProducts.push({ id: doc.id, ...doc.data() });
-        });
-
-        if (fetchedProducts.length === 0) {
-            adminProductsList.innerHTML = '<tr><td colspan="8" class="empty-message">No products found.</td></tr>'; // Adjusted colspan
-            return;
-        }
-
-        fetchedProducts.forEach(product => {
-            const row = document.createElement('tr');
-            const imageUrl = `images/${product.image}`;
-            // Determine the price display for admin table
-            let adminPriceDisplay = product.price;
-            let statusBadges = [];
-
-            const now = new Date();
-            const isFlashSaleActive = product.flashSale && product.flashSaleEndTime && new Date(product.flashSaleEndTime) > now;
-
-            if (isFlashSaleActive) {
-                adminPriceDisplay = `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.flashSalePrice}`;
-                statusBadges.push('FLASH SALE');
-            } else if (product.sale && product.salePrice) {
-                adminPriceDisplay = `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}`;
-                statusBadges.push('SALE');
-            }
-
-            if (product.new) {
-                statusBadges.push('NEW');
-            }
-
-            row.innerHTML = `
-                <td data-label="Image"><img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/50x50/f0f0f0/888?text=N/A';" /></td>
-                <td data-label="Name">${product.name}</td>
-                <td data-label="Category">${product.category}</td>
-                <td data-label="Price">${adminPriceDisplay}</td>
-                <td data-label="Stock">${product.stock}</td>
-                <td data-label="Status">${statusBadges.join(' / ')}</td>
-                <td data-label="Flash Sale End">${product.flashSale && product.flashSaleEndTime ? new Date(product.flashSaleEndTime).toLocaleString() : 'N/A'}</td>
-                <td data-label="Actions" class="admin-product-actions">
-                    <button class="edit" data-id="${product.id}">Edit</button>
-                    <button class="delete" data-id="${product.id}">Delete</button>
-                </td>
-            `;
-            adminProductsList.appendChild(row);
-        });
-
-        adminProductsList.querySelectorAll('.edit').forEach(button => {
-            if (button._editListener) button.removeEventListener('click', button._editListener);
-            const listener = (e) => {
-                const productId = e.target.dataset.id;
-                const productToEdit = fetchedProducts.find(p => p.id === productId);
-                if (productToEdit) {
-                    editProduct(productToEdit);
-                }
-            };
-            button.addEventListener('click', listener);
-            button._editListener = listener;
-        });
-
-        adminProductsList.querySelectorAll('.delete').forEach(button => {
-            if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
-            const listener = (e) => {
-                const productId = e.target.dataset.id;
-                deleteProductFromFirestore(productId);
-            };
-            button.addEventListener('click', listener);
-            button._deleteListener = listener;
-        });
-    }).catch(error => {
-        console.error("Error rendering admin products:", error);
-        adminProductsList.innerHTML = '<tr><td colspan="8" class="empty-message">Error loading products.</td></tr>'; // Adjusted colspan
-    });
-}
-
-
 function editProduct(product) {
     productFormTitle.textContent = "Edit Product";
     productIdInput.value = product.id;
     productNameInput.value = product.name;
     productCategorySelect.value = product.category;
-    productPriceInput.value = parseFloat(product.price.replace('₱', ''));
-    productSalePriceInput.value = product.salePrice ? parseFloat(product.salePrice.replace('₱', '')) : '';
+    productPriceInput.value = parseFloat(String(product.price).replace('₱', ''));
+    productSalePriceInput.value = product.salePrice ? parseFloat(String(product.salePrice).replace('₱', '')) : '';
     productStockInput.value = product.stock;
     productImageInput.value = product.image;
     productNewCheckbox.checked = product.new || false;
@@ -451,7 +329,7 @@ function editProduct(product) {
     
     // Flash Sale fields
     productFlashSaleCheckbox.checked = product.flashSale || false;
-    productFlashSalePriceInput.value = product.flashSalePrice ? parseFloat(product.flashSalePrice.replace('₱', '')) : '';
+    productFlashSalePriceInput.value = product.flashSalePrice ? parseFloat(String(product.flashSalePrice).replace('₱', '')) : '';
     // Format ISO string to datetime-local format (YYYY-MM-DDTHH:MM)
     if (product.flashSaleEndTime) {
         const date = new Date(product.flashSaleEndTime);
@@ -610,7 +488,7 @@ function showAdminOrderDetails(order) {
             const imageUrl = `images/${item.image}`;
             itemDiv.innerHTML = `
                 <span class="admin-order-detail-item-name">${item.name}</span>
-                <span class="admin-order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
+                <span class="admin-order-detail-item-qty-price">Qty: ${item.quantity} - ₱${(parseFloat(String(item.effectivePrice || item.price).replace('₱', '')) * item.quantity).toFixed(2)}</span>
             `;
             adminDetailItemsList.appendChild(itemDiv);
         });
@@ -624,6 +502,126 @@ function renderSellerStatusToggle(isOnline) {
     sellerStatusText.textContent = isOnline ? "Online" : "Offline";
     sellerStatusText.classList.toggle('status-online', isOnline);
     sellerStatusText.classList.toggle('status-offline', !isOnline);
+}
+
+// Saves a product (new or existing) to Firestore.
+async function saveProductToFirestore(productData) {
+    try {
+        if (productData.id) {
+            showCustomConfirm("Are you sure you want to save changes to this product?", async () => {
+                const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productData.id);
+                await updateDoc(productRef, productData);
+                console.log("Product updated:", productData.id);
+                resetProductForm();
+                showCustomAlert("Product saved successfully!");
+            });
+        } else {
+            const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
+            await addDoc(productsColRef, productData);
+            console.log("Product added:", productData.name);
+            resetProductForm();
+            showCustomAlert("Product saved successfully!");
+        }
+    } catch (e) {
+        console.error("Error saving product:", e);
+        showCustomAlert("Error saving product: " + e.message);
+    }
+}
+
+// Deletes a product from Firestore.
+async function deleteProductFromFirestore(productId) {
+    showCustomConfirm("Are you sure you want to delete this product?", async () => {
+        try {
+            const productRef = doc(dbInstance, PRODUCTS_COLLECTION_PATH, productId);
+            await deleteDoc(productRef);
+            console.log("Product deleted:", productId);
+            showCustomAlert("Product deleted successfully!");
+        } catch (e) {
+            console.error("Error deleting product:", e);
+            showCustomAlert("Error deleting product: " + e.message);
+        }
+    });
+}
+
+// Renders the list of products in the admin panel's product management table.
+function renderAdminProducts() {
+    adminProductsList.innerHTML = '';
+    const productsColRef = collection(dbInstance, PRODUCTS_COLLECTION_PATH);
+    getDocs(productsColRef).then((snapshot) => {
+        const fetchedProducts = [];
+        snapshot.forEach(doc => {
+            fetchedProducts.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (fetchedProducts.length === 0) {
+            adminProductsList.innerHTML = '<tr><td colspan="8" class="empty-message">No products found.</td></tr>'; // Adjusted colspan
+            return;
+        }
+
+        fetchedProducts.forEach(product => {
+            const row = document.createElement('tr');
+            const imageUrl = `images/${product.image}`;
+            // Determine the price display for admin table
+            let adminPriceDisplay = product.price;
+            let statusBadges = [];
+
+            const now = new Date();
+            const isFlashSaleActive = product.flashSale && product.flashSalePrice && product.flashSaleEndTime && new Date(product.flashSaleEndTime) > now;
+
+            if (isFlashSaleActive) {
+                adminPriceDisplay = `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.flashSalePrice}`;
+                statusBadges.push('FLASH SALE');
+            } else if (product.sale && product.salePrice) {
+                adminPriceDisplay = `<span style="text-decoration: line-through; color: #888; font-size: 0.9em;">${product.price}</span> ${product.salePrice}`;
+                statusBadges.push('SALE');
+            }
+
+            if (product.new) {
+                statusBadges.push('NEW');
+            }
+
+            row.innerHTML = `
+                <td data-label="Image"><img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/50x50/f0f0f0/888?text=N/A';" /></td>
+                <td data-label="Name">${product.name}</td>
+                <td data-label="Category">${product.category}</td>
+                <td data-label="Price">${adminPriceDisplay}</td>
+                <td data-label="Stock">${product.stock}</td>
+                <td data-label="Status">${statusBadges.join(' / ')}</td>
+                <td data-label="Flash Sale End">${product.flashSale && product.flashSaleEndTime ? new Date(product.flashSaleEndTime).toLocaleString() : 'N/A'}</td>
+                <td data-label="Actions" class="admin-product-actions">
+                    <button class="edit" data-id="${product.id}">Edit</button>
+                    <button class="delete" data-id="${product.id}">Delete</button>
+                </td>
+            `;
+            adminProductsList.appendChild(row);
+        });
+
+        adminProductsList.querySelectorAll('.edit').forEach(button => {
+            if (button._editListener) button.removeEventListener('click', button._editListener);
+            const listener = (e) => {
+                const productId = e.target.dataset.id;
+                const productToEdit = fetchedProducts.find(p => p.id === productId);
+                if (productToEdit) {
+                    editProduct(productToEdit);
+                }
+            };
+            button.addEventListener('click', listener);
+            button._editListener = listener;
+        });
+
+        adminProductsList.querySelectorAll('.delete').forEach(button => {
+            if (button._deleteListener) button.removeEventListener('click', button._deleteListener);
+            const listener = (e) => {
+                const productId = e.target.dataset.id;
+                deleteProductFromFirestore(productId);
+            };
+            button.addEventListener('click', listener);
+            button._deleteListener = listener;
+        });
+    }).catch(error => {
+        console.error("Error rendering admin products:", error);
+        adminProductsList.innerHTML = '<tr><td colspan="8" class="empty-message">Error loading products.</td></tr>'; // Adjusted colspan
+    });
 }
 
 // Custom Alert/Confirm functions to replace native ones
