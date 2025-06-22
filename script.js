@@ -6,6 +6,8 @@ import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, q
 
 // Your web app's Firebase configuration
 // IMPORTANT: Ensure this configuration matches your Firebase project's config.
+// The apiKey here is a placeholder. If running in a Canvas environment,
+// __firebase_config will provide the actual config.
 const firebaseConfig = {
     apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
     authDomain: "store-7b9bd.firebaseapp.com",
@@ -23,9 +25,9 @@ const db = getFirestore(app); // Initialize Firestore
 
 let currentUserId = null; // To store the current authenticated user's ID
 let isAdmin = false; // Flag to check if the current user is an admin
-// IMPORTANT: Replace "YOUR_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
+// IMPORTANT: Replace "YOUR_ACTUAL_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
-const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Updated with the provided UID
+const ADMIN_UID = "YOUR_ACTUAL_ADMIN_UID_HERE"; // Placeholder for Admin UID
 
 let cart = []; // Global cart array
 let userOrders = []; // Global array to store user's orders (for user history)
@@ -440,7 +442,7 @@ function updateSellerStatusDisplay() {
 async function toggleSellerStatus(isOnline) {
     try {
         const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
-        await updateDoc(settingsDocRef, { sellerOnline: isOnline });
+        await setDoc(settingsDocRef, { sellerOnline: isOnline }, { merge: true }); // Use setDoc with merge to create if not exists or update
         console.log("Seller status updated to:", isOnline);
     } catch (e) {
         console.error("Error updating seller status:", e);
@@ -512,6 +514,9 @@ async function syncCartOnLogin(userId) {
                 (productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price)
             ) : localItem.effectivePrice || localItem.price; // Fallback to item's price if productDetails not found
 
+            // Ensure price is a number before storing or processing further.
+            currentEffectivePrice = parseFloat(String(currentEffectivePrice).replace('₱', ''));
+
             if (existingItemIndex > -1) {
                 // Merge quantity if item exists, ensuring it doesn't exceed current stock
                 if (productDetails) {
@@ -576,6 +581,8 @@ function addToCart(product) {
         effectivePrice = productDetails.price;
     }
 
+    // Ensure effectivePrice is a number before storing.
+    effectivePrice = parseFloat(String(effectivePrice).replace('₱', ''));
 
     if (existingItem) {
         if (existingItem.quantity < productDetails.stock) {
@@ -699,13 +706,16 @@ function renderCart() {
                 } else {
                     priceToDisplay = productDetails.price;
                 }
-                item.effectivePrice = priceToDisplay; // Update item's effectivePrice in cart to match latest
+                // Ensure priceToDisplay is a number for internal calculations, then format for display if needed.
+                item.effectivePrice = parseFloat(String(priceToDisplay).replace('₱', '')); // Update item's effectivePrice in cart to match latest
+                priceToDisplay = `₱${item.effectivePrice.toFixed(2)}`; // Format for display
             } else {
                 // Product no longer exists (deleted by admin or sync issue)
                 item.quantity = 0; // Set quantity to 0
                 isItemOutOfStock = true;
                 itemStatusMessage = '<div class="cart-item-out-of-stock-message">Product Not Found / Out of Stock!</div>'; // New div for message
-                priceToDisplay = item.effectivePrice || item.price || '₱0.00'; // Fallback price
+                item.effectivePrice = parseFloat(String(item.effectivePrice || item.price || '0').replace('₱', '')); // Fallback and ensure number
+                priceToDisplay = `₱${item.effectivePrice.toFixed(2)}`; // Format for display
             }
 
             // Always add the item to itemsToRender, regardless of its quantity, to keep it in the cart visually
@@ -787,7 +797,7 @@ function calculateCartTotals() {
         // Only count items with quantity > 0 for calculating totals and for the totalItemsInCart count
         if (item.quantity > 0) {
             // Use item.effectivePrice, which is updated in renderCart to reflect current sale status
-            const priceValue = parseFloat((item.effectivePrice || item.price).replace('₱', ''));
+            const priceValue = parseFloat(String(item.effectivePrice || item.price).replace('₱', ''));
             subtotal += priceValue * item.quantity;
             totalItemsInCart += item.quantity;
         } else {
@@ -1071,7 +1081,7 @@ function showOrderDetails(order) {
             const imageUrl = `images/${item.image}`;
             itemDiv.innerHTML = `
                 <span class="order-detail-item-name">${item.name}</span>
-                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
+                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ₱${(parseFloat(String(item.effectivePrice || item.price).replace('₱', '')) * item.quantity).toFixed(2)}</span>
             `;
             detailItemsList.appendChild(itemDiv);
         });
@@ -1131,7 +1141,7 @@ function startFlashSaleTimer(product) {
                 priceElement.classList.add('flash-sale-active');
             }
             // Ensure effectivePrice in memory is correctly set for cart additions
-            product.effectivePrice = product.flashSalePrice;
+            product.effectivePrice = parseFloat(String(product.flashSalePrice).replace('₱', ''));
 
         } else {
             // Flash sale ended
@@ -1144,11 +1154,11 @@ function startFlashSaleTimer(product) {
             if (product.sale && product.salePrice) {
                 priceElement.textContent = product.salePrice;
                 priceElement.classList.remove('flash-sale-active');
-                product.effectivePrice = product.salePrice;
+                product.effectivePrice = parseFloat(String(product.salePrice).replace('₱', ''));
             } else {
                 priceElement.textContent = product.price;
                 priceElement.classList.remove('flash-sale-active');
-                product.effectivePrice = product.price;
+                product.effectivePrice = parseFloat(String(product.price).replace('₱', ''));
             }
             
             // Re-enable add to cart if not out of stock otherwise
@@ -1214,6 +1224,9 @@ function renderProducts(items) {
             displayPriceHtml = `<span class="price">${product.price}</span>`;
             currentEffectivePrice = product.price;
         }
+
+        // Ensure currentEffectivePrice is a number before storing.
+        currentEffectivePrice = parseFloat(String(currentEffectivePrice).replace('₱', ''));
 
         // Store the determined effective price on the product object for cart functions
         product.effectivePrice = currentEffectivePrice;
