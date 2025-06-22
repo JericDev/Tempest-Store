@@ -1197,7 +1197,13 @@ function renderProducts(items) {
         const badgesToDisplay = [];
 
         if (isFlashSaleActive) {
-            badgesToDisplay.push('<div class="badge flash-sale"><span class="flash-sale-countdown"></span></div>');
+            // *** IMPORTANT CHANGE HERE: Added the 'flash-sale-label' span ***
+            badgesToDisplay.push(`
+                <div class="badge flash-sale">
+                    <span class="flash-sale-label">FLASH SALE!</span> 
+                    <span class="flash-sale-countdown"></span>
+                </div>
+            `);
         } else { // Only display NEW/SALE if no active flash sale
             if (product.new) {
                 badgesToDisplay.push('<span class="badge new">NEW</span>');
