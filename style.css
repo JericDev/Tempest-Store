@@ -1376,14 +1376,18 @@ main#product-list {
         z-index: 10; /* Ensure "NEW" is on top */
         left: 10px; /* Explicit left for NEW */
     }
-    .badge.sale {
-        z-index: 9; /* Position "SALE" below "NEW" if overlapping */
-        left: 70px; /* Adjusted for closer positioning */
-        right: auto; /* Reset right */
-        top: 10px; /* Keep consistent top */
+    /* Specific positioning for SALE badge when it follows NEW on mobile */
+    .card .badge.new + .badge.sale {
+        top: 10px; /* Keep consistent with NEW tag's top position */
+        left: 65px; /* Adjusted value for closer, non-overlapping positioning */
+        right: auto; /* Ensure no right positioning interferes */
     }
-    /* Removed specific adjustment for NEW + SALE that caused overlap */
-    /* .card .badge.new + .badge.sale { left: 53px; } */
+    /* General .badge.sale for when it's alone on a card on mobile */
+    .badge.sale {
+        top: 10px;
+        left: 10px; /* Default for single sale badge on mobile */
+        right: auto;
+    }
 
     .badge.flash-sale { /* Adjusted for mobile */
         min-width: 100px;
