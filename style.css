@@ -1361,35 +1361,45 @@ main#product-list {
     .card img {
         width: 120px; /* Adjusted image size */
         height: 120px;
+        object-fit: contain;
         margin: 0 auto 15px; /* Adjusted margin */
     }
     .badge { /* Adjusted for mobile */
         top: 10px; /* Adjusted position */
-        left: 10px; /* Adjusted position */
+        left: 10px; /* Explicit left position */
         font-size: 12px; /* Adjusted font size */
         padding: 5px 10px; /* Adjusted padding */
         border-radius: 10px;
+        position: absolute; /* Ensure absolute positioning */
+        z-index: 5; /* Default z-index */
+    }
+    .badge.new {
+        z-index: 10; /* Ensure "NEW" is on top */
+        left: 10px; /* Explicit left for NEW */
     }
     .badge.sale {
-        left: 10px; /* Default position for single badge */
+        z-index: 9; /* Position "SALE" below "NEW" if overlapping */
+        left: auto; /* Reset default left */
+        right: 10px; /* Position "SALE" on the right */
+        top: 10px; /* Keep consistent top */
     }
-    /* If NEW and SALE are on the same card (mobile) */
-    .card .badge.new + .badge.sale {
-        left: 53px; /* Adjusted to be closer: original 60px - 7px */
-    }
+    /* Removed specific adjustment for NEW + SALE that caused overlap */
+    /* .card .badge.new + .badge.sale { left: 53px; } */
+
     .badge.flash-sale { /* Adjusted for mobile */
-        min-width: 100px; /* Slightly reduced min-width to prevent overflow */
-        top: 10px;
-        left: 10px; /* Default position for single badge */
-        font-size: 12px; /* Consistent font size */
-        padding: 6px 8px; /* Adjusted padding for the entire badge on mobile */
-        height: 45px; /* Explicit height for mobile */
-        box-sizing: border-box; /* Include padding in height calculation */
+        min-width: 100px;
+        top: auto; /* Allow for separate positioning for flash sale */
+        bottom: 10px; /* Position flash sale badge at the bottom-left */
+        left: 10px; /* Position independently */
+        font-size: 12px;
+        padding: 6px 8px;
+        height: auto; /* Adjust height based on content */
+        box-sizing: border-box;
+        z-index: 7; /* Keep as 7 */
     }
-    /* If NEW and FLASH SALE are on the same card (mobile) */
-    .card .badge.new + .badge.flash-sale {
-        left: 53px; /* Adjusted to be closer: original 60px - 7px */
-    }
+    /* Removed specific adjustment for NEW + FLASH SALE */
+    /* .card .badge.new + .badge.flash-sale { left: 53px; } */
+
     .badge.flash-sale .flash-sale-label {
         margin-bottom: 2px; /* Further reduced margin for mobile */
         font-size: 0.8em; /* Further reduced font size for mobile label */
