@@ -1,12 +1,19 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"; // Added writeBatch
 
 // Your web app's Firebase configuration
-// IMPORTANT: Use the global __firebase_config provided by the environment.
-// Fallback to an empty object if not defined (though it should always be defined in Canvas).
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+// IMPORTANT: Ensure this configuration matches your Firebase project's config.
+const firebaseConfig = {
+    apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
+    authDomain: "store-7b9bd.firebaseapp.com",
+    projectId: "store-7b9bd",
+    storageBucket: "store-7b9bd.firebase-storage.app",
+    messagingSenderId: "1015427798898",
+    appId: "1:1015427798898:web:a15c71636506fac128afeb",
+    measurementId: "G-NR4JS3FLWG"
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -365,32 +372,8 @@ onAuthStateChanged(auth, async (user) => {
     // Products are always rendered via the setupProductsListener called globally.
 });
 
-// --- Initial Authentication with Custom Token ---
-// This block ensures the user is authenticated with the provided custom token
-// or anonymously if no token is available, right after Firebase is initialized.
-(async () => {
-    try {
-        if (typeof __initial_auth_token !== 'undefined') {
-            await signInWithCustomToken(auth, __initial_auth_token);
-            console.log("Signed in with custom token.");
-        } else {
-            await signInAnonymously(auth);
-            console.log("Signed in anonymously.");
-        }
-    } catch (error) {
-        console.error("Firebase Auth initial sign-in error:", error);
-        // Fallback to anonymous sign-in if custom token fails, to ensure some auth state
-        if (error.code === 'auth/invalid-custom-token') {
-            await signInAnonymously(auth);
-            console.warn("Custom token invalid, falling back to anonymous sign-in.");
-        }
-    }
-})();
-
 // --- Firestore Collection Paths ---
-// Use the global __app_id provided by the environment.
-// Fallback to 'default-app-id' if not defined.
-const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const APP_ID = 'tempest-store-app';
 const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
 const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
 const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
