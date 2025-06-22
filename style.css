@@ -217,7 +217,7 @@ main#product-list {
     font-size: 15px;
     font-weight: bold;
     box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-    z-index: 5; /* Ensure badges are on top */
+    z-index: 5; /* Ensure badges are on top by default */
     white-space: nowrap; /* Prevent text wrapping */
     transition: background-color 0.3s ease; /* Smooth transition for background color */
 }
@@ -227,6 +227,7 @@ main#product-list {
     color: #333;
     top: 18px;
     left: 18px;
+    z-index: 10; /* Ensure NEW is always on top, higher than flash-sale (7) and default (5) */
 }
 
 .badge.sale {
@@ -254,7 +255,7 @@ main#product-list {
     align-items: center;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4); /* More prominent shadow */
     font-size: 15px; /* Consistent font size */
-    z-index: 7; /* Highest z-index for flash sale badge */
+    z-index: 7; /* Keep as 7, lower than NEW's 10 but higher than default 5 */
     overflow: hidden; /* Ensures rounded corners apply correctly to children */
     min-width: 130px; /* Ensure enough space for content */
 }
