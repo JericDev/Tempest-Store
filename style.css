@@ -1366,7 +1366,6 @@ main#product-list {
     }
     .badge { /* Adjusted for mobile */
         top: 10px; /* Adjusted position */
-        left: 10px; /* Explicit left position */
         font-size: 12px; /* Adjusted font size */
         padding: 5px 10px; /* Adjusted padding */
         border-radius: 10px;
@@ -1379,8 +1378,8 @@ main#product-list {
     }
     .badge.sale {
         z-index: 9; /* Position "SALE" below "NEW" if overlapping */
-        left: auto; /* Reset default left */
-        right: 10px; /* Position "SALE" on the right */
+        left: 70px; /* Position "SALE" to the right of NEW */
+        right: auto; /* Reset right */
         top: 10px; /* Keep consistent top */
     }
     /* Removed specific adjustment for NEW + SALE that caused overlap */
