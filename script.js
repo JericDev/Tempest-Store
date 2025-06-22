@@ -9,13 +9,13 @@ import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, q
 // The apiKey here is a placeholder. If running in a Canvas environment,
 // __firebase_config will provide the actual config.
 const firebaseConfig = {
-    apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
-    authDomain: "store-7b9bd.firebaseapp.com",
-    projectId: "store-7b9bd",
-    storageBucket: "store-7b9bd.firebase-storage.app",
-    messagingSenderId: "1015427798898",
-    appId: "1:1015427798898:web:a15c71636506fac128afeb",
-    measurementId: "G-NR4JS3FLWG"
+    apiKey: "AIzaSyCgHUxu39acueb0WAC8SwYu9Yk-ioN0ed0",
+    authDomain: "tempest-store-ba003.firebaseapp.com",
+    projectId: "tempest-store-ba003",
+    storageBucket: "tempest-store-ba003.firebasestorage.app",
+    messagingSenderId: "656832402032",
+    appId: "1:656832402032:web:5aa30861be5c7d82fd5ab5",
+    measurementId: "G-L3VJY87R3G"
 };
 
 // Initialize Firebase
