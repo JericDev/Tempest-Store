@@ -44,6 +44,9 @@ let flashSaleTimers = {}; // Object to store setInterval IDs for flash sale coun
 let initAdminPanelModule = null;
 let adminCleanupFunction = null;
 
+// New: Variable to hold the interval for refreshing the cart when modal is open
+let cartRefreshInterval = null;
+
 
 // --- DOM elements for Authentication ---
 const authEmailInput = document.getElementById("auth-email");
@@ -803,15 +806,30 @@ cartIconBtn.addEventListener('click', () => {
     renderCart(); // Call renderCart to ensure stock checks are done before showing
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
+    // Start cart refresh interval when cart modal is opened
+    if (cartRefreshInterval) { // Clear any existing interval just in case
+        clearInterval(cartRefreshInterval);
+    }
+    cartRefreshInterval = setInterval(renderCart, 5000); // Refresh cart every 5 seconds
 });
 
 closeCartModalBtn.addEventListener('click', () => {
     cartModal.classList.remove('show');
+    // Clear cart refresh interval when cart modal is closed
+    if (cartRefreshInterval) {
+        clearInterval(cartRefreshInterval);
+        cartRefreshInterval = null;
+    }
 });
 
 cartModal.addEventListener('click', (event) => {
     if (event.target === cartModal) {
         cartModal.classList.remove('show');
+        // Clear cart refresh interval if modal is closed by clicking outside
+        if (cartRefreshInterval) {
+            clearInterval(cartRefreshInterval);
+            cartRefreshInterval = null;
+        }
     }
 });
 
@@ -1135,7 +1153,6 @@ function startFlashSaleTimer(product) {
                 addToCartBtn.textContent = 'Add to Cart';
             }
             console.log(`Flash sale for ${product.name} has ended.`);
-            // *** IMPORTANT FIX: Call renderCart() when a flash sale ends ***
             // This ensures that any item in the cart that was on flash sale
             // will have its price correctly updated to the normal/sale price.
             renderCart(); 
