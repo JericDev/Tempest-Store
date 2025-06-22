@@ -44,7 +44,8 @@ let flashSaleTimers = {}; // Object to store setInterval IDs for flash sale coun
 let initAdminPanelModule = null;
 let adminCleanupFunction = null;
 
-// Removed: cartRefreshInterval variable, as periodic refresh is being removed
+// New: Variable to hold the interval for refreshing the cart when modal is open
+let cartRefreshInterval = null;
 
 
 // --- DOM elements for Authentication ---
@@ -68,7 +69,7 @@ const forgotPasswordButton = document.getElementById("forgot-password-button"); 
 const cartIconBtn = document.getElementById("cart-icon-btn");
 const cartCountBadge = document.getElementById("cart-count");
 const cartModal = document.getElementById("cart-modal");
-const closeCartModalBtn = document.getElementById("close-cart-modal"); // FIX: Corrected line 1337
+const closeCartModalBtn = document.getElementById("close-cart-modal");
 const cartItemsContainer = document.getElementById("cart-items-container");
 const cartSubtotalSpan = document.getElementById("cart-subtotal");
 const cartTotalSpan = document.getElementById("cart-total");
@@ -408,17 +409,12 @@ function setupSiteSettingsListener() {
             const data = docSnap.data();
             sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
             updateSellerStatusDisplay();
-            // Also re-render cart and products based on seller status
-            renderCart();
-            applyFilters();
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
             setDoc(settingsDocRef, { sellerOnline: false });
             sellerIsOnline = false;
             updateSellerStatusDisplay();
-            renderCart();
-            applyFilters();
         }
     }, (error) => {
         console.error("Error listening to site settings:", error);
@@ -663,11 +659,6 @@ function updateCartCountBadge() {
     } else {
         placeOrderBtn.title = ""; // Clear tooltip
     }
-    // Disable place order button if seller is offline
-    if (!sellerIsOnline) {
-        placeOrderBtn.disabled = true;
-        placeOrderBtn.title = "Cannot place order: The seller is currently offline.";
-    }
 }
 
 function renderCart() {
@@ -815,18 +806,30 @@ cartIconBtn.addEventListener('click', () => {
     renderCart(); // Call renderCart to ensure stock checks are done before showing
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
-    // Removed: Starting cart refresh interval here
+    // Start cart refresh interval when cart modal is opened
+    if (cartRefreshInterval) { // Clear any existing interval just in case
+        clearInterval(cartRefreshInterval);
+    }
+    cartRefreshInterval = setInterval(renderCart, 5000); // Refresh cart every 5 seconds
 });
 
 closeCartModalBtn.addEventListener('click', () => {
     cartModal.classList.remove('show');
-    // Removed: Clearing cart refresh interval here
+    // Clear cart refresh interval when cart modal is closed
+    if (cartRefreshInterval) {
+        clearInterval(cartRefreshInterval);
+        cartRefreshInterval = null;
+    }
 });
 
 cartModal.addEventListener('click', (event) => {
     if (event.target === cartModal) {
         cartModal.classList.remove('show');
-        // Removed: Clearing cart refresh interval here
+        // Clear cart refresh interval if modal is closed by clicking outside
+        if (cartRefreshInterval) {
+            clearInterval(cartRefreshInterval);
+            cartRefreshInterval = null;
+        }
     }
 });
 
@@ -853,17 +856,8 @@ copyContactNumberBtn.addEventListener('click', () => {
 
 // Handles the process of placing an order.
 placeOrderBtn.addEventListener('click', async () => {
-    // Reinstated: No admin-only check here. All authenticated users can buy.
-
     if (cart.length === 0) {
         showCustomAlert("Your cart is empty. Please add items before placing an order.");
-        return;
-    }
-
-    // Check seller status FIRST, before other checks
-    if (!sellerIsOnline) {
-        showCustomAlert("Cannot place order: The seller is currently offline. Please try again later.");
-        placeOrderBtn.disabled = false; // Re-enable button
         return;
     }
 
