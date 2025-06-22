@@ -46,6 +46,7 @@ function showAlert(message, type = 'alert') {
             hideModal('custom-alert-modal');
             resolve(true);
         };
+        // Use data-close-modal attribute to link close button to modal
         document.querySelector('#custom-alert-modal .custom-modal-close-btn').onclick = () => {
             hideModal('custom-alert-modal');
             resolve(false);
@@ -66,6 +67,7 @@ function showConfirm(message) {
             hideModal('custom-confirm-modal');
             resolve(false);
         };
+        // Use data-close-modal attribute to link close button to modal
         document.querySelector('#custom-confirm-modal .custom-modal-close-btn').onclick = () => {
             hideModal('custom-confirm-modal');
             resolve(false);
@@ -82,7 +84,7 @@ async function saveProduct(product) {
             // Add new product
             const docRef = await addDoc(productsCollectionRef(db), product);
             product.id = docRef.id; // Assign the new ID
-            // Update the document to include its own ID as a field
+            // Update the document to include its own ID as a field (optional but good practice)
             await setDoc(doc(productsCollectionRef(db), docRef.id), { ...product, id: docRef.id });
         } else {
             // Update existing product
@@ -90,6 +92,7 @@ async function saveProduct(product) {
         }
         showAlert('Product saved successfully!');
         await loadProducts(); // Reload products to refresh list
+        await loadAdminProducts(); // Reload admin product list
         resetProductForm();
     } catch (error) {
         console.error("Error saving product:", error);
@@ -103,6 +106,7 @@ async function deleteProduct(productId) {
             await deleteDoc(doc(productsCollectionRef(db), productId));
             showAlert('Product deleted successfully!');
             await loadProducts(); // Reload products to refresh list
+            await loadAdminProducts(); // Reload admin product list
         } catch (error) {
             console.error("Error deleting product:", error);
             showAlert('Error deleting product: ' + error.message);
@@ -171,8 +175,8 @@ function renderProducts() {
         }
 
         const formattedPrice = isFlashSaleActive && product.flashSalePrice ?
-            `<span class="price flash-sale-active">$${product.flashSalePrice.toFixed(2)}</span><span class="original-price-strikethrough">$${product.price.toFixed(2)}</span>` :
-            `<span class="price">$${product.price.toFixed(2)}</span>`;
+            `<span class="price flash-sale-active">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span><span class="original-price-strikethrough">₱${product.price.toFixed(2)}</span>` :
+            `<span class="price">₱${product.price.toFixed(2)}</span>`;
 
         card.innerHTML = `
             ${badgesHtml}
@@ -247,8 +251,8 @@ function searchProducts(query) {
         }
 
         const formattedPrice = isFlashSaleActive && product.flashSalePrice ?
-            `<span class="price flash-sale-active">$${product.flashSalePrice.toFixed(2)}</span><span class="original-price-strikethrough">$${product.price.toFixed(2)}</span>` :
-            `<span class="price">$${product.price.toFixed(2)}</span>`;
+            `<span class="price flash-sale-active">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span><span class="original-price-strikethrough">₱${product.price.toFixed(2)}</span>` :
+            `<span class="price">₱${product.price.toFixed(2)}</span>`;
 
         card.innerHTML = `
             ${badgesHtml}
@@ -298,13 +302,17 @@ function addAddToCartListeners() {
 }
 
 function updateCartUI() {
-    const cartItemsContainer = document.getElementById('cart-items');
+    // Corrected ID for cart items container
+    const cartItemsContainer = document.getElementById('cart-items-container');
     cartItemsContainer.innerHTML = '';
     let subtotal = 0;
 
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
         document.getElementById('place-order-btn').disabled = true;
+        // Also update the button text
+        document.getElementById('place-order-btn').textContent = `Place Order (0 items) ₱0.00`;
+
     } else {
         document.getElementById('place-order-btn').disabled = false;
         cart.forEach(item => {
@@ -329,7 +337,7 @@ function updateCartUI() {
                 <img src="${item.imageUrl || 'https://placehold.co/90x90/e9ecef/495057?text=Product'}" alt="${item.name}">
                 <div class="cart-item-details">
                     <h4>${item.name}</h4>
-                    <p class="cart-item-price">$${effectivePrice.toFixed(2)}</p>
+                    <p class="cart-item-price">₱${parseFloat(effectivePrice).toFixed(2)}</p>
                     ${isOutOfStock && productInCatalog && productInCatalog.stock < item.quantity ?
                         `<p class="cart-item-out-of-stock-message">Only ${productInCatalog.stock} available. Quantity adjusted.</p>` : ''}
                     ${productInCatalog && productInCatalog.stock === 0 ?
@@ -352,7 +360,10 @@ function updateCartUI() {
     document.getElementById('cart-subtotal').textContent = subtotal.toFixed(2);
     document.getElementById('cart-tax').textContent = tax.toFixed(2);
     document.getElementById('cart-total').textContent = total.toFixed(2);
-    document.getElementById('cart-count-badge').textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+    // Corrected ID for cart count badge
+    document.getElementById('cart-count').textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+    document.getElementById('place-order-btn').textContent = `Place Order (${cart.reduce((sum, item) => sum + item.quantity, 0)} items) ₱${total.toFixed(2)}`;
+
 
     addCartQuantityListeners();
     addCartRemoveListeners();
@@ -426,6 +437,7 @@ async function placeOrder() {
         return;
     }
 
+    // Corrected ID for Roblox username input
     const robloxUsername = document.getElementById('roblox-username').value.trim();
     if (!robloxUsername) {
         showAlert('Please enter your Roblox Username.');
@@ -467,10 +479,10 @@ async function placeOrder() {
                 productId: item.id,
                 name: item.name,
                 quantity: item.quantity,
-                price: effectivePrice,
+                price: parseFloat(effectivePrice), // Ensure price is stored as number
                 imageUrl: item.imageUrl || 'https://placehold.co/90x90/e9ecef/495057?text=Product'
             });
-            totalAmount += effectivePrice * item.quantity;
+            totalAmount += parseFloat(effectivePrice) * item.quantity;
             productsToUpdate.push({ id: item.id, newStock: productData.stock - item.quantity });
         }
 
@@ -550,8 +562,8 @@ async function loadOrderHistory() {
                 <div class="order-item-info">
                     <strong>Order ID: ${orderId}</strong>
                     <span>Date: ${orderDate}</span>
-                    <span>Total: $${order.total.toFixed(2)}</span>
-                    <span class="order-item-status status-${order.status}">${order.status.replace('-', ' ')}</span>
+                    <span>Total: ₱${order.total.toFixed(2)}</span>
+                    <span class="order-item-status status-${order.status.toLowerCase().replace(' ', '-')}">${order.status.replace('-', ' ')}</span>
                 </div>
                 <button class="view-details-btn" data-order-id="${orderId}">View Details</button>
             `;
@@ -578,6 +590,7 @@ async function showOrderDetails(orderId) {
 
         if (orderDoc.exists()) {
             const order = orderDoc.data();
+            // Corrected IDs for order details
             document.getElementById('order-details-id').textContent = orderId;
             document.getElementById('order-details-date').textContent = order.orderDate ? new Date(order.orderDate.seconds * 1000).toLocaleDateString() : 'N/A';
             document.getElementById('order-details-total').textContent = order.total.toFixed(2);
@@ -585,6 +598,7 @@ async function showOrderDetails(orderId) {
             document.getElementById('order-details-payment').textContent = order.paymentMethod;
             document.getElementById('order-details-roblox-username').textContent = order.robloxUsername;
 
+            // Corrected ID for order items container
             const itemsContainer = document.getElementById('order-details-items');
             itemsContainer.innerHTML = '';
             order.items.forEach(item => {
@@ -592,7 +606,7 @@ async function showOrderDetails(orderId) {
                 itemDiv.className = 'order-detail-item';
                 itemDiv.innerHTML = `
                     <span class="order-detail-item-name">${item.name}</span>
-                    <span class="order-detail-item-qty-price">${item.quantity} x $${item.price.toFixed(2)}</span>
+                    <span class="order-detail-item-qty-price">${item.quantity} x ₱${item.price.toFixed(2)}</span>
                 `;
                 itemsContainer.appendChild(itemDiv);
             });
@@ -608,28 +622,40 @@ async function showOrderDetails(orderId) {
 
 // --- Admin Panel Functionality ---
 function setupAdminPanel() {
-    document.getElementById('admin-product-new-badge').checked = false;
-    document.getElementById('admin-product-sale-badge').checked = false;
-    document.getElementById('admin-product-flash-sale-badge').checked = false;
-    document.getElementById('admin-product-flash-sale-badge').onchange = (event) => {
+    // Corrected IDs for product form checkboxes
+    document.getElementById('product-new').checked = false;
+    document.getElementById('product-sale').checked = false;
+    document.getElementById('product-flash-sale').checked = false;
+    
+    // Event listener for flash sale checkbox
+    document.getElementById('product-flash-sale').onchange = (event) => {
         document.querySelector('.flash-sale-details').style.display = event.target.checked ? 'block' : 'none';
     };
+
     document.getElementById('save-product-btn').onclick = async () => {
+        // Corrected ID for product ID input
         const productId = document.getElementById('product-id').value;
         const productName = document.getElementById('product-name').value;
-        const productDescription = document.getElementById('product-description').value;
+        const productDescription = document.getElementById('product-description').value; // Added
         const productPrice = parseFloat(document.getElementById('product-price').value);
         const productStock = parseInt(document.getElementById('product-stock').value);
         const productCategory = document.getElementById('product-category').value;
-        const isNew = document.getElementById('product-new-badge').checked;
-        const isOnSale = document.getElementById('product-sale-badge').checked;
-        const isFlashSale = document.getElementById('product-flash-sale-badge').checked;
-        const flashSaleEnd = document.getElementById('flash-sale-end-time').value;
+        const isNew = document.getElementById('product-new').checked; // Corrected ID
+        const isOnSale = document.getElementById('product-sale').checked; // Corrected ID
+        const isFlashSale = document.getElementById('product-flash-sale').checked; // Corrected ID
+        const flashSalePrice = isFlashSale ? parseFloat(document.getElementById('product-flash-sale-price').value) : null; // Get value from input
+        const flashSaleEnd = isFlashSale ? document.getElementById('product-flash-sale-end-time').value : null; // Get value from input
+        const imageUrl = document.getElementById('product-image').value; // Added
 
-        if (!productName || isNaN(productPrice) || isNaN(productStock)) {
-            showAlert('Please fill in all product fields correctly.');
+        if (!productName || isNaN(productPrice) || isNaN(productStock) || !productDescription) {
+            showAlert('Please fill in all product fields correctly (Name, Description, Price, Stock).');
             return;
         }
+        if (isFlashSale && (isNaN(flashSalePrice) || !flashSaleEnd)) {
+            showAlert('Please enter valid Flash Sale Price and End Time if Flash Sale is enabled.');
+            return;
+        }
+
 
         const productData = {
             name: productName,
@@ -640,9 +666,9 @@ function setupAdminPanel() {
             isNew: isNew,
             isOnSale: isOnSale,
             isFlashSale: isFlashSale,
-            flashSaleEnd: isFlashSale ? flashSaleEnd : null,
-            flashSalePrice: isFlashSale ? (productPrice * 0.8).toFixed(2) : null, // Example: 20% off for flash sale
-            imageUrl: `https://placehold.co/180x180/${Math.floor(Math.random()*16777215).toString(16)}/ffffff?text=${encodeURIComponent(productName.substring(0,2))}` // Random placeholder image
+            flashSaleEnd: flashSaleEnd,
+            flashSalePrice: flashSalePrice,
+            imageUrl: imageUrl || `https://placehold.co/180x180/${Math.floor(Math.random()*16777215).toString(16)}/ffffff?text=${encodeURIComponent(productName.substring(0,2))}` // Use provided URL or fallback
         };
 
         if (productId) productData.id = productId; // Keep ID if editing
@@ -657,22 +683,26 @@ function setupAdminPanel() {
 }
 
 function resetProductForm() {
+    // Corrected ID for product ID input
     document.getElementById('product-id').value = '';
     document.getElementById('product-name').value = '';
-    document.getElementById('product-description').value = '';
+    document.getElementById('product-description').value = ''; // Added
     document.getElementById('product-price').value = '0.00';
     document.getElementById('product-stock').value = '0';
-    document.getElementById('product-category').value = 'consoles';
-    document.getElementById('product-new-badge').checked = false;
-    document.getElementById('product-sale-badge').checked = false;
-    document.getElementById('product-flash-sale-badge').checked = false;
-    document.querySelector('.flash-sale-details').style.display = 'none';
-    document.getElementById('flash-sale-end-time').value = '';
-    document.getElementById('save-product-btn').textContent = 'Save Product';
+    document.getElementById('product-category').value = 'pets'; // Default to 'pets'
+    document.getElementById('product-new').checked = false; // Corrected ID
+    document.getElementById('product-sale').checked = false; // Corrected ID
+    document.getElementById('product-flash-sale').checked = false; // Corrected ID
+    document.querySelector('.flash-sale-details').style.display = 'none'; // Hide flash sale details
+    document.getElementById('product-flash-sale-price').value = '0.00'; // Reset flash sale price
+    document.getElementById('product-flash-sale-end-time').value = ''; // Reset flash sale end time
+    document.getElementById('product-image').value = ''; // Added
+    document.getElementById('save-product-btn').textContent = 'Add Product'; // Changed text to "Add Product"
     document.getElementById('cancel-edit-product').style.display = 'none';
 }
 
 async function loadAdminProducts() {
+    // Corrected ID for product list tbody
     const productListBody = document.getElementById('admin-product-list');
     productListBody.innerHTML = '<tr><td colspan="7">Loading products...</td></tr>';
     try {
@@ -688,23 +718,23 @@ async function loadAdminProducts() {
         products.forEach(product => {
             const row = productListBody.insertRow();
             const now = new Date();
-            let displayPrice = `$${product.price.toFixed(2)}`;
+            let displayPrice = `₱${product.price.toFixed(2)}`;
             if (product.isFlashSale && product.flashSaleEnd) {
                 const flashSaleEndTime = new Date(product.flashSaleEnd);
                 if (flashSaleEndTime > now) {
-                    displayPrice = `<span style="color:red;">$${product.flashSalePrice.toFixed(2)}</span> (was $${product.price.toFixed(2)})`;
+                    displayPrice = `<span style="color:red;">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span> (was ₱${product.price.toFixed(2)})`;
                 }
             }
             row.innerHTML = `
-                <td><img src="${product.imageUrl}" alt="${product.name}" width="50"></td>
+                <td><img src="${product.imageUrl || 'https://placehold.co/70x70/e9ecef/495057?text=Product'}" alt="${product.name}" width="50"></td>
                 <td>${product.name}</td>
+                <td>${product.category}</td>
                 <td>${displayPrice}</td>
                 <td>${product.stock}</td>
-                <td>${product.category}</td>
                 <td>
                     ${product.isNew ? '<span class="badge new" style="position:relative;top:auto;left:auto;margin-right:5px;padding:3px 6px;">NEW</span>' : ''}
                     ${product.isOnSale ? '<span class="badge sale" style="position:relative;top:auto;left:auto;padding:3px 6px;">SALE</span>' : ''}
-                    ${product.isFlashSale && new Date(product.flashSaleEnd) > now ? '<span class="badge flash-sale" style="position:relative;top:auto;left:auto;padding:3px 6px;">FLASH</span>' : ''}
+                    ${product.isFlashSale && new Date(product.flashSaleEnd) > now ? '<span class="badge flash-sale" style="position:relative;top:auto;left:auto;padding:3px 6px;display:inline-flex;flex-direction:row;align-items:center;height:auto;min-width:unset;box-shadow:none;"><span class="flash-sale-label" style="font-size:0.9em; margin-bottom:0;"><!-- SVG from style.css --><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FFD700" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;flex-shrink:0;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>FLASH</span></span>' : ''}
                 </td>
                 <td class="admin-product-actions">
                     <button class="edit" data-id="${product.id}">Edit</button>
@@ -731,20 +761,27 @@ async function editProduct(productId) {
         const productDoc = await getDoc(doc(productsCollectionRef(db), productId));
         if (productDoc.exists()) {
             const product = productDoc.data();
-            document.getElementById('product-id').value = product.id;
+            document.getElementById('product-id').value = product.id; // Corrected ID
             document.getElementById('product-name').value = product.name;
-            document.getElementById('product-description').value = product.description;
+            document.getElementById('product-description').value = product.description; // Added
             document.getElementById('product-price').value = product.price;
             document.getElementById('product-stock').value = product.stock;
             document.getElementById('product-category').value = product.category;
-            document.getElementById('product-new-badge').checked = product.isNew || false;
-            document.getElementById('product-sale-badge').checked = product.isOnSale || false;
-            document.getElementById('product-flash-sale-badge').checked = product.isFlashSale || false;
+            document.getElementById('product-image').value = product.imageUrl || ''; // Added
+
+            // Corrected IDs for checkboxes
+            document.getElementById('product-new').checked = product.isNew || false;
+            document.getElementById('product-sale').checked = product.isOnSale || false;
+            document.getElementById('product-flash-sale').checked = product.isFlashSale || false;
+
             if (product.isFlashSale) {
                 document.querySelector('.flash-sale-details').style.display = 'block';
-                document.getElementById('flash-sale-end-time').value = product.flashSaleEnd ? new Date(product.flashSaleEnd).toISOString().slice(0, 16) : '';
+                document.getElementById('product-flash-sale-price').value = parseFloat(product.flashSalePrice).toFixed(2); // Set flash sale price
+                document.getElementById('product-flash-sale-end-time').value = product.flashSaleEnd ? new Date(product.flashSaleEnd).toISOString().slice(0, 16) : '';
             } else {
                 document.querySelector('.flash-sale-details').style.display = 'none';
+                document.getElementById('product-flash-sale-price').value = '0.00'; // Clear on disable
+                document.getElementById('product-flash-sale-end-time').value = ''; // Clear on disable
             }
 
             document.getElementById('save-product-btn').textContent = 'Update Product';
@@ -760,8 +797,8 @@ async function editProduct(productId) {
 
 async function loadAdminOrders() {
     const orderListBody = document.getElementById('admin-order-list');
-    orderListBody.innerHTML = '<tr><td colspan="5">Loading orders...</td></tr>';
-    document.getElementById('admin-order-list').style.display = 'table-row-group';
+    orderListBody.innerHTML = '<tr><td colspan="6">Loading orders...</td></tr>'; // Corrected colspan
+    document.getElementById('admin-orders').style.display = 'block'; // Ensure correct tab content is visible
     document.getElementById('admin-order-details-view').style.display = 'none';
 
     try {
@@ -783,7 +820,7 @@ async function loadAdminOrders() {
 
         orderListBody.innerHTML = '';
         if (allOrders.length === 0) {
-            orderListBody.innerHTML = '<tr><td colspan="5" class="empty-message">No orders placed yet.</td></tr>';
+            orderListBody.innerHTML = '<tr><td colspan="6" class="empty-message">No orders placed yet.</td></tr>'; // Corrected colspan
             return;
         }
 
@@ -793,8 +830,9 @@ async function loadAdminOrders() {
             row.innerHTML = `
                 <td>${order.id}</td>
                 <td>${order.userId}</td>
-                <td>$${order.total.toFixed(2)}</td>
-                <td><span class="order-item-status status-${order.status}">${order.status.replace('-', ' ')}</span></td>
+                <td>${orderDate}</td>
+                <td>₱${order.total.toFixed(2)}</td>
+                <td><span class="order-item-status status-${order.status.toLowerCase().replace(' ', '-')}">${order.status.replace('-', ' ')}</span></td>
                 <td class="admin-order-actions">
                     <button class="view" data-order-id="${order.id}">View</button>
                 </td>
@@ -812,7 +850,7 @@ async function loadAdminOrders() {
 }
 
 async function showAdminOrderDetails(orderId) {
-    document.getElementById('admin-order-list').style.display = 'none';
+    document.getElementById('admin-orders').style.display = 'none'; // Hide list content
     document.getElementById('admin-order-details-view').style.display = 'block';
 
     try {
@@ -834,14 +872,17 @@ async function showAdminOrderDetails(orderId) {
         }
 
         if (orderData) {
+            // Corrected IDs for admin order details
             document.getElementById('admin-order-details-id').textContent = orderId;
             document.getElementById('admin-order-customer-id').textContent = customerId;
             document.getElementById('admin-order-roblox-username').textContent = orderData.robloxUsername || 'N/A';
             document.getElementById('admin-order-details-date').textContent = orderData.orderDate ? new Date(orderData.orderDate.seconds * 1000).toLocaleDateString() : 'N/A';
             document.getElementById('admin-order-details-total').textContent = orderData.total.toFixed(2);
             document.getElementById('admin-order-details-payment').textContent = orderData.paymentMethod;
-            document.getElementById('admin-order-status-select').value = orderData.status;
+            document.getElementById('admin-order-status-display').textContent = orderData.status.replace('-', ' '); // Display current status
+            document.getElementById('admin-order-status-select').value = orderData.status.toLowerCase(); // Set dropdown value
 
+            // Corrected ID for admin order items container
             const itemsContainer = document.getElementById('admin-order-details-items');
             itemsContainer.innerHTML = '';
             orderData.items.forEach(item => {
@@ -849,7 +890,7 @@ async function showAdminOrderDetails(orderId) {
                 itemDiv.className = 'admin-order-detail-item';
                 itemDiv.innerHTML = `
                     <span class="admin-order-detail-item-name">${item.name}</span>
-                    <span class="admin-order-detail-item-qty-price">${item.quantity} x $${item.price.toFixed(2)}</span>
+                    <span class="admin-order-detail-item-qty-price">${item.quantity} x ₱${item.price.toFixed(2)}</span>
                 `;
                 itemsContainer.appendChild(itemDiv);
             });
@@ -877,8 +918,8 @@ async function updateOrderStatus(customerId, orderId, newStatus) {
         });
         showAlert('Order status updated successfully!');
         await loadAdminOrders(); // Refresh admin orders list
+        document.getElementById('admin-orders').style.display = 'block'; // Show order list again
         document.getElementById('admin-order-details-view').style.display = 'none';
-        document.getElementById('admin-order-list').style.display = 'table-row-group';
     } catch (error) {
         console.error("Error updating order status:", error);
         showAlert('Error updating order status: ' + error.message);
@@ -896,14 +937,14 @@ async function loadSellerStatusToggle() {
             const isOnline = data.sellerOnlineStatus === true;
             document.getElementById('seller-online-toggle').checked = isOnline;
             document.getElementById('seller-status-text').textContent = isOnline ? 'Online' : 'Offline';
-            document.getElementById('seller-status-display').textContent = isOnline ? 'Online' : 'Offline';
+            document.getElementById('seller-status-display').textContent = isOnline ? 'Seller Status: Online' : 'Seller Status: Offline';
             document.getElementById('seller-status-display').className = isOnline ? 'status-online' : 'status-offline';
         } else {
             // If no setting exists, default to online and create it
             await setDoc(siteSettingsDocRef(db), { sellerOnlineStatus: true });
             document.getElementById('seller-online-toggle').checked = true;
             document.getElementById('seller-status-text').textContent = 'Online';
-            document.getElementById('seller-status-display').textContent = 'Online';
+            document.getElementById('seller-status-display').textContent = 'Seller Status: Online';
             document.getElementById('seller-status-display').className = 'status-online';
         }
     } catch (error) {
@@ -915,7 +956,7 @@ async function updateSellerStatus(isOnline) {
     try {
         await setDoc(siteSettingsDocRef(db), { sellerOnlineStatus: isOnline }, { merge: true });
         document.getElementById('seller-status-text').textContent = isOnline ? 'Online' : 'Offline';
-        document.getElementById('seller-status-display').textContent = isOnline ? 'Online' : 'Offline';
+        document.getElementById('seller-status-display').textContent = isOnline ? 'Seller Status: Online' : 'Seller Status: Offline';
         document.getElementById('seller-status-display').className = isOnline ? 'status-online' : 'status-offline';
         console.log("Seller status updated to:", isOnline);
     } catch (error) {
@@ -930,7 +971,10 @@ const chatsCollectionRef = (db) => collection(db, `artifacts/${appId}/public/cha
 async function createOrGetConversation(participant1Id, participant2Id) {
     // Ensure consistent sorting of participant IDs to find existing conversation
     const participants = [participant1Id, participant2Id].sort();
-    const q = query(chatsCollectionRef(db), where('participants', 'array-contains-any', participants));
+    // Query for conversations where 'participants' array contains BOTH participant1Id and participant2Id
+    const q = query(chatsCollectionRef(db), 
+                    where('participants', 'array-contains', participants[0]),
+                    where('participants', 'array-contains', participants[1]));
 
     const querySnapshot = await getDocs(q);
 
@@ -938,7 +982,7 @@ async function createOrGetConversation(participant1Id, participant2Id) {
     querySnapshot.forEach(doc => {
         const data = doc.data();
         const docParticipants = data.participants.sort();
-        // Check if both arrays contain the same participants (order doesn't matter after sort)
+        // Check if the participants array is exactly the same length and content
         if (docParticipants.length === participants.length && docParticipants.every((value, index) => value === participants[index])) {
             conversationDoc = doc;
         }
@@ -973,7 +1017,8 @@ async function sendMessage(conversationId, messageText, messageType = 'text', or
     try {
         const message = {
             senderId: userId,
-            receiverId: currentActiveConversationId === sellerId ? userId : sellerId, // This might need refinement based on actual chat design
+            // Determine receiverId based on who the current user is chatting with
+            receiverId: (isAdmin && currentActiveConversationId === userId) ? sellerId : currentActiveConversationId, // Simplified for direct chat
             text: messageText,
             timestamp: serverTimestamp(),
             type: messageType
@@ -1041,7 +1086,7 @@ async function loadConversations() {
             const otherParticipantId = convo.participants.find(pId => pId !== userId);
             let contactName = 'Unknown User';
             let contactEmail = '';
-            let avatarUrl = 'https://placehold.co/45x45/cccccc/333333?text=?';
+            let avatarUrl = `https://placehold.co/45x45/cccccc/333333?text=${encodeURIComponent(otherParticipantId.charAt(0))}`; // Default to initial of ID
 
             // Get user data for other participant
             if (otherParticipantId === sellerId) { // If chatting with the seller/admin
@@ -1049,15 +1094,12 @@ async function loadConversations() {
                 contactEmail = 'Seller'; // Or a designated seller email if available
                 avatarUrl = 'https://placehold.co/45x45/FFA500/FFFFFF?text=SHOP'; // Generic shop icon
             } else { // If chatting with a buyer (from seller's perspective)
-                // Try to get user email from Firebase Auth if possible, or display User ID
-                // For this mock-up, we'll assume a way to resolve userId to email/name
-                // In a real app, you'd store display names or derive from user profiles
-                const userDocRef = doc(db, `artifacts/${appId}/users/${otherParticipantId}/profile`);
-                const userDocSnap = await getDoc(userDocRef);
+                const userProfileRef = doc(db, `artifacts/${appId}/users/${otherParticipantId}/profile`);
+                const userDocSnap = await getDoc(userProfileRef);
                 if (userDocSnap.exists()) {
                     contactEmail = userDocSnap.data().email || otherParticipantId;
                     contactName = userDocSnap.data().displayName || contactEmail.split('@')[0]; // Use display name or email username
-                    avatarUrl = userDocSnap.data().avatarUrl || 'https://placehold.co/45x45/cccccc/333333?text=?';
+                    avatarUrl = userDocSnap.data().avatarUrl || `https://placehold.co/45x45/cccccc/333333?text=${encodeURIComponent(contactName.charAt(0))}`;
                 } else {
                     contactName = otherParticipantId; // Fallback to UID
                     contactEmail = otherParticipantId;
@@ -1103,12 +1145,14 @@ async function loadConversations() {
 
 function displaySellerStatusInChat(status) {
     const chatSellerStatusSpan = document.getElementById('chat-seller-status');
-    if (status === 'Online') {
-        chatSellerStatusSpan.textContent = 'Online';
-        chatSellerStatusSpan.className = 'chat-seller-status online';
-    } else {
-        chatSellerStatusSpan.textContent = 'Offline';
-        chatSellerStatusSpan.className = 'chat-seller-status offline';
+    if (chatSellerStatusSpan) { // Ensure element exists before manipulating
+        if (status === 'Online') {
+            chatSellerStatusSpan.textContent = 'Online';
+            chatSellerStatusSpan.className = 'chat-seller-status online';
+        } else {
+            chatSellerStatusSpan.textContent = 'Offline';
+            chatSellerStatusSpan.className = 'chat-seller-status offline';
+        }
     }
 }
 
@@ -1139,6 +1183,16 @@ async function openConversation(conversationId, contactName, contactEmail, conta
     document.getElementById('chat-contact-name').textContent = contactName;
     document.getElementById('chat-contact-avatar').src = `https://placehold.co/40x40/cccccc/333333?text=${encodeURIComponent(contactName.charAt(0))}`; // Simple avatar placeholder
     document.getElementById('chat-contact-avatar').alt = contactName;
+
+    // Highlight active chat in the sidebar
+    document.querySelectorAll('.chat-conversation-item').forEach(item => {
+        item.classList.remove('active-chat');
+    });
+    const activeConvoItem = document.querySelector(`.chat-conversation-item[data-conversation-id="${conversationId}"]`);
+    if (activeConvoItem) {
+        activeConvoItem.classList.add('active-chat');
+    }
+
 
     // Show/hide buttons based on user role and contact
     const sendProductBtn = document.getElementById('send-product-btn');
@@ -1181,14 +1235,14 @@ async function openConversation(conversationId, contactName, contactEmail, conta
             messageElement.className = `message-bubble ${msg.senderId === userId ? 'sent' : 'received'}`;
 
             if (msg.type === 'order' && msg.orderDetails) {
-                messageElement.className = 'order-message-bubble'; // Special styling for order messages
+                messageElement.className = `order-message-bubble ${msg.senderId === userId ? 'sent' : 'received'}`; // Special styling for order messages
                 const orderId = msg.orderDetails.orderId;
                 messageElement.innerHTML = `
                     <h4>Order Details</h4>
                     <p>Order ID: <span class="order-id">${orderId}</span></p>
                     <p>Items: ${msg.orderDetails.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}</p>
-                    <p>Total: $${msg.orderDetails.total.toFixed(2)}</p>
-                    <p>Status: <span class="order-status status-${msg.orderDetails.status}">${msg.orderDetails.status.replace('-', ' ')}</span></p>
+                    <p>Total: ₱${parseFloat(msg.orderDetails.total).toFixed(2)}</p>
+                    <p>Status: <span class="order-status status-${msg.orderDetails.status.toLowerCase().replace(' ', '-')}">${msg.orderDetails.status.replace('-', ' ')}</span></p>
                     <button class="view-order-details-btn" data-order-id="${orderId}">View</button>
                     ${msg.text ? `<p class="order-message-text">${msg.text}</p>` : ''}
                 `;
@@ -1231,12 +1285,13 @@ async function openConversation(conversationId, contactName, contactEmail, conta
 async function sendOrderDetailsToSeller(orderId, buyerEmail) {
     // In a real system, the seller ID would be fixed, or the system sends it automatically
     // For this example, let's assume the seller's UID is 'seller_uid' or identified as admin.
-    if (!sellerId) {
-        console.error("Seller ID not defined. Cannot send order details to seller chat.");
+    if (!sellerId || sellerId === 'placeholder_seller_id') {
+        console.error("Seller ID not defined or is placeholder. Cannot send order details to seller chat.");
         return;
     }
 
     try {
+        // Need to get the actual order from the user's orders collection
         const orderDocRef = doc(db, `artifacts/${appId}/users/${userId}/orders`, orderId);
         const orderDoc = await getDoc(orderDocRef);
 
@@ -1266,6 +1321,56 @@ async function sendOrderDetailsToSeller(orderId, buyerEmail) {
     } catch (error) {
         console.error("Error sending order details to seller chat:", error);
         showAlert('Error sending order details to seller chat: ' + error.message);
+    }
+}
+
+// Payment method image update logic
+function updatePaymentPreviewImage() {
+    const paymentMethodRadios = document.querySelectorAll('input[name="payment-method"]');
+    const paymentPreviewImg = document.getElementById('payment-preview-img');
+
+    paymentMethodRadios.forEach(radio => {
+        radio.addEventListener('change', (event) => {
+            const selectedMethod = event.target.value;
+            // Update image source based on selected method
+            switch (selectedMethod) {
+                case 'GCash':
+                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=GCash';
+                    break;
+                case 'Maya':
+                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=Maya';
+                    break;
+                case 'Paypal':
+                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=PayPal';
+                    break;
+                default:
+                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=Payment';
+            }
+        });
+    });
+}
+
+
+// Function to copy contact number
+function setupCopyContactNumber() {
+    const copyButton = document.getElementById('copy-contact-number-btn');
+    if (copyButton) {
+        copyButton.onclick = () => {
+            const contactNumber = document.getElementById('payment-contact-number').textContent;
+            // Use execCommand for clipboard due to iframe restrictions
+            const textarea = document.createElement('textarea');
+            textarea.value = contactNumber;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showAlert('Contact number copied to clipboard!');
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                showAlert('Failed to copy contact number.');
+            }
+            document.body.removeChild(textarea);
+        };
     }
 }
 
@@ -1305,15 +1410,15 @@ window.onload = async () => {
 
             // Check if current user is the designated seller/admin
             const siteSettingsDoc = await getDoc(siteSettingsDocRef(db));
-            if (!siteSettingsDoc.exists() || !siteSettingsDoc.data().sellerUid) {
+            if (!siteSettingsDoc.exists() || !siteSettingsDoc.data().sellerUid || siteSettingsDoc.data().sellerUid === 'placeholder_seller_id') {
                 // If no sellerUid, make the first authenticated user the seller
                 await setDoc(siteSettingsDocRef(db), { sellerUid: userId }, { merge: true });
-                sellerId = userId;
+                sellerId = userId; // Update sellerId for current session
                 isAdmin = true;
                 document.getElementById('admin-panel-button').style.display = 'inline-block';
                 console.log("Current user set as seller/admin.");
             } else if (userId === siteSettingsDoc.data().sellerUid) {
-                sellerId = userId;
+                sellerId = userId; // Confirm sellerId for current session
                 isAdmin = true;
                 document.getElementById('admin-panel-button').style.display = 'inline-block';
             } else {
@@ -1323,12 +1428,13 @@ window.onload = async () => {
             }
 
             // For non-admin users, if no profile exists, create one with email as display name
-            if (!isAdmin) {
-                const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/profile`);
-                const userProfileSnap = await getDoc(userProfileRef);
-                if (!userProfileSnap.exists()) {
-                    await setDoc(userProfileRef, { email: userEmail, displayName: userEmail.split('@')[0] });
-                }
+            // Or if profile exists but displayName is missing, update it
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/profile`);
+            const userProfileSnap = await getDoc(userProfileRef);
+            if (!userProfileSnap.exists()) {
+                await setDoc(userProfileRef, { email: userEmail, displayName: userEmail.split('@')[0], avatarUrl: `https://placehold.co/45x45/cccccc/333333?text=${encodeURIComponent(userEmail.charAt(0).toUpperCase())}` });
+            } else if (!userProfileSnap.data().displayName) {
+                 await updateDoc(userProfileRef, { displayName: userEmail.split('@')[0] });
             }
 
 
@@ -1343,12 +1449,15 @@ window.onload = async () => {
             document.getElementById('admin-panel-button').style.display = 'none';
             document.getElementById('messages-button').style.display = 'none'; // Hide messages button for guests
             isAdmin = false;
-            sellerId = (await getDoc(siteSettingsDocRef(db)))?.data()?.sellerUid || 'placeholder_seller_id'; // Get sellerId even if anonymous
+            // Fetch sellerId even if anonymous, so anonymous users can start chats if needed
+            sellerId = (await getDoc(siteSettingsDocRef(db)))?.data()?.sellerUid || 'placeholder_seller_id';
         }
         // Load initial data after auth state is determined
         await loadProducts();
         await loadSellerStatusToggle();
-        if (userId && (isAdmin || userId !== 'placeholder_seller_id')) { // Only load chat for logged-in or identified non-anonymous users
+        // Only load chat for authenticated users or if the anonymous user has a conversation
+        // For simplicity, we'll enable chat for any non-guest user.
+        if (auth.currentUser || userId !== getAnonymousUserId()) { // Check if user is logged in or if an anonymous user has an established chat
             loadConversations();
             listenToSellerStatus(); // Start listening for seller status updates
         }
@@ -1377,8 +1486,8 @@ window.onload = async () => {
     };
 
     document.getElementById('register-button').onclick = async () => {
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
+        const email = document.getElementById('auth-email').value; // Corrected ID
+        const password = document.getElementById('auth-password').value; // Corrected ID
         try {
             await createUserWithEmailAndPassword(auth, email, password);
             showAlert('Registration successful!');
@@ -1389,8 +1498,8 @@ window.onload = async () => {
     };
 
     document.getElementById('login-button').onclick = async () => {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
+        const email = document.getElementById('auth-email').value; // Corrected ID
+        const password = document.getElementById('auth-password').value; // Corrected ID
         try {
             await signInWithEmailAndPassword(auth, email, password);
             showAlert('Login successful!');
@@ -1400,7 +1509,8 @@ window.onload = async () => {
         }
     };
 
-    document.getElementById('cart-icon-container').onclick = () => {
+    // Corrected ID for cart icon button
+    document.getElementById('cart-icon-btn').onclick = () => {
         showModal('cart-modal');
         updateCartUI();
     };
@@ -1410,6 +1520,7 @@ window.onload = async () => {
         showModal('order-history-modal');
         loadOrderHistory();
     };
+    // Corrected ID for back to orders button
     document.getElementById('back-to-orders-btn').onclick = () => {
         document.getElementById('order-history-list').style.display = 'block';
         document.getElementById('order-details-view').style.display = 'none';
@@ -1418,19 +1529,24 @@ window.onload = async () => {
     // Admin Panel Listeners
     document.getElementById('admin-panel-button').onclick = () => {
         showModal('admin-panel-modal');
-        // Ensure correct tab is active by default or last selected
-        document.querySelector('.admin-tab-btn[data-tab="products"]').click();
+        // Ensure correct tab content is visible when opening admin panel
+        document.getElementById('admin-products').style.display = 'block';
+        document.getElementById('admin-orders').style.display = 'none';
+        document.getElementById('admin-settings').style.display = 'none';
+        document.querySelector('.admin-tab-btn[data-tab="products"]').classList.add('active'); // Set products tab as active
     };
     document.querySelectorAll('.admin-tab-btn').forEach(button => {
         button.onclick = (event) => {
             document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             document.querySelectorAll('.admin-tab-content').forEach(content => content.style.display = 'none');
+            // Show the correct tab content based on data-tab attribute
             document.getElementById(`admin-${event.target.dataset.tab}`).style.display = 'block';
 
             // Load content based on tab
             if (event.target.dataset.tab === 'products') {
                 loadAdminProducts();
+                resetProductForm(); // Reset form when switching to products tab
             } else if (event.target.dataset.tab === 'orders') {
                 loadAdminOrders();
             } else if (event.target.dataset.tab === 'settings') {
@@ -1438,9 +1554,10 @@ window.onload = async () => {
             }
         };
     });
+    // Corrected ID for admin back to orders button
     document.getElementById('admin-back-to-orders-btn').onclick = () => {
+        document.getElementById('admin-orders').style.display = 'block'; // Show order list again
         document.getElementById('admin-order-details-view').style.display = 'none';
-        document.getElementById('admin-order-list').style.display = 'table-row-group';
     };
 
     document.getElementById('seller-online-toggle').onchange = (event) => {
@@ -1451,9 +1568,15 @@ window.onload = async () => {
     document.querySelectorAll('.filter-btn').forEach(button => {
         button.onclick = (e) => filterProducts(e.target.dataset.category);
     });
+    // Corrected ID for search bar
     document.getElementById('search-bar').oninput = (event) => {
         searchProducts(event.target.value);
     };
+
+    // Initialize admin panel specific listeners
+    setupAdminPanel();
+    setupCopyContactNumber(); // Setup copy button for payment number
+    updatePaymentPreviewImage(); // Setup payment image preview
 
 
     // Close modal listeners
