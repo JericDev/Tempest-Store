@@ -1,7 +1,7 @@
 /* Your style.css content goes here, updated with new elements */
 body {
     font-family: 'Inter', sans-serif; /* Using Inter font for modern look */
-    background: #f5f5f5;
+    background: #e9ecef; /* Slightly darker background for more contrast */
     margin: 0;
     padding: 0;
     line-height: 1.6;
@@ -13,20 +13,20 @@ button {
     cursor: pointer;
     transition: all 0.3s ease;
     border: none;
-    border-radius: 8px;
-    padding: 10px 15px;
-    font-size: 15px;
+    border-radius: 10px; /* Slightly more rounded buttons */
+    padding: 12px 20px; /* Increased padding for better touch target */
+    font-size: 16px; /* Slightly larger font */
     font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* More pronounced shadow */
 }
 
 button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-3px); /* More noticeable lift */
+    box-shadow: 0 6px 15px rgba(0,0,0,0.2); /* Enhanced shadow on hover */
 }
 
 button:disabled {
-    background-color: #cccccc !important;
+    background-color: #ced4da !important; /* Muted disabled color */
     cursor: not-allowed;
     transform: none !important;
     box-shadow: none !important;
@@ -37,52 +37,52 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 25px; /* Increased padding */
-    background: #333;
+    padding: 20px 30px; /* Increased padding */
+    background: #1a202c; /* Deep charcoal/dark blue for header */
     color: white;
-    border-bottom-left-radius: 12px; /* Slightly larger radius */
-    border-bottom-right-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15); /* More prominent shadow */
+    border-bottom-left-radius: 15px; /* Larger radius */
+    border-bottom-right-radius: 15px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25); /* More prominent shadow */
     flex-wrap: wrap; /* Allow wrapping on small screens */
 }
 .logo {
-    font-size: 28px; /* Larger logo for impact */
+    font-size: 32px; /* Larger logo for impact */
     font-weight: bold;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     margin-right: auto; /* Push auth section to right */
 }
 .logo strong {
-    color: #FFD700; /* Gold accent */
+    color: #ffd700; /* Gold accent remains */
 }
 
 .contact-center {
     text-align: center;
-    margin: 30px 0; /* More vertical space */
-    padding: 0 15px; /* Add horizontal padding */
+    margin: 40px 0; /* More vertical space */
+    padding: 0 20px; /* Add horizontal padding */
     display: flex; /* Use flexbox for alignment */
     flex-direction: column; /* Always column for main contact-center */
     justify-content: center; /* Center groups horizontally */
     align-items: center; /* Center groups horizontally */
-    gap: 15px; /* Space between the seller status and social links group */
+    gap: 20px; /* Space between the seller status and social links group */
     flex-wrap: wrap; /* Allows wrapping if content inside groups needs it */
 }
 .contact-center a {
     display: inline-block;
     color: #333;
-    background: #e0e0e0;
+    background: #f0f0f0;
     text-decoration: none;
-    padding: 10px 20px; /* Larger buttons */
+    padding: 12px 25px; /* Larger buttons */
     margin: 0; /* No specific margin here, let gap handle it */
-    border-radius: 10px;
+    border-radius: 12px;
     font-weight: bold;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
 }
 .contact-center a:hover {
-    background: #d0d0d0;
-    transform: translateY(-3px); /* More noticeable hover */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    background: #e2e6ea;
+    transform: translateY(-4px); /* More noticeable hover */
+    box-shadow: 0 5px 12px rgba(0,0,0,0.15);
 }
 
 /* New: Container for Facebook and Discord to keep them side-by-side */
@@ -91,26 +91,26 @@ header {
     flex-direction: row; /* Always row for social links */
     justify-content: center; /* Center the links within their group */
     align-items: center;
-    gap: 15px; /* Space between Facebook and Discord buttons */
+    gap: 20px; /* Space between Facebook and Discord buttons */
     flex-wrap: wrap; /* Allow wrapping if buttons don't fit on one line */
 }
 
 /* New: Seller Status Display */
 .seller-status-container {
     background-color: white;
-    padding: 10px 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    padding: 12px 25px;
+    border-radius: 12px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
     font-weight: bold;
-    font-size: 1.1em;
+    font-size: 1.2em;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex-shrink: 0; /* Prevent from shrinking too much */
 }
 .seller-status-container #seller-status-display {
-    padding: 5px 10px;
-    border-radius: 8px;
+    padding: 6px 12px;
+    border-radius: 10px;
     font-size: 0.95em;
     white-space: nowrap;
 }
@@ -126,61 +126,61 @@ header {
 
 .filters {
     text-align: center;
-    margin: 30px auto 25px; /* Centered with more vertical margin */
-    padding: 15px; /* Increased padding */
+    margin: 40px auto 30px; /* Centered with more vertical margin */
+    padding: 20px; /* Increased padding */
     background-color: white;
-    border-radius: 12px; /* Consistent radius */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    max-width: 800px; /* Wider filters section */
+    border-radius: 15px; /* Consistent radius */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    max-width: 900px; /* Wider filters section */
     display: flex; /* Use flex for layout */
     flex-wrap: wrap; /* Allow wrapping */
     justify-content: center;
     align-items: center;
-    gap: 10px; /* Space between filter buttons and search */
+    gap: 15px; /* Space between filter buttons and search */
 }
 .filters button,
 .filters input {
     margin: 5px; /* Adjusted margin */
-    padding: 12px 18px; /* Larger padding for touch */
-    font-size: 16px; /* Slightly larger font */
-    border: 1px solid #ddd;
-    border-radius: 10px; /* Consistent radius */
+    padding: 14px 22px; /* Larger padding for touch */
+    font-size: 17px; /* Slightly larger font */
+    border: 1px solid #dee2e6; /* Subtler border */
+    border-radius: 12px; /* Consistent radius */
 }
 .filters button {
-    background-color: #f0f0f0;
-    color: #333;
+    background-color: #e9ecef;
+    color: #495057;
     font-weight: 500;
 }
 .filters button.active {
-    background-color: #333;
+    background-color: #1a5dab; /* Primary blue for active filter */
     color: white;
-    border-color: #333;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    border-color: #1a5dab;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 .filters input[type="text"] {
     flex-grow: 1; /* Allow search box to grow */
-    max-width: 250px; /* Max width for larger screens */
-    padding-left: 40px; /* Space for search icon */
+    max-width: 300px; /* Max width for larger screens */
+    padding-left: 45px; /* Space for search icon */
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
     background-repeat: no-repeat;
-    background-position: 12px center; /* Centered icon */
-    background-size: 22px; /* Larger icon */
+    background-position: 15px center; /* Centered icon */
+    background-size: 24px; /* Larger icon */
 }
 
 main#product-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 30px; /* Increased gap between cards */
-    padding: 25px; /* Increased padding around the list */
+    gap: 35px; /* Increased gap between cards */
+    padding: 30px; /* Increased padding around the list */
 }
 .card {
     background: white;
-    border-radius: 20px; /* More rounded corners */
-    padding: 20px; /* Increased padding */
-    width: 240px; /* Slightly larger cards */
+    border-radius: 25px; /* More rounded corners */
+    padding: 25px; /* Increased padding */
+    width: 260px; /* Slightly larger cards */
     text-align: center;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12); /* More depth */
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15); /* More depth */
     position: relative;
     opacity: 1;
     transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
@@ -189,22 +189,22 @@ main#product-list {
     justify-content: space-between;
 }
 .card:hover {
-    transform: translateY(-8px); /* More noticeable lift */
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transform: translateY(-10px); /* More noticeable lift */
+    box-shadow: 0 15px 40px rgba(0,0,0,0.25);
 }
 .card.out-of-stock {
-    opacity: 0.5; /* Reduced opacity */
+    opacity: 0.4; /* More reduced opacity */
     pointer-events: none;
-    filter: grayscale(90%); /* More grayscale */
+    filter: grayscale(100%); /* Full grayscale */
 }
 .card img {
-    width: 160px; /* Larger images */
-    height: 160px;
+    width: 180px; /* Larger images */
+    height: 180px;
     object-fit: contain;
-    margin: 0 auto 15px; /* More margin below image */
+    margin: 0 auto 20px; /* More margin below image */
     display: block;
-    border-radius: 12px; /* Consistent radius */
-    border: 1px solid #eee;
+    border-radius: 15px; /* Consistent radius */
+    border: 1px solid #f0f2f5; /* Subtler border */
 }
 
 /* --- Updated Tags (NEW, SALE, FLASH SALE) --- */
@@ -212,107 +212,116 @@ main#product-list {
 /* Base badge styles remain the same */
 .badge {
     position: absolute;
-    padding: 6px 12px; /* Larger padding for all badges */
-    border-radius: 10px; /* Consistent rounded corners */
-    font-size: 14px;
+    padding: 7px 14px; /* Larger padding for all badges */
+    border-radius: 12px; /* Consistent rounded corners */
+    font-size: 15px;
     font-weight: bold;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
     z-index: 5; /* Ensure badges are on top */
     white-space: nowrap; /* Prevent text wrapping */
     transition: background-color 0.3s ease; /* Smooth transition for background color */
 }
 
 .badge.new {
-    background: #FFD700; /* Gold */
+    background: #ffc107; /* Orange for NEW */
     color: #333;
-    top: 15px;
-    left: 15px;
+    top: 18px;
+    left: 18px;
 }
 
-.badge.flash-sale {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    background-color: #e74c3c;
+.badge.sale {
+    background: #e74c3c; /* Red for Sale */
     color: white;
+    top: 18px;
+    left: 18px; /* Default position for single badge */
+}
+
+/* Flash Sale Badge - Designed to match the provided image */
+.badge.flash-sale {
+    background-color: #e74c3c; /* Red background for the main badge */
+    color: white; /* Text color for "Flash Sale" */
+    top: 18px; /* Prioritized top-left position on the product card */
+    left: 18px;
+    padding: 0; /* Remove padding from the container itself, handled by children */
     border-radius: 12px;
-    display: flex;
+    display: flex; /* Use flexbox to lay out inner elements (text and countdown) */
     align-items: center;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-    font-size: 14px;
-    z-index: 10;
-    overflow: hidden;
-    min-width: 120px;
-    height: 32px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); /* More prominent shadow */
+    font-size: 15px; /* Consistent font size */
+    z-index: 7; /* Highest z-index for flash sale badge */
+    overflow: hidden; /* Ensures rounded corners apply correctly to children */
+    min-width: 130px; /* Ensure enough space for content */
 }
 
-.flash-sale-label {
-    display: flex;
-    align-items: center;
-    padding-left: 10px;
-    padding-right: 8px;
-    font-weight: bold;
+.badge.flash-sale .flash-sale-label {
     white-space: nowrap;
-    background-color: transparent;
-    color: #fff;
-    height: 100%;
+    padding-left: 15px; /* Padding for the text part */
+    padding-right: 8px; /* Space before the lightning bolt */
+    display: flex;
+    align-items: center;
 }
 
-/* Add the lightning bolt */
-.flash-sale-label::before {
+.badge.flash-sale .flash-sale-label::before {
     content: '';
     display: inline-block;
-    width: 20px;
+    width: 20px; /* Slightly larger SVG icon */
     height: 20px;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23F1C40F' stroke='%23333' stroke-width='2' viewBox='0 0 24 24'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'></polygon></svg>");
+    /* Yellow lightning bolt SVG with a dark stroke */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FFD700" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>');
     background-repeat: no-repeat;
     background-size: contain;
     background-position: center;
-    margin-right: 6px;
+    margin-right: 6px; /* Space between lightning bolt and text */
+    vertical-align: middle; /* Align with text */
+    flex-shrink: 0; /* Prevent from shrinking */
 }
 
-/* Countdown box */
-.flash-sale-countdown {
-    background-color: #f1c40f;
-    color: #333;
-    padding: 0 10px;
+.badge.flash-sale .flash-sale-countdown {
+    background-color: #ffd700; /* Gold background for countdown area */
+    color: #333; /* Darker text for countdown numbers */
+    padding: 7px 12px; /* Padding for the countdown numbers */
+    border-radius: 0 12px 12px 0; /* Rounded only on the right */
+    font-size: 0.95em;
     font-weight: bold;
-    font-size: 13px;
-    height: 100%;
-    display: flex;
+    white-space: nowrap;
+    min-width: 70px; /* Ensure enough space for HH:MM:SS */
+    text-align: center;
+    border-left: 1px solid rgba(0,0,0,0.15); /* Subtle separator line */
+    height: 100%; /* Make it fill the height of the badge */
+    display: flex; /* Use flex to vertically center content */
     align-items: center;
-    border-left: 1px solid rgba(0,0,0,0.15);
-    min-width: 65px;
     justify-content: center;
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+    margin-left: auto; /* Pushes countdown to the right */
 }
 
 
 /* Price display adjustments for Flash Sale */
 .price {
     font-weight: bold;
-    font-size: 1.3em; /* Slightly larger price */
-    margin-top: 12px;
+    font-size: 1.4em; /* Slightly larger price */
+    margin-top: 15px;
     color: #28a745; /* Default Green for price */
 }
 
 .price.flash-sale-active {
     color: #e74c3c; /* Red for the active flash sale price */
-    font-size: 1.4em; /* Make it slightly larger */
+    font-size: 1.5em; /* Make it slightly larger */
 }
 
 /* Strikethrough original price when flash sale is active */
 .original-price-strikethrough {
     text-decoration: line-through;
     color: #888;
-    font-size: 0.9em;
-    margin-left: 8px;
+    font-size: 0.95em;
+    margin-left: 10px;
     display: inline-block; /* To allow it next to the flash sale price */
     vertical-align: middle;
 }
 
 .stock-info {
-    font-size: 0.95em;
-    margin-bottom: 12px;
+    font-size: 1em;
+    margin-bottom: 15px;
     color: #666;
 }
 .stock-info.in-stock {
@@ -324,52 +333,52 @@ main#product-list {
 }
 
 .add-to-cart-btn {
-    background-color: #007bff; /* Blue */
+    background-color: #1a5dab; /* Primary blue for Add to Cart */
     color: white;
-    padding: 12px 18px;
-    font-size: 16px;
+    padding: 14px 22px;
+    font-size: 17px;
     width: 100%;
-    margin-top: 15px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 .add-to-cart-btn:hover {
-    background-color: #0056b3;
-    transform: translateY(-3px);
+    background-color: #154c8e;
+    transform: translateY(-4px);
 }
 
 /* Authentication Section in Header */
 .auth-section {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 18px; /* Increased gap */
     flex-wrap: wrap;
     justify-content: flex-end;
-    margin-left: 15px;
+    margin-left: 20px;
 }
 
 #user-display {
     font-weight: bold;
-    color: #add8e6;
-    margin-right: 5px;
+    color: #cceeff; /* Lighter blue for user display */
+    margin-right: 8px;
 }
 
 /* Updated button text colors for better contrast */
 #logout-button, #my-orders-button, #admin-panel-button, #login-register-button {
-    padding: 10px 15px;
-    font-size: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 12px 18px; /* Slightly larger padding */
+    font-size: 16px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
     white-space: nowrap;
     color: white;
 }
-#logout-button { background-color: #f44336; }
+#logout-button { background-color: #dc3545; } /* Brighter red */
 #my-orders-button { background-color: #6c757d; }
-#admin-panel-button { background-color: #ff9800; }
-#login-register-button { background-color: #007bff; margin-right: 0; }
+#admin-panel-button { background-color: #ff9900; } /* Vibrant orange */
+#login-register-button { background-color: #1a5dab; margin-right: 0; } /* Primary blue */
 
-#logout-button:hover { background-color: #da190b; }
+#logout-button:hover { background-color: #bd2130; }
 #my-orders-button:hover { background-color: #5a6268; }
-#admin-panel-button:hover { background-color: #e68900; }
-#login-register-button:hover { background-color: #0056b3; }
+#admin-panel-button:hover { background-color: #cc7a00; }
+#login-register-button:hover { background-color: #154c8e; }
 
 
 /* Modals (Auth, Cart, Order History, Order Details, Admin Product/Order Management) */
@@ -379,7 +388,7 @@ main#product-list {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.8); /* Darker backdrop */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -394,18 +403,18 @@ main#product-list {
 }
 .modal-box {
     background: white;
-    padding: 30px;
-    border-radius: 20px;
+    padding: 35px; /* Increased padding */
+    border-radius: 25px; /* More rounded */
     width: 95%;
-    max-width: 550px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    max-width: 600px; /* Slightly wider modals */
+    box-shadow: 0 15px 40px rgba(0,0,0,0.45); /* More pronounced shadow */
     animation: fadeInScale 0.3s ease-out;
     position: relative;
     max-height: 90vh;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 25px; /* Increased gap */
 }
 @keyframes fadeInScale {
     from { opacity: 0; transform: scale(0.9); }
@@ -413,57 +422,57 @@ main#product-list {
 }
 .modal-box h2 {
     margin-top: 0;
-    margin-bottom: 25px;
-    font-size: 32px;
+    margin-bottom: 30px; /* More space */
+    font-size: 34px;
     color: #333;
     text-align: center;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 12px;
+    border-bottom: 2px solid #e9ecef; /* Subtler border */
+    padding-bottom: 15px;
 }
 .modal-close-btn {
     position: absolute;
-    top: 15px;
-    right: 20px;
+    top: 20px; /* Adjusted position */
+    right: 25px; /* Adjusted position */
     background: none;
     border: none;
-    font-size: 36px;
+    font-size: 40px; /* Larger close button */
     cursor: pointer;
-    color: #999;
+    color: #adb5bd; /* Softer color */
     transition: color 0.3s ease;
 }
 .modal-close-btn:hover {
-    color: #333;
+    color: #495057; /* Darker on hover */
 }
 
 /* Auth Modal Specific Styles */
 #auth-modal .modal-box {
-    max-width: 450px;
-    gap: 15px;
+    max-width: 500px; /* Slightly wider */
+    gap: 20px;
 }
 #auth-modal h3 {
     margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 24px;
+    margin-bottom: 25px;
+    font-size: 26px;
     color: #333;
     text-align: center;
 }
 #auth-modal input {
     display: block;
-    width: calc(100% - 24px);
-    padding: 14px;
-    margin-bottom: 18px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 17px;
+    width: calc(100% - 28px); /* Adjusted width */
+    padding: 16px; /* Larger padding */
+    margin-bottom: 20px;
+    border: 1px solid #ced4da; /* Softer border */
+    border-radius: 12px; /* More rounded */
+    font-size: 18px;
 }
 #auth-modal button {
-    padding: 14px 22px;
-    margin: 6px;
-    font-size: 17px;
+    padding: 16px 25px; /* Larger padding */
+    margin: 8px;
+    font-size: 18px;
 }
 #auth-modal #auth-message {
-    margin-top: 18px;
-    font-size: 15px;
+    margin-top: 20px;
+    font-size: 16px;
     color: #dc3545;
     font-weight: 500;
 }
@@ -472,49 +481,49 @@ main#product-list {
 .cart-icon-container {
     position: relative;
     cursor: pointer;
-    padding: 10px;
+    padding: 12px; /* Increased padding */
     border-radius: 50%;
     transition: background-color 0.3s ease;
-    margin-left: 10px;
-    background-color: #555;
+    margin-left: 15px;
+    background-color: #333; /* Darker background */
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    width: 45px; /* Slightly larger icon */
+    height: 45px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
 }
 .cart-icon-container:hover {
-    background-color: #666;
+    background-color: #495057;
 }
 /* The cart symbol itself is emoji, so we target the span it's in */
 .cart-icon-container span:first-child {
-    font-size: 24px;
+    font-size: 26px; /* Slightly larger emoji */
     color: white;
 }
 .cart-count-badge {
     position: absolute;
-    top: -5px;
-    right: -5px;
-    background-color: #FF6B6B;
+    top: -8px; /* Adjusted position */
+    right: -8px; /* Adjusted position */
+    background-color: #ff6b6b; /* Vibrant red */
     color: white;
     border-radius: 50%;
-    padding: 5px 9px;
-    font-size: 13px;
+    padding: 6px 10px; /* Increased padding */
+    font-size: 14px;
     font-weight: bold;
-    min-width: 22px;
+    min-width: 24px; /* Larger min-width */
     text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
     line-height: 1.2;
-    border: 2px solid #333;
+    border: 3px solid #1a202c; /* Matches header background */
 }
 /* Cart Specific Styles */
 .cart-item {
     display: flex;
     align-items: center;
-    gap: 20px;
-    padding: 15px 0;
-    border-bottom: 1px solid #eee;
+    gap: 25px; /* Increased gap */
+    padding: 18px 0; /* Increased padding */
+    border-bottom: 1px solid #f0f2f5; /* Subtler border */
     flex-wrap: wrap;
     justify-content: space-between;
 }
@@ -522,215 +531,223 @@ main#product-list {
     border-bottom: none;
 }
 .cart-item img {
-    width: 80px;
-    height: 80px;
+    width: 90px; /* Larger image */
+    height: 90px;
     object-fit: contain;
-    border-radius: 10px;
-    border: 1px solid #ddd;
+    border-radius: 12px; /* Consistent radius */
+    border: 1px solid #e9ecef; /* Subtler border */
 }
 .cart-item-details {
     flex-grow: 1;
     text-align: left;
 }
 .cart-item-details h4 {
-    margin: 0 0 8px 0;
-    font-size: 1.2em;
+    margin: 0 0 10px 0;
+    font-size: 1.3em;
     color: #333;
 }
 .cart-item-price {
     font-weight: bold;
     color: #28a745;
-    font-size: 1.1em;
+    font-size: 1.2em;
 }
 /* Styles for cart items that are out of stock */
 .cart-item.out-of-stock-cart-item {
-    opacity: 0.6;
-    filter: grayscale(50%);
+    opacity: 0.5;
+    filter: grayscale(70%);
 }
 .cart-item-out-of-stock-message {
     color: #dc3545; /* Red */
     font-weight: bold;
-    font-size: 0.9em;
-    margin-top: 5px;
+    font-size: 0.95em;
+    margin-top: 8px;
 }
 .cart-item-status-message { /* For quantity adjusted message */
-    color: #ff9800; /* Orange */
-    font-size: 0.9em;
-    margin-top: 5px;
+    color: #ff9900; /* Orange */
+    font-size: 0.95em;
+    margin-top: 8px;
 }
 
 
 .cart-item-quantity-control {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px; /* Increased gap */
 }
 .cart-item-quantity-control button {
-    padding: 8px 12px;
-    font-size: 1.2em;
-    border-radius: 8px;
-    min-width: 40px;
+    padding: 10px 15px; /* Larger padding */
+    font-size: 1.3em;
+    border-radius: 10px;
+    min-width: 45px; /* Larger min-width */
 }
 .cart-item-quantity-control input {
-    width: 50px;
-    padding: 8px;
-    font-size: 1.1em;
-    border-radius: 8px;
+    width: 60px; /* Wider input */
+    padding: 10px;
+    font-size: 1.2em;
+    border-radius: 10px;
 }
 .cart-item-remove {
-    font-size: 28px;
-    margin-left: 10px;
+    font-size: 32px; /* Larger remove button */
+    margin-left: 15px;
 }
 .cart-summary {
-    padding-top: 20px;
-    border-top: 2px solid #eee;
-    margin-top: 20px;
+    padding-top: 25px; /* Increased padding */
+    border-top: 2px solid #e9ecef; /* Subtler border */
+    margin-top: 25px;
 }
 .cart-summary div {
-    margin-bottom: 10px;
-    font-size: 1.2em;
+    margin-bottom: 12px;
+    font-size: 1.3em;
 }
 .cart-summary .total {
-    font-size: 1.6em;
-    margin-top: 18px;
-    padding-top: 12px;
+    font-size: 1.8em; /* Larger total */
+    margin-top: 20px;
+    padding-top: 15px;
 }
 
 .payment-methods {
-    padding-top: 20px;
-    border-top: 1px solid #eee;
-    margin-top: 20px;
+    padding-top: 25px;
+    border-top: 1px solid #e9ecef;
+    margin-top: 25px;
 }
 .payment-methods h3 {
     margin-top: 0;
-    margin-bottom: 18px;
-    font-size: 1.5em;
+    margin-bottom: 20px;
+    font-size: 1.6em;
 }
 .payment-option {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    padding: 12px;
-    border-radius: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 .payment-option img {
-    width: 35px;
-    height: 35px;
+    width: 40px; /* Larger images */
+    height: 40px;
 }
 .payment-option span {
     font-weight: 500;
-    font-size: 1.1em;
+    font-size: 1.15em;
 }
 
 .roblox-username-input {
-    width: calc(100% - 24px);
-    padding: 14px;
-    margin-top: 20px;
-    margin-bottom: 20px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 17px;
+    width: calc(100% - 28px); /* Adjusted width */
+    padding: 16px;
+    margin-top: 25px;
+    margin-bottom: 25px;
+    border: 1px solid #ced4da;
+    border-radius: 12px;
+    font-size: 18px;
 }
 
 .place-order-btn {
-    background-color: #007bff;
+    background-color: #1a5dab; /* Primary blue */
     color: white;
-    padding: 18px 25px;
-    font-size: 1.4em;
-    border-radius: 12px;
-    margin-top: 25px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+    padding: 20px 30px; /* Larger and more prominent */
+    font-size: 1.5em;
+    border-radius: 15px;
+    margin-top: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+.place-order-btn:hover {
+    background-color: #154c8e;
 }
 
 .empty-message {
     text-align: center;
-    padding: 40px;
-    font-size: 1.2em;
-    color: #777;
+    padding: 50px;
+    font-size: 1.3em;
+    color: #6c757d;
 }
 
 /* Order History Specific Styles */
 #order-history-modal .modal-box {
-    max-width: 650px;
+    max-width: 700px;
 }
 #order-history-list {
-    padding: 15px 0;
+    padding: 20px 0;
 }
 .order-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 12px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+    padding: 18px 15px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     flex-wrap: wrap;
 }
 .order-item-info {
     flex-basis: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 .order-item-info strong {
-    font-size: 1.2em;
+    font-size: 1.25em;
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
 }
 .order-item-info span {
-    font-size: 1em;
+    font-size: 1.05em;
     display: inline-block;
-    margin-right: 15px;
+    margin-right: 20px;
 }
 .order-item-status {
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 0.9em;
+    padding: 7px 12px;
+    border-radius: 10px;
+    font-size: 0.95em;
     white-space: nowrap;
-    margin-top: 5px;
+    margin-top: 8px;
 }
 .status-pending { background-color: #ffc107; color: #333; }
-.status-in-process { background-color: #007bff; color: white; }
+.status-in-process { background-color: #1a5dab; color: white; } /* Primary blue */
 .status-delivered { background-color: #28a745; color: white; }
 .status-rejected { background-color: #dc3545; color: white; }
 
 .view-details-btn {
-    padding: 10px 15px;
-    font-size: 1em;
-    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 1.05em;
+    border-radius: 12px;
     margin-left: auto;
-    margin-top: 5px;
+    margin-top: 8px;
+    background-color: #007bff; /* Consistent blue */
+    color: white;
+}
+.view-details-btn:hover {
+    background-color: #0056b3;
 }
 
 
 /* Order Details View */
 #order-details-view {
-    padding-top: 25px;
-    border-top: 1px solid #eee;
+    padding-top: 30px;
+    border-top: 1px solid #e9ecef;
 }
 #order-details-view h3 {
-    font-size: 1.8em;
-    margin-bottom: 20px;
+    font-size: 2em;
+    margin-bottom: 25px;
 }
 #order-details-info p {
-    margin: 10px 0;
-    font-size: 1.05em;
+    margin: 12px 0;
+    font-size: 1.1em;
 }
 #order-details-items {
-    margin-top: 25px;
-    border-top: 1px dashed #eee;
-    padding-top: 20px;
+    margin-top: 30px;
+    border-top: 1px dashed #ced4da; /* Softer dashed line */
+    padding-top: 25px;
 }
 #order-details-items h4 {
-    margin-bottom: 12px;
-    font-size: 1.4em;
+    margin-bottom: 15px;
+    font-size: 1.5em;
 }
 .order-detail-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px dotted #eee;
+    padding: 12px 0;
+    border-bottom: 1px dotted #ced4da;
     flex-wrap: wrap;
 }
 .order-detail-item:last-child {
@@ -740,120 +757,125 @@ main#product-list {
     font-weight: bold;
     color: #444;
     flex-basis: 100%;
-    margin-bottom: 5px;
-    font-size: 1.05em;
+    margin-bottom: 8px;
+    font-size: 1.1em;
 }
 .order-detail-item-qty-price {
-    font-size: 0.95em;
-    color: #666;
+    font-size: 1em;
+    color: #6c757d;
     text-align: left;
     flex-basis: 100%;
 }
 .back-to-orders-btn {
-    padding: 12px 18px;
-    font-size: 1.1em;
-    margin-top: 25px;
-    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 1.15em;
+    margin-top: 30px;
+    border-radius: 12px;
+    background-color: #6c757d; /* Consistent grey */
+    color: white;
+}
+.back-to-orders-btn:hover {
+    background-color: #5a6268;
 }
 
 /* Admin Panel Styles */
 #admin-panel-modal .modal-box {
-    max-width: 900px;
-    padding: 25px;
+    max-width: 950px; /* Slightly wider admin modal */
+    padding: 30px;
 }
 .admin-tabs {
-    margin-bottom: 25px;
-    padding-bottom: 12px;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
     display: flex;
     flex-wrap: wrap;
-    border-bottom: 2px solid #eee;
+    border-bottom: 2px solid #e9ecef;
 }
 .admin-tab-btn {
-    padding: 12px 25px;
-    margin: 5px;
-    font-size: 1.15em;
-    border-radius: 10px 10px 0 0;
+    padding: 14px 28px;
+    margin: 6px;
+    font-size: 1.2em;
+    border-radius: 12px 12px 0 0;
     white-space: nowrap;
-    background-color: #f8f8f8;
-    color: #555;
+    background-color: #f8f9fa;
+    color: #6c757d;
     border-bottom: none;
 }
 .admin-tab-btn.active {
     background-color: white;
     color: #333;
-    box-shadow: 0 -4px 10px rgba(0,0,0,0.15);
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.15);
     border-bottom: none;
     z-index: 1;
     position: relative;
 }
 .admin-tab-btn:not(.active):hover {
-    background-color: #e8e8e8;
+    background-color: #e2e6ea;
 }
 
 .admin-tab-content {
-    padding: 25px 0;
+    padding: 30px 0;
     background-color: white;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-    margin-top: -12px;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    margin-top: -15px;
     position: relative;
     z-index: 0;
 }
 .admin-section h3 {
-    font-size: 2em;
-    margin-bottom: 20px;
+    font-size: 2.2em;
+    margin-bottom: 25px;
 }
 
 /* Product Management Form */
 #product-form-container {
-    padding: 25px;
-    border-radius: 12px;
-    margin-bottom: 35px;
-    border: 1px solid #eee;
-    background-color: #fcfcfc;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 40px;
+    border: 1px solid #f0f2f5;
+    background-color: #fdfdfd;
 }
 #product-form-container h3 {
     text-align: center;
     color: #333;
-    margin-bottom: 25px;
+    margin-bottom: 30px;
 }
 #product-form-container label {
     display: block;
-    margin-bottom: 8px;
-    font-size: 1.05em;
+    margin-bottom: 10px;
+    font-size: 1.1em;
     font-weight: bold;
-    color: #444;
+    color: #495057;
 }
 #product-form-container input[type="text"],
 #product-form-container input[type="number"],
 #product-form-container input[type="datetime-local"], /* Added for flash sale end time */
 #product-form-container select {
-    width: calc(100% - 22px);
-    padding: 12px;
-    margin-bottom: 18px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    font-size: 1.05em;
+    width: calc(100% - 28px);
+    padding: 14px;
+    margin-bottom: 20px;
+    border: 1px solid #ced4da;
+    border-radius: 12px;
+    font-size: 1.1em;
     background-color: white;
 }
 #product-form-container input[type="checkbox"] {
-    margin-right: 12px;
-    transform: scale(1.3);
+    margin-right: 15px;
+    transform: scale(1.4); /* Slightly larger checkbox */
 }
 #product-form-container .checkbox-group {
     display: flex;
     align-items: center;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 #product-form-container button {
-    padding: 14px 22px;
-    font-size: 1.05em;
-    border-radius: 10px;
-    min-width: 130px;
-    margin-right: 12px;
+    padding: 16px 25px;
+    font-size: 1.1em;
+    border-radius: 12px;
+    min-width: 140px;
+    margin-right: 15px;
 }
-#save-product-btn { background-color: #007bff; color: white; }
-#save-product-btn:hover { background-color: #0056b3; }
+#save-product-btn { background-color: #1a5dab; color: white; }
+#save-product-btn:hover { background-color: #154c8e; }
 #cancel-edit-product { background-color: #6c757d; color: white; }
 #cancel-edit-product:hover { background-color: #5a6268; }
 
@@ -862,47 +884,47 @@ main#product-list {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    margin-top: 25px;
+    margin-top: 30px;
     background-color: white;
-    border-radius: 12px;
+    border-radius: 15px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
 }
 .admin-product-table th, .admin-product-table td,
 .admin-order-table th, .admin-order-table td {
-    border-bottom: 1px solid #eee;
-    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    padding: 15px;
     text-align: left;
     vertical-align: middle;
-    font-size: 1em;
+    font-size: 1.05em;
 }
-.admin-product-table th:first-child, .admin-order-table th:last-child { border-top-left-radius: 12px; }
-.admin-product-table th:last-child, .admin-order-table th:last-child { border-top-right-radius: 12px; }
+.admin-product-table th:first-child, .admin-order-table th:first-child { border-top-left-radius: 15px; }
+.admin-product-table th:last-child, .admin-order-table th:last-child { border-top-right-radius: 15px; }
 .admin-product-table tr:last-child td, .admin-order-table tr:last-child td { border-bottom: none; }
 
 
 .admin-product-table th, .admin-order-table th {
-    background-color: #f0f0f0;
+    background-color: #f8f9fa;
     font-weight: bold;
-    color: #333;
+    color: #495057;
 }
 .admin-product-table td img {
-    width: 60px;
-    height: 60px;
+    width: 70px; /* Slightly larger images */
+    height: 70px;
     object-fit: contain;
-    border-radius: 8px;
+    border-radius: 10px;
 }
 .admin-product-actions, .admin-order-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px; /* Increased gap */
     justify-content: flex-end;
 }
 .admin-product-actions button, .admin-order-actions button {
-    padding: 8px 12px;
-    font-size: 0.95em;
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    padding: 10px 15px; /* Larger padding */
+    font-size: 1em;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 .admin-product-actions button.edit, .admin-order-actions button.view {
     background-color: #28a745;
@@ -922,46 +944,46 @@ main#product-list {
 /* Admin Order Details View */
 #admin-order-details-view {
     display: none;
-    padding: 25px;
-    border-top: 1px solid #eee;
-    background-color: #fcfcfc;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    margin-top: 25px;
+    padding: 30px;
+    border-top: 1px solid #e9ecef;
+    background-color: #fdfdfd;
+    border-radius: 15px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    margin-top: 30px;
 }
 #admin-order-details-view h3 {
     margin-top: 0;
     color: #333;
-    font-size: 1.8em;
-    margin-bottom: 20px;
+    font-size: 2em;
+    margin-bottom: 25px;
     text-align: center;
 }
 #admin-order-details-info p {
-    margin: 10px 0;
+    margin: 12px 0;
     color: #555;
-    font-size: 1.05em;
+    font-size: 1.1em;
 }
 #admin-order-details-info strong {
     color: #333;
-    margin-right: 5px;
+    margin-right: 8px;
 }
 #admin-order-details-items {
-    margin-top: 25px;
-    border-top: 1px dashed #eee;
-    padding-top: 20px;
+    margin-top: 30px;
+    border-top: 1px dashed #ced4da;
+    padding-top: 25px;
 }
 #admin-order-details-items h4 {
     margin-top: 0;
-    margin-bottom: 12px;
+    margin-bottom: 15px;
     color: #333;
-    font-size: 1.4em;
+    font-size: 1.5em;
 }
 .admin-order-detail-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px dotted #eee;
+    padding: 12px 0;
+    border-bottom: 1px dotted #ced4da;
     flex-wrap: wrap;
 }
 .admin-order-detail-item:last-child {
@@ -971,51 +993,51 @@ main#product-list {
     font-weight: bold;
     color: #444;
     flex-basis: 100%;
-    margin-bottom: 5px;
-    font-size: 1.05em;
+    margin-bottom: 8px;
+    font-size: 1.1em;
 }
 .admin-order-detail-item-qty-price {
-    font-size: 0.95em;
-    color: #666;
+    font-size: 1em;
+    color: #6c757d;
     text-align: left;
     flex-basis: 100%;
 }
 .order-status-update-section {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 25px;
-    padding-top: 20px;
-    border-top: 1px solid #ddd;
+    gap: 15px; /* Increased gap */
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 1px solid #dee2e6;
 }
 .order-status-update-section select {
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid #ccc;
-    font-size: 1.05em;
+    padding: 14px; /* Larger padding */
+    border-radius: 12px;
+    border: 1px solid #ced4da;
+    font-size: 1.1em;
 }
 .order-status-update-section button {
-    background-color: #007bff;
+    background-color: #1a5dab; /* Primary blue */
     color: white;
-    padding: 14px 22px;
+    padding: 16px 25px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     cursor: pointer;
-    font-size: 1.05em;
+    font-size: 1.1em;
     font-weight: bold;
     transition: background-color 0.3s ease;
 }
 .order-status-update-section button:hover {
-    background-color: #0056b3;
+    background-color: #154c8e;
 }
 .admin-back-to-orders-btn {
     background: #6c757d;
     color: white;
-    padding: 12px 18px;
+    padding: 14px 20px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     cursor: pointer;
-    margin-top: 25px;
+    margin-top: 30px;
     transition: background-color 0.2s ease;
     width: 100%;
 }
@@ -1025,32 +1047,32 @@ main#product-list {
 
 /* New: Admin Site Settings - Toggle Switch Styles */
 #admin-site-settings {
-    padding: 25px;
-    border-top: 1px solid #eee;
-    background-color: #fcfcfc;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    margin-top: 25px;
+    padding: 30px;
+    border-top: 1px solid #e9ecef;
+    background-color: #fdfdfd;
+    border-radius: 15px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    margin-top: 30px;
 }
 
 .settings-group {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
-    padding: 15px;
-    border: 1px solid #eee;
-    border-radius: 10px;
+    margin-bottom: 25px;
+    padding: 18px; /* Increased padding */
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
     background-color: white;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
 .settings-group label {
     font-weight: bold;
     color: #333;
-    font-size: 1.1em;
+    font-size: 1.15em;
     flex-shrink: 0;
 }
 
@@ -1058,8 +1080,8 @@ main#product-list {
 .toggle-switch {
     position: relative;
     display: inline-block;
-    width: 60px;
-    height: 34px;
+    width: 65px; /* Slightly wider switch */
+    height: 38px; /* Slightly taller switch */
     flex-shrink: 0;
 }
 
@@ -1078,39 +1100,39 @@ main#product-list {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: #adb5bd; /* Softer gray for off state */
     transition: .4s;
-    border-radius: 34px;
+    border-radius: 38px; /* Matches new height */
 }
 
 .toggle-switch .slider:before {
     position: absolute;
     content: "";
-    height: 26px;
-    width: 26px;
+    height: 30px; /* Larger thumb */
+    width: 30px; /* Larger thumb */
     left: 4px;
     bottom: 4px;
     background-color: white;
     transition: .4s;
     border-radius: 50%;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
 
 /* When checkbox is checked, change background color and move slider */
 .toggle-switch input:checked + .slider {
-    background-color: #2196F3;
+    background-color: #1a5dab; /* Primary blue for on state */
 }
 
 .toggle-switch input:checked + .slider:before {
-    transform: translateX(26px);
+    transform: translateX(27px); /* Adjusted transform for new width */
 }
 
 /* Text for Online/Offline status next to toggle */
 #seller-status-text {
-    margin-left: 15px;
-    font-size: 1.1em;
+    margin-left: 20px; /* More margin */
+    font-size: 1.15em;
     font-weight: bold;
-    color: #666;
+    color: #6c757d;
 }
 
 /* Custom Alert/Confirm Modals */
@@ -1120,7 +1142,7 @@ main#product-list {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.75); /* Slightly darker backdrop */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1135,47 +1157,49 @@ main#product-list {
 }
 .custom-modal-content {
     background: white;
-    padding: 30px;
-    border-radius: 15px;
+    padding: 35px; /* Increased padding */
+    border-radius: 20px; /* More rounded */
     width: 90%;
-    max-width: 400px;
+    max-width: 450px; /* Slightly wider */
     text-align: center;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35); /* More pronounced shadow */
     position: relative;
     animation: fadeInScale 0.3s ease-out;
 }
 .custom-modal-close-btn {
     position: absolute;
-    top: 10px;
-    right: 15px;
+    top: 15px;
+    right: 20px;
     background: none;
     border: none;
-    font-size: 28px;
+    font-size: 32px; /* Slightly smaller close button */
     cursor: pointer;
-    color: #999;
+    color: #adb5bd;
 }
 .custom-modal-close-btn:hover {
-    color: #333;
+    color: #495057;
 }
 .custom-modal-content p {
-    font-size: 1.1em;
-    margin-bottom: 25px;
+    font-size: 1.15em;
+    margin-bottom: 30px;
     color: #333;
 }
 .custom-modal-buttons {
     display: flex;
     justify-content: center;
-    gap: 15px;
+    gap: 18px; /* Increased gap */
 }
 .custom-modal-ok-btn, .custom-modal-confirm-btn, .custom-modal-cancel-btn {
-    padding: 12px 25px;
-    border-radius: 10px;
-    font-size: 1em;
+    padding: 14px 28px; /* Larger padding */
+    border-radius: 12px;
+    font-size: 1.05em;
     font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    background-color: #1a5dab; /* Primary blue for action buttons */
+    color: white;
 }
 .custom-modal-ok-btn:hover, .custom-modal-confirm-btn:hover {
-    background-color: #0056b3;
+    background-color: #154c8e;
 }
 .custom-modal-cancel-btn {
     background-color: #6c757d;
@@ -1196,6 +1220,7 @@ main#product-list {
         font-size: 22px;
         margin-right: 0;
         margin-bottom: 0;
+        gap: 8px;
     }
     .auth-section {
         width: 100%;
@@ -1214,6 +1239,8 @@ main#product-list {
         max-width: 250px;
         flex-grow: 1;
         margin: 0;
+        padding: 10px 15px; /* Adjusted padding */
+        font-size: 15px; /* Adjusted font size */
     }
     .cart-icon-container {
         padding: 8px;
@@ -1236,35 +1263,38 @@ main#product-list {
     .contact-center {
         flex-direction: column;
         gap: 8px; /* Reduced gap for smaller screens */
+        margin: 25px 0; /* Adjusted margin */
     }
     .contact-center a {
-        padding: 8px 15px;
-        font-size: 14px;
+        padding: 10px 18px; /* Adjusted padding */
+        font-size: 15px; /* Adjusted font size */
         margin: 4px;
+        border-radius: 10px;
     }
     .seller-status-container {
         font-size: 1em;
-        padding: 8px 15px;
+        padding: 10px 18px; /* Adjusted padding */
         flex-direction: row; /* Keep content inside status container in a row */
-        gap: 5px; /* Reduced gap */
+        gap: 8px; /* Reduced gap */
         justify-content: center; /* Center content within */
+        border-radius: 10px;
     }
     .seller-status-container #seller-status-display {
-        font-size: 0.85em;
-        padding: 3px 7px;
+        font-size: 0.9em; /* Adjusted font size */
+        padding: 4px 8px; /* Adjusted padding */
     }
     .social-links-group { /* Target the new group for side-by-side */
         flex-direction: row; /* Ensure side-by-side */
-        gap: 10px; /* Adjust gap for mobile */
+        gap: 12px; /* Adjust gap for mobile */
         flex-wrap: wrap; /* Allow wrapping if space is tight */
         justify-content: center; /* Center the buttons */
     }
 
 
     .filters {
-        padding: 10px;
-        margin: 20px auto;
-        gap: 8px;
+        padding: 15px; /* Adjusted padding */
+        margin: 25px auto; /* Adjusted margin */
+        gap: 10px; /* Adjusted gap */
         border-radius: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         flex-direction: row;
@@ -1276,14 +1306,14 @@ main#product-list {
         padding: 10px 15px;
         font-size: 14px;
         border-radius: 10px;
-        border: none;
+        border: 1px solid #ced4da; /* Subtler border */
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         width: auto;
         flex-shrink: 0;
         margin: 4px;
     }
     .filters button.active {
-        background-color: #333;
+        background-color: #1a5dab; /* Primary blue for active filter */
         color: white;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
@@ -1291,103 +1321,106 @@ main#product-list {
         padding-left: 35px;
         background-position: 8px center;
         background-size: 20px;
-        border: 1px solid #ddd;
+        border: 1px solid #ced4da;
         flex-grow: 1;
         max-width: calc(100% - 20px);
     }
 
     main#product-list {
-        padding: 10px;
-        gap: 15px;
+        padding: 15px; /* Adjusted padding */
+        gap: 20px; /* Adjusted gap */
     }
     .card {
-        width: calc(100% - 20px);
-        max-width: 280px;
-        padding: 15px;
-        border-radius: 15px;
+        width: calc(100% - 30px); /* Adjusted width */
+        max-width: 300px; /* Adjusted max-width */
+        padding: 20px; /* Adjusted padding */
+        border-radius: 20px; /* Adjusted radius */
     }
     .card img {
-        width: 100px;
-        height: 100px;
-        margin: 0 auto 10px;
+        width: 120px; /* Adjusted image size */
+        height: 120px;
+        margin: 0 auto 15px; /* Adjusted margin */
     }
     .badge { /* Adjusted for mobile */
-        top: 8px;
-        left: 8px;
-        font-size: 11px; /* Slightly smaller font for all badges */
+        top: 10px; /* Adjusted position */
+        left: 10px; /* Adjusted position */
+        font-size: 12px; /* Adjusted font size */
+        padding: 5px 10px; /* Adjusted padding */
+        border-radius: 10px;
     }
     .badge.sale {
-        left: 55px; /* Adjust if NEW is present */
+        left: 60px; /* Adjusted if NEW is present */
     }
     .badge.flash-sale { /* Adjusted for mobile */
         min-width: unset; /* Allow it to shrink */
-        top: 8px;
-        left: 8px;
-        font-size: 11px; /* Slightly smaller font for all badges */
+        top: 10px;
+        left: 10px;
+        font-size: 12px; /* Adjusted font size */
+        padding: 0; /* Parent padding handled by children */
     }
     .badge.flash-sale .flash-sale-label {
-        padding-left: 8px; /* Reduced padding for mobile */
-        padding-right: 3px;
+        padding-left: 10px; /* Reduced padding for mobile */
+        padding-right: 4px;
     }
     .badge.flash-sale .flash-sale-label::before {
-        width: 15px; /* Smaller icon */
-        height: 15px;
-        margin-right: 3px;
+        width: 16px; /* Smaller icon */
+        height: 16px;
+        margin-right: 4px;
     }
     .badge.flash-sale .flash-sale-countdown {
-        padding: 4px 8px; /* Reduced padding for mobile */
-        min-width: 50px; /* Adjust min-width */
-        font-size: 0.8em;
+        padding: 5px 9px; /* Reduced padding for mobile */
+        min-width: 55px; /* Adjust min-width */
+        font-size: 0.85em; /* Adjusted font size */
     }
     .price {
-        font-size: 1.1em;
-        margin-top: 8px;
+        font-size: 1.2em; /* Adjusted font size */
+        margin-top: 10px;
     }
     .stock-info {
-        font-size: 0.85em;
-        margin-bottom: 8px;
+        font-size: 0.9em; /* Adjusted font size */
+        margin-bottom: 10px;
     }
     .add-to-cart-btn {
-        padding: 10px 15px;
-        font-size: 14px;
-        margin-top: 10px;
+        padding: 12px 18px; /* Adjusted padding */
+        font-size: 15px; /* Adjusted font size */
+        margin-top: 15px;
     }
 
     .modal-box {
-        padding: 20px;
-        border-radius: 15px;
-        gap: 15px;
+        padding: 25px; /* Adjusted padding */
+        border-radius: 20px; /* Adjusted radius */
+        gap: 20px; /* Adjusted gap */
     }
     .modal-box h2 {
-        font-size: 24px;
-        margin-bottom: 15px;
+        font-size: 28px; /* Adjusted font size */
+        margin-bottom: 20px;
     }
     .modal-close-btn {
-        font-size: 28px;
-        top: 10px;
-        right: 15px;
+        font-size: 32px; /* Adjusted font size */
+        top: 15px;
+        right: 20px;
     }
 
     #auth-modal input {
-        padding: 10px;
-        font-size: 14px;
-        margin-bottom: 10px;
+        padding: 12px;
+        font-size: 15px;
+        margin-bottom: 15px;
     }
     #auth-modal button {
-        padding: 10px 15px;
-        font-size: 14px;
+        padding: 12px 18px;
+        font-size: 15px;
     }
 
     .cart-item {
         flex-direction: column;
         align-items: center;
-        gap: 8px;
-        padding: 10px 0;
+        gap: 10px;
+        padding: 12px 0;
         position: relative;
     }
     .cart-item img {
-        width: 50px;
-        height: 50px;
+        width: 60px; /* Adjusted image size */
+        height: 60px;
     }
     .cart-item-details {
         text-align: center;
@@ -1396,60 +1429,60 @@ main#product-list {
     .cart-item-quantity-control {
         flex-wrap: wrap;
         justify-content: center;
-        gap: 5px;
+        gap: 8px;
     }
     .cart-item-quantity-control button {
-        padding: 5px 10px;
-        font-size: 1em;
-        min-width: 30px;
+        padding: 8px 12px;
+        font-size: 1.1em;
+        min-width: 35px;
     }
     .cart-item-quantity-control input {
-        width: 35px;
-        padding: 5px;
-        font-size: 0.9em;
+        width: 40px;
+        padding: 8px;
+        font-size: 1em;
     }
     .cart-item-remove {
         position: absolute;
-        top: 8px;
-        right: 8px;
-        font-size: 24px;
+        top: 10px;
+        right: 10px;
+        font-size: 28px;
     }
     .cart-summary div {
-        font-size: 1.1em;
+        font-size: 1.2em;
     }
     .cart-summary .total {
-        font-size: 1.4em;
+        font-size: 1.5em;
     }
 
     .payment-methods h3 {
-        font-size: 1.3em;
-        margin-bottom: 12px;
-    }
-    .payment-option {
-        padding: 10px;
-        gap: 10px;
-    }
-    .payment-option img {
-        width: 25px;
-        height: 25px;
-    }
-    .payment-option span {
-        font-size: 1em;
-    }
-    .roblox-username-input {
-        padding: 12px;
-        font-size: 15px;
-        margin-top: 15px;
+        font-size: 1.4em;
         margin-bottom: 15px;
     }
+    .payment-option {
+        padding: 12px;
+        gap: 12px;
+    }
+    .payment-option img {
+        width: 30px;
+        height: 30px;
+    }
+    .payment-option span {
+        font-size: 1.05em;
+    }
+    .roblox-username-input {
+        padding: 14px;
+        font-size: 16px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
     .place-order-btn {
-        padding: 14px 20px;
-        font-size: 1.1em;
-        border-radius: 10px;
+        padding: 16px 22px;
+        font-size: 1.2em;
+        border-radius: 12px;
     }
     .empty-message {
-        padding: 25px;
-        font-size: 1em;
+        padding: 30px;
+        font-size: 1.1em;
     }
 
     /* Order History Specific Styles */
@@ -1457,28 +1490,28 @@ main#product-list {
         max-width: 95%;
     }
     .order-item {
-        padding: 10px;
-        margin-bottom: 5px;
+        padding: 15px;
+        margin-bottom: 8px;
         flex-direction: column;
         align-items: flex-start;
-        gap: 5px;
+        gap: 8px;
     }
     .order-item-info strong {
-        font-size: 1.1em;
+        font-size: 1.15em;
     }
     .order-item-info span {
-        font-size: 0.9em;
+        font-size: 0.95em;
         display: block;
         margin-right: 0;
     }
     .order-item-status {
-        padding: 4px 8px;
-        font-size: 0.8em;
+        padding: 5px 10px;
+        font-size: 0.85em;
         align-self: flex-start;
     }
     .view-details-btn {
-        padding: 8px 12px;
-        font-size: 0.9em;
+        padding: 10px 15px;
+        font-size: 1em;
         width: 100%;
         margin-left: 0;
         margin-top: 10px;
@@ -1486,101 +1519,101 @@ main#product-list {
 
     /* Order Details View (User) */
     #order-details-view h3 {
-        font-size: 1.6em;
+        font-size: 1.8em;
     }
     #order-details-info p {
-        font-size: 0.95em;
+        font-size: 1em;
     }
     #order-details-items h4 {
-        font-size: 1.2em;
+        font-size: 1.3em;
     }
     .order-detail-item-name, .order-detail-item-qty-price {
-        font-size: 0.9em;
+        font-size: 0.95em;
     }
     .back-to-orders-btn {
-        padding: 10px 15px;
-        font-size: 1em;
+        padding: 12px 18px;
+        font-size: 1.05em;
     }
 
     /* Admin Panel Mobile Adjustments */
     #admin-panel-modal .modal-box {
         max-width: 95%;
-        padding: 15px;
+        padding: 20px;
     }
     .admin-tabs {
-        margin-bottom: 15px;
-        padding-bottom: 8px;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
         flex-direction: column;
     }
     .admin-tab-btn {
-        padding: 10px 15px;
-        font-size: 1em;
-        margin: 3px 0;
+        padding: 12px 20px;
+        font-size: 1.05em;
+        margin: 4px 0;
     }
     #product-form-container {
-        padding: 15px;
-        margin-bottom: 25px;
+        padding: 20px;
+        margin-bottom: 30px;
     }
     #product-form-container label {
-        font-size: 1em;
+        font-size: 1.05em;
     }
     #product-form-container input[type="text"],
     #product-form-container input[type="number"],
-    #product-form-container input[type="datetime-local"], /* Added for mobile input */
+    #product-form-container input[type="datetime-local"],
     #product-form-container select {
-        padding: 10px;
-        font-size: 0.95em;
-        margin-bottom: 12px;
+        padding: 12px;
+        font-size: 1em;
+        margin-bottom: 15px;
     }
     #product-form-container input[type="checkbox"] {
-        transform: scale(1.1);
-        margin-right: 8px;
+        transform: scale(1.2);
+        margin-right: 10px;
     }
     #product-form-container .checkbox-group {
-        margin-bottom: 12px;
+        margin-bottom: 15px;
     }
     #product-form-container button {
-        padding: 10px 15px;
-        font-size: 0.95em;
-        min-width: 100px;
-        margin-right: 8px;
+        padding: 12px 18px;
+        font-size: 1em;
+        min-width: 110px;
+        margin-right: 10px;
     }
     .admin-product-table td::before, .admin-order-table td::before {
         font-size: 0.9em;
-        width: 40%;
+        width: 45%;
     }
     .admin-product-actions button, .admin-order-actions button {
-        width: calc(100% - 10px);
+        width: calc(100% - 15px);
         margin-left: 0;
-        margin-bottom: 8px;
-        padding: 8px 12px;
-        font-size: 0.9em;
+        margin-bottom: 10px;
+        padding: 10px 15px;
+        font-size: 0.95em;
     }
     .admin-product-actions button:first-child, .admin-order-actions button:first-child {
         margin-left: 0;
     }
     .order-status-update-section select,
     .order-status-update-section button {
-        padding: 10px;
-        font-size: 1em;
+        padding: 12px;
+        font-size: 1.05em;
     }
     .admin-back-to-orders-btn {
-        padding: 10px 15px;
-        font-size: 1em;
+        padding: 12px 18px;
+        font-size: 1.05em;
     }
 
     /* Custom Alert/Confirm Modals for Mobile */
     .custom-modal-content {
-        padding: 20px;
-        border-radius: 10px;
+        padding: 25px;
+        border-radius: 15px;
     }
     .custom-modal-content p {
-        font-size: 1em;
-        margin-bottom: 15px;
+        font-size: 1.05em;
+        margin-bottom: 20px;
     }
     .custom-modal-ok-btn, .custom-modal-confirm-btn, .custom-modal-cancel-btn {
-        padding: 10px 20px;
-        font-size: 0.9em;
+        padding: 12px 22px;
+        font-size: 0.95em;
     }
 
 }
@@ -1590,165 +1623,181 @@ main#product-list {
     header {
         flex-direction: row;
         justify-content: space-between;
-        padding: 15px 20px;
+        padding: 18px 25px; /* Adjusted padding */
     }
     .logo {
-        font-size: 26px;
+        font-size: 28px; /* Adjusted font size */
         margin-bottom: 0;
+        gap: 10px;
     }
     .auth-section {
         width: auto;
         justify-content: flex-end;
-        gap: 12px;
+        gap: 15px;
         margin-left: auto;
     }
     #user-display {
         width: auto;
         text-align: right;
-        font-size: 1.05em;
+        font-size: 1.1em; /* Adjusted font size */
     }
     #logout-button, #my-orders-button, #admin-panel-button, #login-register-button {
         flex-grow: unset;
         max-width: unset;
         margin: 0;
-        padding: 8px 12px;
-        font-size: 14px;
+        padding: 10px 15px;
+        font-size: 15px;
     }
     .cart-icon-container {
-        padding: 8px;
-        width: 36px;
-        height: 36px;
-        margin-left: 10px;
+        padding: 10px;
+        width: 40px;
+        height: 40px;
+        margin-left: 12px;
     }
     .cart-icon-container span:first-child {
-        font-size: 22px;
+        font-size: 24px;
     }
     .cart-count-badge {
-        font-size: 12px;
-        padding: 4px 8px;
-        min-width: 20px;
+        font-size: 13px;
+        padding: 5px 9px;
+        min-width: 22px;
+        top: -5px;
+        right: -5px;
     }
     .contact-center {
         flex-direction: column; /* Keep column for contact-center on medium screens too */
         justify-content: center;
         align-items: center;
-        gap: 15px;
+        gap: 18px; /* Adjusted gap */
+        margin: 30px 0;
     }
     .seller-status-container {
-        font-size: 1.05em;
-        padding: 10px 20px;
+        font-size: 1.1em;
+        padding: 12px 22px; /* Adjusted padding */
         flex-direction: row; /* Ensure contents inside status container are in a row */
+        gap: 10px; /* Adjusted gap */
     }
     .social-links-group { /* Target the new group for side-by-side */
         flex-direction: row; /* Ensure side-by-side */
-        gap: 15px;
+        gap: 18px; /* Adjusted gap */
         justify-content: center;
     }
 
 
     .filters {
-        padding: 15px;
-        margin: 20px auto;
-        gap: 10px;
-        border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        padding: 18px; /* Adjusted padding */
+        margin: 30px auto; /* Adjusted margin */
+        gap: 12px; /* Adjusted gap */
+        border-radius: 15px; /* Adjusted radius */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Adjusted shadow */
         flex-direction: row;
         flex-wrap: wrap;
         justify-content: center;
         align-items: center;
     }
     .filters button, .filters input {
-        font-size: 15px;
-        padding: 11px 16px;
+        font-size: 16px;
+        padding: 12px 18px; /* Adjusted padding */
         border-radius: 10px;
-        border: none;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        border: 1px solid #dee2e6; /* Subtler border */
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08); /* Adjusted shadow */
         width: auto;
         flex-shrink: 0;
     }
     .filters button.active {
-        background-color: #333;
+        background-color: #1a5dab; /* Primary blue for active filter */
         color: white;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.25);
     }
     .filters input[type="text"] {
         flex-grow: 1;
-        max-width: 200px;
-        padding-left: 38px;
-        background-position: 10px center;
-        background-size: 20px;
-        border: 1px solid #ddd;
+        max-width: 250px;
+        padding-left: 40px;
+        background-position: 12px center;
+        background-size: 22px;
+        border: 1px solid #ced4da;
     }
 
     main#product-list {
-        padding: 20px;
-        gap: 25px;
+        padding: 25px; /* Adjusted padding */
+        gap: 30px; /* Adjusted gap */
     }
     .card {
-        width: calc(33.33% - 20px);
-        padding: 18px;
-        border-radius: 18px;
+        width: calc(33.33% - 25px); /* Adjusted width */
+        padding: 22px; /* Adjusted padding */
+        border-radius: 22px; /* Adjusted radius */
     }
     .card img {
-        width: 140px;
-        height: 140px;
+        width: 150px; /* Adjusted image size */
+        height: 150px;
     }
     .price {
-        font-size: 1.2em;
+        font-size: 1.3em;
     }
     .add-to-cart-btn {
-        padding: 11px 16px;
-        font-size: 15px;
+        padding: 12px 18px;
+        font-size: 16px;
     }
     /* Tags for medium screens */
     .badge { /* Adjusted for medium screens */
-        top: 10px;
-        left: 10px;
-        font-size: 13px;
+        top: 15px;
+        left: 15px;
+        font-size: 14px;
+        padding: 6px 12px; /* Adjusted padding */
+        border-radius: 10px;
     }
     .badge.sale {
-        left: 60px; /* Adjusted if NEW is present */
+        left: 65px; /* Adjusted if NEW is present */
     }
     .badge.flash-sale { /* Adjusted for medium screens */
-        top: 10px;
-        left: 10px;
-        font-size: 13px;
-        padding: 4px 8px; /* Adjusted padding */
+        top: 15px;
+        left: 15px;
+        font-size: 14px;
+        padding: 0; /* Parent padding handled by children */
+    }
+    .badge.flash-sale .flash-sale-label {
+        padding-left: 12px;
+        padding-right: 5px;
+    }
+    .badge.flash-sale .flash-sale-label::before {
+        width: 18px;
+        height: 18px;
+        margin-right: 5px;
     }
     .badge.flash-sale .flash-sale-countdown {
-        font-size: 0.8em;
-        padding: 2px 6px;
-        min-width: 60px;
+        font-size: 0.9em;
+        padding: 6px 10px;
+        min-width: 65px;
     }
 
     .modal-box {
-        padding: 25px;
+        padding: 30px;
     }
     .modal-box h2 {
-        font-size: 28px;
+        font-size: 30px;
     }
     .modal-close-btn {
-        font-size: 32px;
+        font-size: 36px;
     }
 
     #auth-modal input {
-        padding: 12px;
-        font-size: 16px;
+        padding: 14px;
+        font-size: 17px;
     }
     #auth-modal button {
-        padding: 12px 20px;
-        font-size: 16px;
+        padding: 14px 22px;
+        font-size: 17px;
     }
 
     .cart-item {
         flex-direction: row;
         align-items: center;
-        gap: 15px;
-        padding: 12px 0;
+        gap: 20px;
+        padding: 15px 0;
     }
     .cart-item img {
-        width: 70px;
-        height: 70px;
+        width: 80px;
+        height: 80px;
     }
     .cart-item-details {
         text-align: left;
@@ -1762,22 +1811,22 @@ main#product-list {
         right: auto;
     }
     .place-order-btn {
-        padding: 16px 22px;
-        font-size: 1.3em;
+        padding: 18px 25px;
+        font-size: 1.4em;
     }
 
     /* Admin Panel Mobile Adjustments (reusing 768px for tables but adjusting others) */
     .admin-tab-btn {
         width: auto;
         margin: 5px;
-        font-size: 1.1em;
-        padding: 10px 20px;
+        font-size: 1.15em;
+        padding: 14px 25px;
     }
     .admin-product-actions button, .admin-order-actions button {
-        width: calc(33.33% - 10px);
-        margin-bottom: 8px;
-        padding: 8px 12px;
-        font-size: 0.9em;
+        width: calc(33.33% - 15px); /* Adjusted width */
+        margin-bottom: 10px; /* Adjusted margin */
+        padding: 10px 15px; /* Adjusted padding */
+        font-size: 0.95em; /* Adjusted font size */
     }
     .admin-product-actions button:first-child, .admin-order-actions button:first-child {
         margin-left: 0;
@@ -1785,14 +1834,14 @@ main#product-list {
 
     /* Custom Alert/Confirm Modals for Tablets */
     .custom-modal-content {
-        padding: 25px;
+        padding: 30px;
     }
     .custom-modal-content p {
         font-size: 1.1em;
     }
     .custom-modal-ok-btn, .custom-modal-confirm-btn, .custom-modal-cancel-btn {
-        padding: 12px 25px;
-        font-size: 1em;
+        padding: 14px 28px;
+        font-size: 1.05em;
     }
 }
 
@@ -1800,32 +1849,32 @@ main#product-list {
 /* Tablet-specific adjustments (769px to 1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
     header {
-        padding: 15px 30px;
+        padding: 20px 35px; /* Adjusted padding */
     }
     .logo {
-        font-size: 26px;
+        font-size: 28px; /* Adjusted font size */
     }
     .filters {
-        max-width: 900px;
-        padding: 20px;
+        max-width: 950px; /* Adjusted max-width */
+        padding: 25px; /* Adjusted padding */
     }
     .filters button, .filters input {
-        font-size: 16px;
-        padding: 12px 20px;
+        font-size: 17px; /* Adjusted font size */
+        padding: 14px 22px; /* Adjusted padding */
     }
     main#product-list {
-        padding: 30px;
-        gap: 35px;
+        padding: 35px; /* Adjusted padding */
+        gap: 40px; /* Adjusted gap */
     }
     .card {
-        width: 250px;
-        padding: 20px;
+        width: 270px; /* Adjusted card width */
+        padding: 25px;
     }
     .modal-box {
-        max-width: 650px;
-        padding: 35px;
+        max-width: 700px; /* Adjusted max-width */
+        padding: 40px; /* Adjusted padding */
     }
     #admin-panel-modal .modal-box {
-        max-width: 950px;
+        max-width: 1000px; /* Adjusted max-width */
     }
 }
