@@ -207,7 +207,9 @@ main#product-list {
     border: 1px solid #eee;
 }
 
-/* Improved Tags (NEW, SALE, FLASH SALE) */
+/* --- Updated Tags (NEW, SALE, FLASH SALE) --- */
+
+/* Base badge styles remain the same */
 .badge {
     position: absolute;
     padding: 6px 12px; /* Larger padding for all badges */
@@ -223,7 +225,6 @@ main#product-list {
 .badge.new {
     background: #FFD700; /* Gold */
     color: #333;
-    /* Default position for single badge or first in stack */
     top: 15px;
     left: 15px;
 }
@@ -231,40 +232,58 @@ main#product-list {
 .badge.sale {
     background: #dc3545; /* Red for Sale */
     color: white;
-    /* Default position for single badge */
     top: 15px;
-    left: 15px;
+    left: 15px; /* Default position for single badge */
 }
 
-/* New: Flash Sale Badge - Overrides default badge styles to match image */
+/* NEW: Flash Sale Badge - Designed to match the provided image */
 .badge.flash-sale {
-    background-color: #e74c3c; /* Red background for the whole badge initially */
+    background-color: #e74c3c; /* Red background for the main badge */
     color: white; /* Text color for "Flash Sale" */
-    top: 15px; /* Prioritized top-left position */
+    top: 15px; /* Prioritized top-left position on the product card */
     left: 15px;
-    padding: 6px 0; /* No horizontal padding on the container, children will provide */
+    padding: 0; /* Remove padding from the container itself, handled by children */
     border-radius: 10px;
-    display: flex; /* Use flexbox to lay out inner elements */
+    display: flex; /* Use flexbox to lay out inner elements (text and countdown) */
     align-items: center;
     box-shadow: 0 3px 10px rgba(0,0,0,0.4); /* More prominent shadow */
     font-size: 14px; /* Consistent font size */
     z-index: 7; /* Highest z-index for flash sale badge */
-    overflow: hidden; /* Ensures rounded corners apply correctly */
-    gap: 5px; /* Default gap between text, bolt and countdown if all are in flex */
+    overflow: hidden; /* Ensures rounded corners apply correctly to children */
+    min-width: 120px; /* Ensure enough space for content */
 }
 
-/* Style for the "Flash Sale" text label (assuming it's a direct span or text node) */
-.badge.flash-sale .flash-sale-label { /* Assuming script.js adds <span class="flash-sale-label">Flash Sale</span> */
+/* NEW: Style for the "Flash Sale" text label */
+.badge.flash-sale .flash-sale-label {
     white-space: nowrap;
-    padding-left: 12px; /* Left padding for the text part */
-    padding-right: 5px; /* Padding before the lightning bolt/countdown */
+    padding-left: 12px; /* Padding for the text part */
+    padding-right: 5px; /* Space before the lightning bolt */
+    display: flex;
+    align-items: center;
 }
 
-/* Specific styling for the countdown part, which includes the lightning bolt as ::before */
+/* NEW: Lightning bolt icon using a data URI as background image on a pseudo-element
+   It's now applied to the flash-sale-label */
+.badge.flash-sale .flash-sale-label::before {
+    content: '';
+    display: inline-block;
+    width: 18px; /* Size of the SVG icon */
+    height: 18px;
+    /* Yellow lightning bolt SVG with a dark stroke */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23F1C40F" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>');
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+    margin-right: 5px; /* Space between lightning bolt and text */
+    vertical-align: middle; /* Align with text */
+    flex-shrink: 0; /* Prevent from shrinking */
+}
+
+/* Specific styling for the countdown part, which has its own yellow background */
 .badge.flash-sale .flash-sale-countdown {
     background-color: #f1c40f; /* Yellow background for countdown area */
     color: #333; /* Darker text for countdown numbers */
-    padding: 3px 10px; /* Padding for the countdown numbers */
+    padding: 6px 10px; /* Padding for the countdown numbers */
     border-radius: 0 10px 10px 0; /* Rounded only on the right */
     font-size: 0.9em;
     font-weight: bold;
@@ -277,24 +296,7 @@ main#product-list {
     align-items: center;
     justify-content: center;
     box-sizing: border-box; /* Include padding and border in element's total width and height */
-    /* Pushes countdown to the right, making the red background expand for "Flash Sale" text */
-    margin-left: auto;
-}
-
-/* Lightning bolt icon using a data URI as background image on a pseudo-element */
-.badge.flash-sale .flash-sale-countdown::before {
-    content: '';
-    display: inline-block;
-    width: 18px; /* Size of the SVG icon */
-    height: 18px;
-    /* SVG for a yellow lightning bolt with a dark stroke */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23F1C40F" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>');
-    background-repeat: no-repeat;
-    background-size: contain;
-    background-position: center;
-    margin-right: 5px; /* Space between lightning bolt and numbers */
-    vertical-align: middle; /* Align with text */
-    flex-shrink: 0; /* Prevent from shrinking */
+    margin-left: auto; /* Pushes countdown to the right */
 }
 
 
@@ -887,7 +889,7 @@ main#product-list {
     vertical-align: middle;
     font-size: 1em;
 }
-.admin-product-table th:first-child, .admin-order-table th:first-child { border-top-left-radius: 12px; }
+.admin-product-table th:first-child, .admin-order-table th:last-child { border-top-left-radius: 12px; }
 .admin-product-table th:last-child, .admin-order-table th:last-child { border-top-right-radius: 12px; }
 .admin-product-table tr:last-child td, .admin-order-table tr:last-child td { border-bottom: none; }
 
@@ -1325,22 +1327,30 @@ main#product-list {
     .badge { /* Adjusted for mobile */
         top: 8px;
         left: 8px;
-        padding: 4px 8px;
-        font-size: 12px;
+        font-size: 11px; /* Slightly smaller font for all badges */
     }
     .badge.sale {
         left: 55px; /* Adjust if NEW is present */
     }
     .badge.flash-sale { /* Adjusted for mobile */
+        min-width: unset; /* Allow it to shrink */
         top: 8px;
         left: 8px;
-        font-size: 12px;
-        padding: 4px 8px;
+        font-size: 11px; /* Slightly smaller font for all badges */
+    }
+    .badge.flash-sale .flash-sale-label {
+        padding-left: 8px; /* Reduced padding for mobile */
+        padding-right: 3px;
+    }
+    .badge.flash-sale .flash-sale-label::before {
+        width: 15px; /* Smaller icon */
+        height: 15px;
+        margin-right: 3px;
     }
     .badge.flash-sale .flash-sale-countdown {
-        font-size: 0.7em;
-        padding: 2px 5px;
-        min-width: 50px;
+        padding: 4px 8px; /* Reduced padding for mobile */
+        min-width: 50px; /* Adjust min-width */
+        font-size: 0.8em;
     }
     .price {
         font-size: 1.1em;
@@ -1631,7 +1641,6 @@ main#product-list {
         padding: 4px 8px;
         min-width: 20px;
     }
-
     .contact-center {
         flex-direction: column; /* Keep column for contact-center on medium screens too */
         justify-content: center;
@@ -1708,7 +1717,6 @@ main#product-list {
     .badge { /* Adjusted for medium screens */
         top: 10px;
         left: 10px;
-        padding: 5px 10px;
         font-size: 13px;
     }
     .badge.sale {
