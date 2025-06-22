@@ -1408,16 +1408,36 @@ main#product-list {
         font-size: 0.8em; /* Further reduced font size for mobile label */
     }
     .badge.flash-sale .flash-sale-label::before {
+        content: '';
+        display: inline-block;
         width: 12px; /* Consistent icon size */
         height: 12px;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FFD700" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>');
+        background-repeat: no-repeat;
+        background-size: contain;
+        background-position: center;
         margin-right: 3px; /* Consistent margin */
+        vertical-align: middle; /* Align with text */
+        flex-shrink: 0; /* Prevent from shrinking */
     }
+
     .badge.flash-sale .flash-sale-countdown {
+        background-color: rgba(255, 255, 255, 0.2); /* Lighter red/transparent white for countdown area */
+        color: white; /* Text color for countdown numbers */
         padding: 3px 6px; /* Consistent padding for mobile */
-        min-width: 50px; /* Consistent min-width */
-        font-size: 0.7em; /* Consistent font size for mobile countdown */
         border-radius: 6px; /* Consistent border-radius on mobile */
+        font-size: 0.7em; /* Consistent font size for mobile countdown */
+        font-weight: bold;
+        white-space: nowrap;
+        min-width: 50px; /* Consistent min-width */
+        text-align: center;
+        border-left: none; /* Removed as it's stacked, not side-by-side */
         width: calc(100% - 12px); /* Consistent width for mobile padding */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box; /* Include padding and border in element's total width and height */
+        margin-top: auto; /* Push to the bottom within the flex container */
     }
     .price {
         font-size: 1.2em; /* Adjusted font size */
@@ -1798,6 +1818,7 @@ main#product-list {
     }
     /* If NEW and SALE are on the same card (medium) */
     .card .badge.new + .badge.sale {
+        top: 15px; /* Keep consistent with NEW tag's top position */
         left: 68px; /* Adjusted to be closer: original 75px - 7px */
     }
     .badge.flash-sale { /* Adjusted for medium screens */
