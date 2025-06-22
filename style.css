@@ -259,7 +259,8 @@ main#product-list {
     z-index: 7; /* Keep as 7, lower than NEW's 10 but higher than default 5 */
     overflow: visible; /* Changed to visible to ensure content isn't hidden */
     min-width: 140px; /* Increased min-width for larger screens */
-    min-height: 55px; /* Added min-height to ensure enough vertical space for text and timer */
+    height: 55px; /* Explicit height to ensure space for both elements */
+    box-sizing: border-box; /* Include padding in height calculation */
 }
 
 /* If NEW and FLASH SALE are on the same card, position FLASH SALE next to NEW */
@@ -1380,7 +1381,8 @@ main#product-list {
         left: 10px; /* Default position for single badge */
         font-size: 12px; /* Consistent font size */
         padding: 6px 8px; /* Adjusted padding for the entire badge on mobile */
-        min-height: 45px; /* Added min-height for mobile */
+        height: 45px; /* Explicit height for mobile */
+        box-sizing: border-box; /* Include padding in height calculation */
     }
     /* If NEW and FLASH SALE are on the same card (mobile) */
     .card .badge.new + .badge.flash-sale {
@@ -1788,7 +1790,8 @@ main#product-list {
         left: 15px; /* Default position for single badge */
         font-size: 14px;
         padding: 8px 12px; /* Adjusted padding for the entire badge on medium */
-        min-height: 50px; /* Added min-height for medium screens */
+        height: 50px; /* Explicit height for medium screens */
+        box-sizing: border-box; /* Include padding in height calculation */
     }
     /* If NEW and FLASH SALE are on the same card (medium) */
     .card .badge.new + .badge.flash-sale {
