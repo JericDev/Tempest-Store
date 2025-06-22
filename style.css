@@ -1379,7 +1379,7 @@ main#product-list {
     /* Specific positioning for SALE badge when it follows NEW on mobile */
     .card .badge.new + .badge.sale {
         top: 10px; /* Keep consistent with NEW tag's top position */
-        left: 65px; /* Adjusted value for closer, non-overlapping positioning */
+        left: 63px; /* Adjusted value for closer, non-overlapping positioning */
         right: auto; /* Ensure no right positioning interferes */
     }
     /* General .badge.sale for when it's alone on a card on mobile */
