@@ -1,1679 +1,1354 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, addDoc, getDocs, serverTimestamp, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+// Import the functions you need from the SDKs you need
+// UPDATED: Using Firebase SDK version 11.6.1 for better compatibility and features.
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Added writeBatch
 
-// --- Firebase Initialization and Global Variables ---
-// MANDATORY: Firebase config and app ID are provided globally by the Canvas environment.
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+// Your web app's Firebase configuration
+// IMPORTANT: Ensure this configuration matches your Firebase project's config.
+// The apiKey here is a placeholder. If running in a Canvas environment,
+// __firebase_config will provide the actual config.
+const firebaseConfig = {
+    apiKey: "AIzaSyA4xfUevmevaMDxK2_gLgvZUoqm0gmCn_k",
+    authDomain: "store-7b9bd.firebaseapp.com",
+    projectId: "store-7b9bd",
+    storageBucket: "store-7b9bd.firebase-storage.app",
+    messagingSenderId: "1015427798898",
+    appId: "1:1015427798898:web:a15c71636506fac128afeb",
+    measurementId: "G-NR4JS3FLWG"
+};
 
-let app;
-let db;
-let auth;
-let userId = null;
-let userEmail = null; // Store user email for display
-let isAdmin = false;
-let sellerId = 'placeholder_seller_id'; // This will be the UID of the first authenticated user or a specific admin UID
-let currentActiveConversationId = null;
-let conversationsSnapshotUnsubscribe = null; // To unsubscribe from conversation listener
-let messagesSnapshotUnsubscribe = null; // To unsubscribe from messages listener
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app); // Initialize Firestore
 
-// Function to safely get a unique ID for users not logged in (anonymous)
-function getAnonymousUserId() {
-    let anonId = sessionStorage.getItem('anonUserId');
-    if (!anonId) {
-        anonId = crypto.randomUUID();
-        sessionStorage.setItem('anonUserId', anonId);
-    }
-    return anonId;
-}
+let currentUserId = null; // To store the current authenticated user's ID
+let isAdmin = false; // Flag to check if the current user is an admin
+// IMPORTANT: Replace "YOUR_ACTUAL_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
+// You can find your UID in the Firebase Console -> Authentication -> Users tab.
+const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Placeholder for Admin UID
 
-// --- Utility Functions for Modals ---
-function showModal(modalId) {
-    document.getElementById(modalId).classList.add('show');
-}
+let cart = []; // Global cart array
+let userOrders = []; // Global array to store user's orders (for user history)
+let allProducts = []; // Global array to store all products from Firestore
+let sellerIsOnline = false; // New: Global variable for seller status
 
-function hideModal(modalId) {
-    document.getElementById(modalId).classList.remove('show');
-}
+// New global variable for filtering
+let currentCategory = 'all'; // Initialize with 'all' category
 
-function showAlert(message, type = 'alert') {
-    const modal = document.getElementById('custom-alert-modal');
-    document.getElementById('custom-alert-message').textContent = message;
-    showModal('custom-alert-modal');
-    return new Promise(resolve => {
-        document.querySelector('#custom-alert-modal .custom-modal-ok-btn').onclick = () => {
-            hideModal('custom-alert-modal');
-            resolve(true);
-        };
-        // Use data-close-modal attribute to link close button to modal
-        document.querySelector('#custom-alert-modal .custom-modal-close-btn').onclick = () => {
-            hideModal('custom-alert-modal');
-            resolve(false);
-        };
-    });
-}
+// Global variables to store unsubscribe functions for real-time listeners
+let unsubscribeUserOrders = null;
+let unsubscribeProducts = null;
+let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listener
+let flashSaleTimers = {}; // Object to store setInterval IDs for flash sale countdowns
 
-function showConfirm(message) {
-    const modal = document.getElementById('custom-confirm-modal');
-    document.getElementById('custom-confirm-message').textContent = message;
-    showModal('custom-confirm-modal');
-    return new Promise(resolve => {
-        document.querySelector('#custom-confirm-modal .custom-modal-confirm-btn').onclick = () => {
-            hideModal('custom-confirm-modal');
-            resolve(true);
-        };
-        document.querySelector('#custom-confirm-modal .custom-modal-cancel-btn').onclick = () => {
-            hideModal('custom-confirm-modal');
-            resolve(false);
-        };
-        // Use data-close-modal attribute to link close button to modal
-        document.querySelector('#custom-confirm-modal .custom-modal-close-btn').onclick = () => {
-            hideModal('custom-confirm-modal');
-            resolve(false);
-        };
-    });
-}
+// Reference to the admin panel initialization function from admin.js
+let initAdminPanelModule = null;
+let adminCleanupFunction = null;
 
-// --- Product Data Management (Firestore) ---
-const productsCollectionRef = (db) => collection(db, `artifacts/${appId}/public/products`);
+// New: Variable to hold the interval for refreshing the cart when modal is open
+let cartRefreshInterval = null;
 
-async function saveProduct(product) {
-    try {
-        if (!product.id) {
-            // Add new product
-            const docRef = await addDoc(productsCollectionRef(db), product);
-            product.id = docRef.id; // Assign the new ID
-            // Update the document to include its own ID as a field (optional but good practice)
-            await setDoc(doc(productsCollectionRef(db), docRef.id), { ...product, id: docRef.id });
-        } else {
-            // Update existing product
-            await setDoc(doc(productsCollectionRef(db), product.id), product);
+
+// --- DOM elements for Authentication ---
+const authEmailInput = document.getElementById("auth-email");
+const authPasswordInput = document.getElementById("auth-password");
+const registerButton = document.getElementById("register-button");
+const loginButton = document.getElementById("login-button");
+const loginRegisterButton = document.getElementById("login-register-button");
+const logoutButton = document.getElementById("logout-button");
+const myOrdersButton = document.getElementById("my-orders-button");
+// adminPanelButton is now managed by admin.js, but its visibility by script.js
+const adminPanelButton = document.getElementById("admin-panel-button");
+const authMessage = document.getElementById("auth-message");
+const userDisplay = document.getElementById("user-display");
+const authModal = document.getElementById("auth-modal");
+const closeAuthModalBtn = document.getElementById("close-auth-modal");
+const forgotPasswordButton = document.getElementById("forgot-password-button"); // New: Forgot Password button
+
+
+// --- DOM elements for Cart/Checkout ---
+const cartIconBtn = document.getElementById("cart-icon-btn");
+const cartCountBadge = document.getElementById("cart-count");
+const cartModal = document.getElementById("cart-modal");
+const closeCartModalBtn = document.getElementById("close-cart-modal");
+const cartItemsContainer = document.getElementById("cart-items-container");
+const cartSubtotalSpan = document.getElementById("cart-subtotal");
+const cartTotalSpan = document.getElementById("cart-total");
+const placeOrderBtn = document.getElementById("place-order-btn");
+const robloxUsernameInput = document.getElementById("roblox-username-input");
+// NEW: DOM elements for payment contact details
+const paymentContactNumberSpan = document.getElementById("payment-contact-number");
+const copyContactNumberBtn = document.getElementById("copy-contact-number-btn");
+
+
+// --- DOM elements for Order History ---
+const orderHistoryModal = document.getElementById("order-history-modal");
+const closeOrderHistoryModalBtn = document.getElementById("close-order-history-modal");
+const orderHistoryList = document.getElementById("order-history-list");
+const orderHistoryTitle = document.getElementById("order-history-title");
+const orderDetailsView = document.getElementById("order-details-view");
+const detailOrderId = document.getElementById("detail-order-id");
+const detailOrderDate = document.getElementById("detail-order-date");
+const detailOrderStatus = document.getElementById("detail-order-status");
+const detailOrderPrice = document.getElementById("detail-order-price");
+const detailPaymentMethod = document.getElementById("detail-payment-method");
+const detailRobloxUsername = document.getElementById("detail-roblox-username");
+const detailItemsList = document.getElementById("detail-items-list");
+const backToOrderListBtn = document.getElementById("back-to-order-list");
+
+// --- New DOM elements for Seller Status ---
+const sellerStatusDisplay = document.getElementById("seller-status-display");
+
+// --- Custom Alert/Confirm Modals ---
+// Function to show a custom alert modal instead of native alert()
+function showCustomAlert(message) {
+    const alertModal = document.createElement('div');
+    alertModal.className = 'custom-modal';
+    alertModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <button class="custom-modal-ok-btn">OK</button>
+        </div>
+    `;
+    document.body.appendChild(alertModal);
+
+    const closeBtn = alertModal.querySelector('.custom-modal-close-btn');
+    const okBtn = alertModal.querySelector('.custom-modal-ok-btn');
+
+    const closeModal = () => {
+        alertModal.classList.remove('show');
+        setTimeout(() => alertModal.remove(), 300);
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    okBtn.addEventListener('click', closeModal);
+    alertModal.addEventListener('click', (event) => {
+        if (event.target === alertModal) {
+            closeModal();
         }
-        showAlert('Product saved successfully!');
-        await loadProducts(); // Reload products to refresh list
-        await loadAdminProducts(); // Reload admin product list
-        resetProductForm();
-    } catch (error) {
-        console.error("Error saving product:", error);
-        showAlert('Error saving product: ' + error.message);
-    }
-}
-
-async function deleteProduct(productId) {
-    if (await showConfirm('Are you sure you want to delete this product?')) {
-        try {
-            await deleteDoc(doc(productsCollectionRef(db), productId));
-            showAlert('Product deleted successfully!');
-            await loadProducts(); // Reload products to refresh list
-            await loadAdminProducts(); // Reload admin product list
-        } catch (error) {
-            console.error("Error deleting product:", error);
-            showAlert('Error deleting product: ' + error.message);
-        }
-    }
-}
-
-let allProducts = []; // Cache for all products
-let currentFilter = 'all';
-
-async function loadProducts() {
-    try {
-        const productsSnapshot = await getDocs(productsCollectionRef(db));
-        allProducts = productsSnapshot.docs.map(doc => doc.data());
-        renderProducts();
-    } catch (error) {
-        console.error("Error loading products:", error);
-        showAlert('Error loading products: ' + error.message);
-    }
-}
-
-function renderProducts() {
-    const productList = document.getElementById('product-list');
-    productList.innerHTML = '';
-    const now = new Date();
-
-    const filteredProducts = allProducts.filter(product => {
-        if (currentFilter === 'all') return true;
-        return product.category === currentFilter;
     });
 
-    if (filteredProducts.length === 0) {
-        productList.innerHTML = '<p class="empty-message">No products found in this category.</p>';
+    setTimeout(() => alertModal.classList.add('show'), 10);
+}
+
+// Function to show a custom confirmation modal instead of native confirm()
+function showCustomConfirm(message, onConfirm, onCancel = () => {}) {
+    const confirmModal = document.createElement('div');
+    confirmModal.className = 'custom-modal';
+    confirmModal.innerHTML = `
+        <div class="custom-modal-content">
+            <span class="custom-modal-close-btn">&times;</span>
+            <p>${message}</p>
+            <div class="custom-modal-buttons">
+                <button class="custom-modal-confirm-btn">Yes</button>
+                <button class="custom-modal-cancel-btn">No</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmModal);
+
+    const closeBtn = confirmModal.querySelector('.custom-modal-close-btn');
+    const confirmBtn = confirmModal.querySelector('.custom-modal-confirm-btn');
+    const cancelBtn = confirmModal.querySelector('.custom-modal-cancel-btn');
+
+    const closeModal = () => {
+        confirmModal.classList.remove('show');
+        setTimeout(() => confirmModal.remove(), 300);
+    };
+
+    closeBtn.addEventListener('click', () => { closeModal(); onCancel(); });
+    cancelBtn.addEventListener('click', () => { closeModal(); onCancel(); });
+    confirmBtn.addEventListener('click', () => {
+        onConfirm();
+        closeModal();
+    });
+    confirmModal.addEventListener('click', (event) => {
+        if (event.target === confirmModal) {
+            closeModal();
+            onCancel();
+        }
+    });
+
+    setTimeout(() => confirmModal.classList.add('show'), 10);
+}
+
+
+// --- Authentication Functions ---
+registerButton.addEventListener("click", () => {
+    const email = authEmailInput.value;
+    const password = authPasswordInput.value;
+    if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
+    createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+            authMessage.textContent = `Registered and logged in as: ${userCredential.user.email}`;
+            authMessage.style.color = 'green';
+            console.log("User registered:", userCredential.user.email);
+            authModal.classList.remove('show');
+        })
+        .catch((error) => {
+            if (error.code === 'auth/email-already-in-use') {
+                authMessage.textContent = "Registration failed: This email is already in use. Try logging in.";
+            } else {
+                authMessage.textContent = `Registration failed: ${error.message}`;
+            }
+            authMessage.style.color = 'red';
+            console.error("Registration error:", error);
+        });
+});
+
+loginButton.addEventListener("click", () => {
+    const email = authEmailInput.value;
+    const password = authPasswordInput.value;
+    if (!email || !password) { authMessage.textContent = "Please enter email and password."; return; }
+    signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+            authMessage.textContent = `Logged in as: ${userCredential.user.email}`;
+            authMessage.style.color = 'green';
+            console.log("User logged in:", userCredential.user.email);
+            authModal.classList.remove('show');
+        })
+        .catch((error) => {
+            switch (error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                    authMessage.textContent = "Login failed: Invalid email or password.";
+                    break;
+                case 'auth/invalid-email':
+                    authMessage.textContent = "Login failed: The email address is not valid.";
+                    break;
+                case 'auth/user-disabled':
+                    authMessage.textContent = "Login failed: This account has been disabled.";
+                    break;
+                default:
+                    authMessage.textContent = `Login failed: ${error.message}`;
+            }
+            authMessage.style.color = 'red';
+            console.error("Login error:", error);
+        });
+});
+
+logoutButton.addEventListener("click", () => {
+    signOut(auth)
+        .then(() => {
+            authMessage.textContent = "Logged out successfully.";
+            authMessage.style.color = 'green';
+            console.log("User logged out.");
+        })
+        .catch((error) => {
+            authMessage.textContent = `Logout failed: ${error.message}`;
+            authMessage.style.color = 'red';
+            console.error("Logout error:", error);
+        });
+});
+
+loginRegisterButton.addEventListener('click', () => {
+    authModal.classList.add('show');
+    authMessage.textContent = "";
+    authMessage.style.color = 'red';
+    authEmailInput.value = "";
+    authPasswordInput.value = "";
+});
+
+closeAuthModalBtn.addEventListener('click', () => {
+    cartModal.classList.remove('show'); // Make sure cart modal is closed if auth is opened from it
+    authModal.classList.remove('show');
+});
+
+authModal.addEventListener('click', (event) => {
+    if (event.target === authModal) {
+        authModal.classList.remove('show');
+    }
+});
+
+// --- Forgot Password Functionality ---
+forgotPasswordButton.addEventListener('click', () => {
+    const email = authEmailInput.value.trim();
+    if (!email) {
+        authMessage.textContent = "Please enter your email to reset your password.";
+        authMessage.style.color = 'red';
         return;
     }
 
-    filteredProducts.forEach(product => {
-        const card = document.createElement('div');
-        card.className = `card ${product.stock === 0 ? 'out-of-stock' : ''}`;
-        card.dataset.id = product.id; // Store product ID on the card
-
-        let badgesHtml = '';
-        if (product.isNew) {
-            badgesHtml += `<span class="badge new">NEW</span>`;
-        }
-        if (product.isOnSale) {
-            badgesHtml += `<span class="badge sale">SALE</span>`;
-        }
-        // Flash Sale logic
-        let isFlashSaleActive = false;
-        let flashSaleEndTime = null;
-        if (product.isFlashSale && product.flashSaleEnd) {
-            flashSaleEndTime = new Date(product.flashSaleEnd);
-            if (flashSaleEndTime > now) {
-                isFlashSaleActive = true;
-                const timeRemaining = flashSaleEndTime.getTime() - now.getTime();
-                const minutes = Math.floor((timeRemaining / (1000 * 60)) % 60);
-                const hours = Math.floor((timeRemaining / (1000 * 60 * 60)) % 24);
-                const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
-                badgesHtml += `
-                    <span class="badge flash-sale">
-                        <span class="flash-sale-label">Flash Sale</span>
-                        <span class="flash-sale-countdown">${days > 0 ? `${days}d ` : ''}${hours}h ${minutes}m</span>
-                    </span>`;
+    sendPasswordResetEmail(auth, email)
+        .then(() => {
+            authMessage.textContent = `Password reset email sent to ${email}. Check your inbox!`;
+            authMessage.style.color = 'green';
+            authEmailInput.value = "";
+            authPasswordInput.value = "";
+        })
+        .catch((error) => {
+            switch (error.code) {
+                case 'auth/invalid-email':
+                    authMessage.textContent = "Password reset failed: The email address is not valid.";
+                    break;
+                case 'auth/user-not-found':
+                    authMessage.textContent = "Password reset failed: No user found with that email address.";
+                    break;
+                default:
+                    authMessage.textContent = `Password reset failed: ${error.message}`;
             }
-        }
+            authMessage.style.color = 'red';
+            console.error("Password reset error:", error);
+        });
+});
 
-        const formattedPrice = isFlashSaleActive && product.flashSalePrice ?
-            `<span class="price flash-sale-active">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span><span class="original-price-strikethrough">₱${product.price.toFixed(2)}</span>` :
-            `<span class="price">₱${product.price.toFixed(2)}</span>`;
-
-        card.innerHTML = `
-            ${badgesHtml}
-            <img src="${product.imageUrl || 'https://placehold.co/180x180/e9ecef/495057?text=Product'}" alt="${product.name}">
-            <h3>${product.name}</h3>
-            <p>${product.description}</p>
-            ${formattedPrice}
-            <p class="stock-info ${product.stock === 0 ? 'out-of-stock-text' : 'in-stock'}">
-                ${product.stock > 0 ? `In Stock: ${product.stock}` : 'Out of Stock'}
-            </p>
-            <button class="add-to-cart-btn" ${product.stock === 0 ? 'disabled' : ''}>Add to Cart</button>
-        `;
-        productList.appendChild(card);
-    });
-
-    addAddToCartListeners(); // Re-add listeners for new buttons
-}
-
-function filterProducts(category) {
-    currentFilter = category;
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelector(`.filter-btn[data-category="${category}"]`).classList.add('active');
-    renderProducts();
-}
-
-function searchProducts(query) {
-    const productList = document.getElementById('product-list');
-    productList.innerHTML = ''; // Clear current products
-
-    const searchTerm = query.toLowerCase();
-    const filteredProducts = allProducts.filter(product => {
-        return product.name.toLowerCase().includes(searchTerm) ||
-               product.description.toLowerCase().includes(searchTerm) ||
-               product.category.toLowerCase().includes(searchTerm);
-    });
-
-    if (filteredProducts.length === 0) {
-        productList.innerHTML = '<p class="empty-message">No products found matching your search.</p>';
-        return;
+// --- Authentication State Observer (Crucial for loading user data) ---
+onAuthStateChanged(auth, async (user) => {
+    // Unsubscribe from any existing listeners that are managed here
+    if (unsubscribeUserOrders) {
+        unsubscribeUserOrders();
+        unsubscribeUserOrders = null;
     }
+    // Product listener is always active, no need to unsubscribe here.
 
-    filteredProducts.forEach(product => {
-        const card = document.createElement('div');
-        card.className = `card ${product.stock === 0 ? 'out-of-stock' : ''}`;
-        card.dataset.id = product.id; // Store product ID on the card
+    // Clean up admin panel if currently active
+    if (adminCleanupFunction) {
+        adminCleanupFunction();
+        adminCleanupFunction = null;
+    }
+    // Clear all existing flash sale timers when auth state changes (e.g., logout)
+    stopAllFlashSaleTimers();
 
-        let badgesHtml = '';
-        const now = new Date();
-        if (product.isNew) {
-            badgesHtml += `<span class="badge new">NEW</span>`;
-        }
-        if (product.isOnSale) {
-            badgesHtml += `<span class="badge sale">SALE</span>`;
-        }
-        let isFlashSaleActive = false;
-        if (product.isFlashSale && product.flashSaleEnd) {
-            const flashSaleEndTime = new Date(product.flashSaleEnd);
-            if (flashSaleEndTime > now) {
-                isFlashSaleActive = true;
-                const timeRemaining = flashSaleEndTime.getTime() - now.getTime();
-                const minutes = Math.floor((timeRemaining / (1000 * 60)) % 60);
-                const hours = Math.floor((timeRemaining / (1000 * 60 * 60)) % 24);
-                const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
-                badgesHtml += `
-                    <span class="badge flash-sale">
-                        <span class="flash-sale-label">Flash Sale</span>
-                        <span class="flash-sale-countdown">${days > 0 ? `${days}d ` : ''}${hours}h ${minutes}m</span>
-                    </span>`;
-            }
-        }
+    if (user) {
+        currentUserId = user.uid; // Set current user ID
+        isAdmin = (currentUserId === ADMIN_UID); // Check if current user is admin
 
-        const formattedPrice = isFlashSaleActive && product.flashSalePrice ?
-            `<span class="price flash-sale-active">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span><span class="original-price-strikethrough">₱${product.price.toFixed(2)}</span>` :
-            `<span class="price">₱${product.price.toFixed(2)}</span>`;
+        userDisplay.textContent = `Welcome, ${user.email}`;
+        loginRegisterButton.style.display = "none";
+        logoutButton.style.display = "inline-block";
+        myOrdersButton.style.display = "inline-block";
 
-        card.innerHTML = `
-            ${badgesHtml}
-            <img src="${product.imageUrl || 'https://placehold.co/180x180/e9ecef/495057?text=Product'}" alt="${product.name}">
-            <h3>${product.name}</h3>
-            <p>${product.description}</p>
-            ${formattedPrice}
-            <p class="stock-info ${product.stock === 0 ? 'out-of-stock-text' : 'in-stock'}">
-                ${product.stock > 0 ? `In Stock: ${product.stock}` : 'Out of Stock'}
-            </p>
-            <button class="add-to-cart-btn" ${product.stock === 0 ? 'disabled' : ''}>Add to Cart</button>
-        `;
-        productList.appendChild(card);
-    });
-    addAddToCartListeners();
-}
-
-// --- Cart Functionality ---
-let cart = [];
-
-function addAddToCartListeners() {
-    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
-        button.onclick = (event) => {
-            const card = event.target.closest('.card');
-            const productId = card.dataset.id;
-            const product = allProducts.find(p => p.id === productId);
-
-            if (product && product.stock > 0) {
-                const existingItem = cart.find(item => item.id === productId);
-                if (existingItem) {
-                    if (existingItem.quantity < product.stock) {
-                        existingItem.quantity++;
-                    } else {
-                        showAlert(`Maximum stock reached for ${product.name}.`);
-                        return;
-                    }
-                } else {
-                    cart.push({ ...product, quantity: 1 });
+        if (isAdmin) {
+            adminPanelButton.style.display = "inline-block"; // Show Admin Panel button
+            // Dynamically import and initialize admin module
+            if (!initAdminPanelModule) {
+                try {
+                    // Ensure the path is correct relative to script.js
+                    const adminModule = await import('./admin.js');
+                    initAdminPanelModule = adminModule.initAdminPanel;
+                    adminCleanupFunction = adminModule.cleanupAdminPanel; // Get cleanup function
+                } catch (error) {
+                    console.error("Error loading admin.js:", error);
+                    // Hide admin button if load fails
+                    adminPanelButton.style.display = "none";
                 }
-                updateCartUI();
-                showAlert(`${product.name} added to cart!`);
-            } else if (product.stock === 0) {
-                showAlert(`${product.name} is out of stock.`);
             }
-        };
-    });
-}
+            if (initAdminPanelModule) {
+                // Pass Firestore and Auth instances, plus user info, toggle function, and a GETTER for current seller status
+                initAdminPanelModule(db, auth, currentUserId, isAdmin, toggleSellerStatus, () => sellerIsOnline);
+            }
+        } else {
+            adminPanelButton.style.display = "none";
+        }
 
-function updateCartUI() {
-    // Corrected ID for cart items container
-    const cartItemsContainer = document.getElementById('cart-items-container');
-    cartItemsContainer.innerHTML = '';
-    let subtotal = 0;
+        robloxUsernameInput.style.display = "block";
 
-    if (cart.length === 0) {
-        cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
-        document.getElementById('place-order-btn').disabled = true;
-        // Also update the button text
-        document.getElementById('place-order-btn').textContent = `Place Order (0 items) ₱0.00`;
+        await loadCartFromFirestore(currentUserId);
+        await syncCartOnLogin(currentUserId);
+
+        unsubscribeUserOrders = setupUserOrderHistoryListener(currentUserId);
 
     } else {
-        document.getElementById('place-order-btn').disabled = false;
-        cart.forEach(item => {
-            const productInCatalog = allProducts.find(p => p.id === item.id);
-            const isOutOfStock = productInCatalog ? item.quantity > productInCatalog.stock : true;
-            const actualQuantity = productInCatalog ? Math.min(item.quantity, productInCatalog.stock) : item.quantity;
+        currentUserId = null;
+        isAdmin = false;
 
-            // Determine effective price including flash sale if active
-            const now = new Date();
-            let effectivePrice = item.price;
-            if (item.isFlashSale && item.flashSaleEnd) {
-                const flashSaleEndTime = new Date(item.flashSaleEnd);
-                if (flashSaleEndTime > now) {
-                    effectivePrice = item.flashSalePrice;
+        userDisplay.textContent = "";
+        loginRegisterButton.style.display = "inline-block";
+        logoutButton.style.display = "none";
+        myOrdersButton.style.display = "none";
+        adminPanelButton.style.display = "none";
+
+        robloxUsernameInput.style.display = "none";
+
+        cart = loadCartFromLocalStorage();
+        userOrders = [];
+    }
+    authEmailInput.value = "";
+    authPasswordInput.value = "";
+    authMessage.textContent = "";
+    authMessage.style.color = 'red';
+    renderCart(); // Re-render cart after auth state changes to reflect stock adjustments or pricing for guest
+    // Products are always rendered via the setupProductsListener called globally.
+});
+
+// --- Firestore Collection Paths ---
+const APP_ID = 'tempest-store-app';
+const PRODUCTS_COLLECTION_PATH = `artifacts/${APP_ID}/products`;
+const USER_CARTS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/carts`;
+const USER_ORDERS_COLLECTION_PATH = (userId) => `artifacts/${APP_ID}/users/${userId}/orders`;
+const ALL_ORDERS_COLLECTION_PATH = `artifacts/${APP_ID}/allOrders`;
+const SITE_SETTINGS_COLLECTION_PATH = `artifacts/${APP_ID}/settings`; // New: Path for site settings
+
+// --- Product Display (Accessible to all) ---
+function setupProductsListener() {
+    const productsColRef = collection(db, PRODUCTS_COLLECTION_PATH);
+    return onSnapshot(productsColRef, (snapshot) => {
+        const fetchedProducts = [];
+        snapshot.forEach(doc => {
+            fetchedProducts.push({ id: doc.id, ...doc.data() });
+        });
+        allProducts = fetchedProducts;
+        console.log("Fetched Products from Firestore:", allProducts); // Added for debugging
+        applyFilters(); // Call applyFilters after products are fetched and updated
+        renderCart(); // Also re-render the cart to update any stock-related warnings/quantity adjustments
+    }, (error) => {
+        console.error("Error listening to products:", error);
+    });
+}
+
+// Call setupProductsListener once when the script loads to always show products
+unsubscribeProducts = setupProductsListener();
+
+// --- New: Site Settings Listener and Functions ---
+function setupSiteSettingsListener() {
+    // Listen to a specific document (e.g., 'global') in the settings collection
+    const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
+    return onSnapshot(settingsDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            sellerIsOnline = data.sellerOnline || false; // Default to offline if not set
+            updateSellerStatusDisplay();
+        } else {
+            console.log("No 'global' settings document found. Initializing with default status.");
+            // If document doesn't exist, create it with default status
+            // This is allowed by the new rules which allow anyone to read, and admin to write.
+            // If the document doesn't exist, a read will return !docSnap.exists(), and an admin can create it.
+            // For general read, it just means no status is set yet.
+            // No need to try creating it here in JS, just let the admin panel handle initial setup.
+            sellerIsOnline = false; // Default to offline if no settings doc
+            updateSellerStatusDisplay();
+        }
+    }, (error) => {
+        console.error("Error listening to site settings:", error);
+    });
+}
+
+function updateSellerStatusDisplay() {
+    if (sellerIsOnline) {
+        sellerStatusDisplay.textContent = "Seller Status: Online";
+        sellerStatusDisplay.classList.remove("status-offline");
+        sellerStatusDisplay.classList.add("status-online");
+    } else {
+        sellerStatusDisplay.textContent = "Seller Status: Offline";
+        sellerStatusDisplay.classList.remove("status-online");
+        sellerStatusDisplay.classList.add("status-offline");
+    }
+}
+
+async function toggleSellerStatus(isOnline) {
+    try {
+        const settingsDocRef = doc(db, SITE_SETTINGS_COLLECTION_PATH, 'global');
+        await setDoc(settingsDocRef, { sellerOnline: isOnline }, { merge: true }); // Use setDoc with merge to create if not exists or update
+        console.log("Seller status updated to:", isOnline);
+    } catch (e) {
+        console.error("Error updating seller status:", e);
+        showCustomAlert("Error updating seller status: " + e.message); // Using custom alert
+    }
+}
+
+// Call setupSiteSettingsListener once when the script loads
+unsubscribeSiteSettings = setupSiteSettingsListener();
+
+
+// --- Cart Persistence (Customer-side) ---
+async function saveCartToFirestore(userId, cartData) {
+    try {
+        const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
+        await setDoc(userCartRef, { items: JSON.stringify(cartData) });
+        console.log("Cart saved to Firestore for user:", userId);
+    } catch (e) {
+        console.error("Error saving cart to Firestore:", e);
+    }
+}
+
+async function loadCartFromFirestore(userId) {
+    try {
+        const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
+        const docSnap = await getDoc(userCartRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            cart = JSON.parse(data.items || '[]');
+            console.log("Cart loaded from Firestore for user:", userId, cart);
+        } else {
+            cart = [];
+            console.log("No cart found in Firestore for user:", userId);
+        }
+    }
+    catch (e) {
+        console.error("Error loading cart from Firestore:", e);
+        cart = [];
+    }
+}
+
+function saveCartToLocalStorage(cartData) {
+    localStorage.setItem('tempestStoreCart', JSON.stringify(cartData));
+}
+
+function loadCartFromLocalStorage() {
+    const storedCart = localStorage.getItem('tempestStoreCart');
+    return storedCart ? JSON.parse(storedCart) : [];
+}
+
+async function syncCartOnLogin(userId) {
+    const localCart = loadCartFromLocalStorage();
+    if (localCart.length > 0) {
+        const userCartRef = doc(db, USER_CARTS_COLLECTION_PATH(userId), 'currentCart');
+        const docSnap = await getDoc(userCartRef);
+        let firestoreCart = [];
+        if (docSnap.exists()) {
+            firestoreCart = JSON.parse(docSnap.data().items || '[]');
+        }
+
+        localCart.forEach(localItem => {
+            const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
+            const productDetails = allProducts.find(p => p.id === localItem.id);
+            
+            // Determine the current effective price for the product from allProducts
+            let currentEffectivePrice = productDetails ? (
+                productDetails.flashSale && productDetails.flashSalePrice && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > new Date()
+                ? productDetails.flashSalePrice :
+                (productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price)
+            ) : localItem.effectivePrice || localItem.price; // Fallback to item's price if productDetails not found
+
+            // Ensure price is a number before storing or processing further.
+            currentEffectivePrice = parseFloat(String(currentEffectivePrice).replace('₱', ''));
+
+            if (existingItemIndex > -1) {
+                // Merge quantity if item exists, ensuring it doesn't exceed current stock
+                if (productDetails) {
+                    const combinedQuantity = firestoreCart[existingItemIndex].quantity + localItem.quantity;
+                    firestoreCart[existingItemIndex].quantity = Math.min(combinedQuantity, productDetails.stock || 0);
+                    firestoreCart[existingItemIndex].effectivePrice = currentEffectivePrice;
+                } else {
+                    // If product no longer exists, set quantity to 0
+                    firestoreCart[existingItemIndex].quantity = 0;
+                }
+            } else {
+                // Add new item, checking stock
+                if (productDetails && productDetails.stock > 0) {
+                    firestoreCart.push({ ...localItem, quantity: Math.min(localItem.quantity, productDetails.stock), effectivePrice: currentEffectivePrice });
+                } else {
+                    console.warn(`Product ${localItem.name} not found or out of stock during sync, not adding from local storage.`);
                 }
             }
-            subtotal += effectivePrice * actualQuantity;
+        });
+        // Now, we do NOT filter out items with 0 quantity here, allowing them to remain in the cart for visual display.
+        cart = firestoreCart;
+        await saveCartToFirestore(userId, cart);
+        localStorage.removeItem('tempestStoreCart');
+        renderCart();
+    }
+}
 
-            const itemDiv = document.createElement('div');
-            itemDiv.className = `cart-item ${isOutOfStock ? 'out-of-stock-cart-item' : ''}`;
-            itemDiv.innerHTML = `
-                <img src="${item.imageUrl || 'https://placehold.co/90x90/e9ecef/495057?text=Product'}" alt="${item.name}">
+// --- Customer Order History (User-side) ---
+function setupUserOrderHistoryListener(userId) {
+    const ordersCollectionRef = collection(db, USER_ORDERS_COLLECTION_PATH(userId));
+    const q = query(ordersCollectionRef, orderBy("orderDate", "desc"));
+    return onSnapshot(q, (snapshot) => {
+        const fetchedOrders = [];
+        snapshot.forEach(doc => {
+            fetchedOrders.push({ id: doc.id, ...doc.data() });
+        });
+        userOrders = fetchedOrders;
+        renderOrderHistory();
+    }, (error) => {
+        console.error("Error listening to user order history:", error);
+    });
+}
+
+// --- Cart Management Functions ---
+function addToCart(product) {
+    const productDetails = allProducts.find(p => p.id === product.id);
+    if (!productDetails || productDetails.stock <= 0) {
+        showCustomAlert(`${product.name} is currently out of stock.`);
+        return;
+    }
+
+    const existingItem = cart.find(item => item.id === product.id);
+
+    // Determine the effective price at the time of adding to cart
+    let effectivePrice;
+    const now = new Date();
+    if (productDetails.flashSale && productDetails.flashSalePrice && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > now) {
+        effectivePrice = productDetails.flashSalePrice;
+    } else if (productDetails.sale && productDetails.salePrice) {
+        effectivePrice = productDetails.salePrice;
+    } else {
+        effectivePrice = productDetails.price;
+    }
+
+    // Ensure effectivePrice is a number before storing.
+    effectivePrice = parseFloat(String(effectivePrice).replace('₱', ''));
+
+    if (existingItem) {
+        if (existingItem.quantity < productDetails.stock) {
+            existingItem.quantity++;
+            existingItem.effectivePrice = effectivePrice; // Update effective price in cart item
+            showCustomAlert(`Added another ${product.name} to cart. Total: ${existingItem.quantity}`);
+        } else {
+            showCustomAlert(`Cannot add more ${product.name}. Max stock reached: ${productDetails.stock}.`);
+            return; // Don't save/render if no change
+        }
+    } else {
+        cart.push({ ...product, quantity: 1, effectivePrice: effectivePrice }); // Use effectivePrice
+        showCustomAlert(`Added ${product.name} to cart.`);
+    }
+    saveCart();
+    renderCart();
+    console.log("Cart contents:", cart);
+}
+
+function removeFromCart(productId) {
+    cart = cart.filter(item => item.id !== productId);
+    saveCart();
+    renderCart();
+    showCustomAlert("Item removed from cart.");
+}
+
+function updateCartQuantity(productId, newQuantity) {
+    const itemIndex = cart.findIndex(item => item.id === productId);
+    if (itemIndex > -1) {
+        const productDetails = allProducts.find(p => p.id === productId);
+        const currentStock = productDetails ? productDetails.stock : 0;
+
+        if (newQuantity <= 0) {
+            // Set quantity to 0 and visually mark as out of stock/disabled
+            cart[itemIndex].quantity = 0;
+        } else if (newQuantity > currentStock) {
+            cart[itemIndex].quantity = currentStock; // Cap quantity at available stock
+            if (currentStock === 0) { // Should be covered by newQuantity <= 0, but as safeguard
+                cart[itemIndex].quantity = 0;
+            } else {
+                showCustomAlert(`Cannot set quantity for ${cart[itemIndex].name} to ${newQuantity}. Only ${currentStock} available. Quantity adjusted.`);
+            }
+        } else {
+            cart[itemIndex].quantity = newQuantity;
+        }
+        saveCart();
+        renderCart();
+    }
+}
+
+function saveCart() {
+    if (currentUserId) {
+        saveCartToFirestore(currentUserId, cart);
+    } else {
+        saveCartToLocalStorage(cart);
+    }
+    updateCartCountBadge();
+}
+
+function updateCartCountBadge() {
+    // The badge should show the count of unique items in the cart,
+    // regardless of their current stock quantity.
+    const totalDistinctItemsInCart = cart.length;
+
+    // Get the actual countable items for the place order button and total.
+    const { total, itemsWithZeroQuantity, totalItemsInCart } = calculateCartTotals();
+
+    cartCountBadge.textContent = totalDistinctItemsInCart;
+    cartCountBadge.style.display = totalDistinctItemsInCart > 0 ? 'inline-block' : 'none';
+
+    // The place order button text should still reflect only items that can be ordered
+    placeOrderBtn.textContent = `Place Order (${totalItemsInCart} item${totalItemsInCart !== 1 ? 's' : ''}) ₱${total.toFixed(2)}`;
+
+    // Disable place order button if cart is effectively empty (no items with >0 quantity),
+    // Roblox username not entered (if logged in), or if there are items with zero quantity.
+    placeOrderBtn.disabled = totalItemsInCart === 0 || (currentUserId && robloxUsernameInput.value.trim() === '') || itemsWithZeroQuantity > 0;
+
+    // Optional: Add a tooltip or message if disabled due to seller being offline
+    if (itemsWithZeroQuantity > 0) {
+        placeOrderBtn.title = "Cannot place order: Some items in your cart are out of stock.";
+    } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
+        placeOrderBtn.title = "Please enter your Roblox Username.";
+    } else if (totalItemsInCart === 0) {
+        placeOrderBtn.title = "Your cart is empty.";
+    } else {
+        placeOrderBtn.title = ""; // Clear tooltip
+    }
+}
+
+function renderCart() {
+    cartItemsContainer.innerHTML = '';
+    
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
+    } else {
+        const itemsToRender = []; // Use this to collect items before filtering
+        cart.forEach(item => {
+            const productDetails = allProducts.find(p => p.id === item.id);
+            let priceToDisplay;
+            let currentStock = productDetails ? productDetails.stock : 0;
+            let itemStatusMessage = '';
+            let isItemOutOfStock = false;
+
+            // Logic to adjust quantity and set status based on current stock
+            if (productDetails) {
+                if (currentStock === 0) { // If product is truly out of stock
+                    item.quantity = 0; // Force quantity to 0
+                    isItemOutOfStock = true;
+                    itemStatusMessage = '<div class="cart-item-out-of-stock-message">Out of Stock!</div>'; // New div for message
+                } else if (item.quantity > currentStock) { // If user has more than available stock
+                    item.quantity = currentStock; // Cap quantity at available stock
+                    itemStatusMessage = `<div class="cart-item-status-message">Qty adjusted (Max: ${currentStock})</div>`; // New div for message
+                }
+
+                // Determine the effective price based on current flash sale status
+                const now = new Date();
+                if (productDetails.flashSale && productDetails.flashSalePrice && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > now) {
+                    priceToDisplay = productDetails.flashSalePrice;
+                } else if (productDetails.sale && productDetails.salePrice) {
+                    priceToDisplay = productDetails.salePrice;
+                } else {
+                    priceToDisplay = productDetails.price;
+                }
+                // Ensure priceToDisplay is a number for internal calculations, then format for display if needed.
+                item.effectivePrice = parseFloat(String(priceToDisplay).replace('₱', '')); // Update item's effectivePrice in cart to match latest
+                priceToDisplay = `₱${item.effectivePrice.toFixed(2)}`; // Format for display
+            } else {
+                // Product no longer exists (deleted by admin or sync issue)
+                item.quantity = 0; // Set quantity to 0
+                isItemOutOfStock = true;
+                itemStatusMessage = '<div class="cart-item-out-of-stock-message">Product Not Found / Out of Stock!</div>'; // New div for message
+                item.effectivePrice = parseFloat(String(item.effectivePrice || item.price || '0').replace('₱', '')); // Fallback and ensure number
+                priceToDisplay = `₱${item.effectivePrice.toFixed(2)}`; // Format for display
+            }
+
+            // Always add the item to itemsToRender, regardless of its quantity, to keep it in the cart visually
+            itemsToRender.push(item);
+
+            const imageUrl = `images/${item.image}`;
+            const cartItemDiv = document.createElement('div');
+            cartItemDiv.className = 'cart-item';
+            if (isItemOutOfStock) {
+                cartItemDiv.classList.add('out-of-stock-cart-item');
+            }
+            cartItemDiv.innerHTML = `
+                <img src="${imageUrl}" alt="${item.name}" onerror="this.onerror=null;this.src='https://placehold.co/70x70/f0f0f0/888?text=Image%20N/A';" />
                 <div class="cart-item-details">
                     <h4>${item.name}</h4>
-                    <p class="cart-item-price">₱${parseFloat(effectivePrice).toFixed(2)}</p>
-                    ${isOutOfStock && productInCatalog && productInCatalog.stock < item.quantity ?
-                        `<p class="cart-item-out-of-stock-message">Only ${productInCatalog.stock} available. Quantity adjusted.</p>` : ''}
-                    ${productInCatalog && productInCatalog.stock === 0 ?
-                        `<p class="cart-item-out-of-stock-message">Item is out of stock.</p>` : ''}
+                    ${itemStatusMessage} <!-- Display the status message here -->
+                    <div class="cart-item-price">${priceToDisplay}</div>
                 </div>
                 <div class="cart-item-quantity-control">
-                    <button data-id="${item.id}" data-action="decrease">-</button>
-                    <input type="number" value="${actualQuantity}" min="1" max="${productInCatalog ? productInCatalog.stock : item.quantity}" data-id="${item.id}" class="cart-quantity-input">
-                    <button data-id="${item.id}" data-action="increase">+</button>
+                    <button data-id="${item.id}" data-action="decrease" ${isItemOutOfStock || item.quantity === 0 ? 'disabled' : ''}>-</button>
+                    <input type="number" value="${item.quantity}" min="0" data-id="${item.id}" ${isItemOutOfStock ? 'readonly' : ''}>
+                    <button data-id="${item.id}" data-action="increase" ${isItemOutOfStock || item.quantity >= currentStock ? 'disabled' : ''}>+</button>
                 </div>
                 <button class="cart-item-remove" data-id="${item.id}">&times;</button>
             `;
-            cartItemsContainer.appendChild(itemDiv);
+            cartItemsContainer.appendChild(cartItemDiv);
         });
-    }
 
-    const tax = subtotal * 0.10;
-    const total = subtotal + tax;
+        // Update the global cart with the (potentially adjusted) items. This now explicitly includes
+        // items with quantity 0, as per your request to keep them visually in the cart.
+        cart = itemsToRender;
+        saveCart(); // This will persist the quantity adjustments in Firestore/Local Storage
 
-    document.getElementById('cart-subtotal').textContent = subtotal.toFixed(2);
-    document.getElementById('cart-tax').textContent = tax.toFixed(2);
-    document.getElementById('cart-total').textContent = total.toFixed(2);
-    // Corrected ID for cart count badge
-    document.getElementById('cart-count').textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
-    document.getElementById('place-order-btn').textContent = `Place Order (${cart.reduce((sum, item) => sum + item.quantity, 0)} items) ₱${total.toFixed(2)}`;
+        cartItemsContainer.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const productId = event.target.dataset.id;
+                const action = event.target.dataset.action;
+                const input = event.target.parentElement.querySelector('input');
+                let newQuantity = parseInt(input.value);
 
-
-    addCartQuantityListeners();
-    addCartRemoveListeners();
-}
-
-function addCartQuantityListeners() {
-    document.querySelectorAll('.cart-item-quantity-control button').forEach(button => {
-        button.onclick = (event) => {
-            const productId = event.target.dataset.id;
-            const action = event.target.dataset.action;
-            const item = cart.find(i => i.id === productId);
-            const productInCatalog = allProducts.find(p => p.id === productId);
-
-            if (item && productInCatalog) {
                 if (action === 'increase') {
-                    if (item.quantity < productInCatalog.stock) {
-                        item.quantity++;
-                    } else {
-                        showAlert(`Cannot add more. Max stock available is ${productInCatalog.stock}.`);
-                    }
+                    newQuantity++;
                 } else if (action === 'decrease') {
-                    if (item.quantity > 1) {
-                        item.quantity--;
-                    }
+                    newQuantity--;
                 }
-                updateCartUI();
-            }
-        };
-    });
+                updateCartQuantity(productId, newQuantity);
+            });
+        });
 
-    document.querySelectorAll('.cart-quantity-input').forEach(input => {
-        input.onchange = (event) => {
-            const productId = event.target.dataset.id;
-            let newQuantity = parseInt(event.target.value);
-            const item = cart.find(i => i.id === productId);
-            const productInCatalog = allProducts.find(p => p.id === productId);
+        cartItemsContainer.querySelectorAll('.cart-item-quantity-control input[type="number"]').forEach(input => {
+            input.addEventListener('change', (event) => {
+                const productId = event.target.dataset.id;
+                const newQuantity = parseInt(event.target.value);
+                updateCartQuantity(productId, newQuantity);
+            });
+        });
 
-            if (item && productInCatalog) {
-                if (isNaN(newQuantity) || newQuantity < 1) {
-                    newQuantity = 1; // Default to 1 if invalid
-                }
-                if (newQuantity > productInCatalog.stock) {
-                    newQuantity = productInCatalog.stock; // Limit to available stock
-                    showAlert(`Cannot add more. Max stock available is ${productInCatalog.stock}.`);
-                }
-                item.quantity = newQuantity;
-                updateCartUI();
-            }
-        };
-    });
-}
 
-function addCartRemoveListeners() {
-    document.querySelectorAll('.cart-item-remove').forEach(button => {
-        button.onclick = (event) => {
-            const productId = event.target.dataset.id;
-            cart = cart.filter(item => item.id !== productId);
-            updateCartUI();
-            showAlert('Item removed from cart.');
-        };
-    });
-}
-
-async function placeOrder() {
-    if (!auth.currentUser) {
-        showAlert('Please log in or register to place an order.');
-        return;
+        cartItemsContainer.querySelectorAll('.cart-item-remove').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const productId = event.target.dataset.id;
+                showCustomConfirm("Are you sure you want to remove this item from your cart?", () => {
+                    removeFromCart(productId);
+                });
+            });
+        });
     }
+
+    calculateCartTotals();
+    updateCartCountBadge(); // This will also disable the place order button if hasOutOfStockItems is true
+}
+
+function calculateCartTotals() {
+    let subtotal = 0;
+    let totalItemsInCart = 0;
+    let itemsWithZeroQuantity = 0; // New: Counter for items forced to 0 quantity
+
+    cart.forEach(item => {
+        // Only count items with quantity > 0 for calculating totals and for the totalItemsInCart count
+        if (item.quantity > 0) {
+            // Use item.effectivePrice, which is updated in renderCart to reflect current sale status
+            const priceValue = parseFloat(String(item.effectivePrice || item.price).replace('₱', ''));
+            subtotal += priceValue * item.quantity;
+            totalItemsInCart += item.quantity;
+        } else {
+            // Count items that are in the cart array but have a quantity of 0
+            itemsWithZeroQuantity++;
+        }
+    });
+
+    const total = subtotal;
+
+    cartSubtotalSpan.textContent = `₱${subtotal.toFixed(2)}`;
+    cartTotalSpan.textContent = `₱${total.toFixed(2)}`;
+
+    return { subtotal, total, totalItemsInCart, itemsWithZeroQuantity };
+}
+
+// --- Cart Modal Event Listeners ---
+cartIconBtn.addEventListener('click', () => {
+    cartModal.classList.add('show');
+    renderCart(); // Call renderCart to ensure stock checks are done before showing
+    robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
+    updateCartCountBadge();
+    // Start cart refresh interval when cart modal is opened
+    if (cartRefreshInterval) { // Clear any existing interval just in case
+        clearInterval(cartRefreshInterval);
+    }
+    cartRefreshInterval = setInterval(renderCart, 1000); // Refresh cart every 1 second (was 5000ms)
+});
+
+closeCartModalBtn.addEventListener('click', () => {
+    cartModal.classList.remove('show');
+    // Clear cart refresh interval when cart modal is closed
+    if (cartRefreshInterval) {
+        clearInterval(cartRefreshInterval);
+        cartRefreshInterval = null;
+    }
+});
+
+cartModal.addEventListener('click', (event) => {
+    if (event.target === cartModal) {
+        cartModal.classList.remove('show');
+        // Clear cart refresh interval if modal is closed by clicking outside
+        if (cartRefreshInterval) {
+            clearInterval(cartRefreshInterval);
+            cartRefreshInterval = null;
+        }
+    }
+});
+
+robloxUsernameInput.addEventListener('input', updateCartCountBadge);
+
+// NEW: Event listener for the Copy button
+copyContactNumberBtn.addEventListener('click', () => {
+    console.log("Copy button clicked."); // Debugging: Check if this logs for admin
+    const contactNumber = paymentContactNumberSpan.textContent;
+    const tempInput = document.createElement('textarea'); // Use textarea for multi-line support / better copy behavior
+    tempInput.value = contactNumber;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    try {
+        document.execCommand('copy');
+        showCustomAlert("Number copied to clipboard!");
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+        showCustomAlert("Failed to copy number. Please copy it manually.");
+    }
+    document.body.removeChild(tempInput);
+});
+
+
+// Handles the process of placing an order.
+placeOrderBtn.addEventListener('click', async () => {
     if (cart.length === 0) {
-        showAlert('Your cart is empty.');
+        showCustomAlert("Your cart is empty. Please add items before placing an order.");
         return;
     }
 
-    // Corrected ID for Roblox username input
-    const robloxUsername = document.getElementById('roblox-username').value.trim();
-    if (!robloxUsername) {
-        showAlert('Please enter your Roblox Username.');
+    const { totalItemsInCart, itemsWithZeroQuantity } = calculateCartTotals();
+    if (itemsWithZeroQuantity > 0) {
+        showCustomAlert("Cannot place order: Some items in your cart are out of stock or quantities were adjusted. Please review your cart.");
         return;
     }
 
-    const confirmed = await showConfirm('Are you sure you want to place this order?');
-    if (!confirmed) return;
+    const robloxUsername = robloxUsernameInput.value.trim();
+
+    if (!currentUserId) {
+        showCustomAlert("Please login or register to complete your order.");
+        authModal.classList.add('show'); // Open auth modal
+        authMessage.textContent = "Please login or register to complete your order.";
+        authEmailInput.value = "";
+        authPasswordInput.value = "";
+        return;
+    }
+
+    if (robloxUsername === '') {
+        showCustomAlert("Please enter your Roblox Username to proceed with the order.");
+        return;
+    }
+
+    placeOrderBtn.disabled = true; // Disable button immediately to prevent double clicks
+
+    const batch = writeBatch(db); // Initialize a new batch for atomic updates
+    let orderCanProceed = true;
+    let outOfStockProductNames = [];
+    const productSnapshots = new Map(); // Store product data fetched in the first loop
+
+    // First, verify stock for all items within the transaction
+    for (const item of cart) {
+        // Skip stock verification for items that are already 0 quantity in cart
+        if (item.quantity === 0) {
+            continue;
+        }
+
+        const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
+        const productSnap = await getDoc(productRef); // Get latest product data
+        
+        if (!productSnap.exists()) {
+            orderCanProceed = false;
+            outOfStockProductNames.push(`${item.name} (Product Not Found)`);
+            break;
+        }
+
+        const productData = productSnap.data();
+        productSnapshots.set(item.id, productData); // Store the fetched product data
+        const availableStock = productData.stock || 0;
+
+        if (item.quantity > availableStock) {
+            orderCanProceed = false;
+            outOfStockProductNames.push(`${item.name} (Only ${availableStock} left)`);
+            break;
+        }
+    }
+
+    if (!orderCanProceed) {
+        showCustomAlert(`Order cannot be placed due to insufficient stock for: ${outOfStockProductNames.join(', ')}. Please adjust your cart.`);
+        placeOrderBtn.disabled = false;
+        return;
+    }
 
     try {
-        const orderItems = [];
-        let totalAmount = 0;
-        const productsToUpdate = [];
-
+        // If all checks pass, proceed with deducting stock and creating order
         for (const item of cart) {
-            const productDoc = await getDoc(doc(productsCollectionRef(db), item.id));
-            if (!productDoc.exists()) {
-                showAlert(`Product ${item.name} no longer exists.`);
-                return;
-            }
-            const productData = productDoc.data();
-
-            const now = new Date();
-            let effectivePrice = productData.price;
-            if (productData.isFlashSale && productData.flashSaleEnd) {
-                const flashSaleEndTime = new Date(productData.flashSaleEnd);
-                if (flashSaleEndTime > now) {
-                    effectivePrice = productData.flashSalePrice;
+            // Only deduct stock for items with quantity > 0
+            if (item.quantity > 0) {
+                const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
+                const productDataForUpdate = productSnapshots.get(item.id); // Retrieve the stored product data
+                if (productDataForUpdate) { // Defensive check
+                    batch.update(productRef, {
+                        stock: productDataForUpdate.stock - item.quantity
+                    });
                 }
             }
+        }
 
-            // Verify stock
-            if (productData.stock < item.quantity) {
-                showAlert(`Not enough stock for ${item.name}. Available: ${productData.stock}`);
-                return;
+        // Recalculate totals right before placing order with latest effective prices
+        const { subtotal, total } = calculateCartTotals();
+        const orderDetails = {
+            userId: currentUserId,
+            // Deep copy cart items to ensure order details are immutable if cart changes later
+            // IMPORTANT: Filter out items with 0 quantity from the order details themselves.
+            items: JSON.parse(JSON.stringify(cart.filter(item => item.quantity > 0))),
+            subtotal: subtotal,
+            total: total,
+            orderDate: new Date().toISOString(),
+            status: 'Pending',
+            paymentMethod: document.querySelector('input[name="payment-method"]:checked').value,
+            robloxUsername: robloxUsername
+        };
+
+        console.log("Placing Order:", orderDetails);
+
+        const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
+        // Add to user-specific collection
+        const newUserOrderRef = doc(userOrdersColRef); // Create a new document reference with an-generated ID
+        batch.set(newUserOrderRef, orderDetails); // Use set for new document
+
+        const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
+        // SetDoc here will act as a create if doc does not exist, which is now allowed by rules
+        batch.set(doc(allOrdersColRef, newUserOrderRef.id), orderDetails); // Use same ID for allOrders
+
+        await batch.commit(); // Commit all batch operations atomically
+
+        showCustomAlert("Successfully Placed Order! Your stock has been deducted.");
+        console.log("Order saved to Firestore and stock deducted!");
+
+        cart = []; // Clear cart after successful order
+        saveCart(); // This will clear local storage/Firestore cart and update badge
+        cartModal.classList.remove('show');
+        robloxUsernameInput.value = '';
+
+    } catch (e) {
+        console.error("Error placing order and deducting stock:", e);
+        showCustomAlert("There was an error placing your order or deducting stock. Please try again. Error: " + e.message);
+    } finally {
+        placeOrderBtn.disabled = false; // Re-enable button
+    }
+});
+
+// --- Order History Functions (User-side) ---
+myOrdersButton.addEventListener('click', () => {
+    if (!currentUserId) {
+        showCustomAlert("Please log in to view your order history.");
+        return;
+    }
+    orderHistoryModal.classList.add('show');
+    orderHistoryTitle.textContent = "My Orders";
+    orderHistoryList.style.display = 'block';
+    orderDetailsView.style.display = 'none';
+    renderOrderHistory();
+});
+
+closeOrderHistoryModalBtn.addEventListener('click', () => {
+    orderHistoryModal.classList.remove('show');
+});
+
+orderHistoryModal.addEventListener('click', (event) => {
+    if (event.target === orderHistoryModal) {
+        orderHistoryModal.classList.remove('show');
+    }
+});
+
+backToOrderListBtn.addEventListener('click', () => {
+    orderHistoryList.style.display = 'block';
+    orderDetailsView.style.display = 'none';
+    orderHistoryTitle.textContent = "My Orders";
+    renderOrderHistory();
+});
+
+function renderOrderHistory() {
+    orderHistoryList.innerHTML = '';
+
+    if (userOrders.length === 0) {
+        orderHistoryList.innerHTML = '<p class="empty-message">No orders found.</p>';
+        return;
+    }
+
+    userOrders.forEach(order => {
+        const orderItemDiv = document.createElement('div');
+        orderItemDiv.className = 'order-item';
+        orderItemDiv.innerHTML = `
+            <div class="order-item-info">
+                <strong>Order ID: ${order.id.substring(0, 8)}...</strong>
+                <span>Date: ${new Date(order.orderDate).toLocaleDateString()}</span>
+                <span>Price: ₱${order.total.toFixed(2)}</span>
+            </div>
+            <span class="order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}}">${order.status}</span>
+            <button class="view-details-btn" data-order-id="${order.id}">View Details</button>
+        `;
+        orderHistoryList.appendChild(orderItemDiv);
+    });
+
+    orderHistoryList.querySelectorAll('.view-details-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const orderId = event.target.dataset.orderId;
+            const selectedOrder = userOrders.find(order => order.id === orderId);
+            if (selectedOrder) {
+                showOrderDetails(selectedOrder);
             }
-
-            orderItems.push({
-                productId: item.id,
-                name: item.name,
-                quantity: item.quantity,
-                price: parseFloat(effectivePrice), // Ensure price is stored as number
-                imageUrl: item.imageUrl || 'https://placehold.co/90x90/e9ecef/495057?text=Product'
-            });
-            totalAmount += parseFloat(effectivePrice) * item.quantity;
-            productsToUpdate.push({ id: item.id, newStock: productData.stock - item.quantity });
-        }
-
-        const tax = totalAmount * 0.10;
-        const finalTotal = totalAmount + tax;
-        const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
-
-        const ordersCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/orders`);
-        const orderDocRef = await addDoc(ordersCollectionRef, {
-            userId: userId,
-            robloxUsername: robloxUsername,
-            items: orderItems,
-            subtotal: totalAmount,
-            tax: tax,
-            total: finalTotal,
-            paymentMethod: paymentMethod,
-            status: 'pending',
-            orderDate: serverTimestamp()
         });
+    });
+}
 
-        // Update product stocks
-        for (const productUpdate of productsToUpdate) {
-            await updateDoc(doc(productsCollectionRef(db), productUpdate.id), {
-                stock: productUpdate.newStock
-            });
-        }
+function showOrderDetails(order) {
+    orderHistoryTitle.textContent = "Order Details";
+    orderHistoryList.style.display = 'none';
+    orderDetailsView.style.display = 'block';
 
-        showAlert('Order placed successfully!');
-        cart = []; // Clear cart
-        updateCartUI(); // Refresh cart UI
-        hideModal('cart-modal');
-        await loadProducts(); // Reload products to update stock display
+    detailOrderId.textContent = order.id;
+    detailOrderDate.textContent = new Date(order.orderDate).toLocaleString();
+    detailOrderStatus.textContent = order.status;
+    detailOrderStatus.className = `status-info order-item-status status-${order.status.toLowerCase().replace(/\s/g, '-')}`;
+    detailOrderPrice.textContent = `₱${order.total.toFixed(2)}`;
+    detailPaymentMethod.textContent = order.paymentMethod;
+    detailRobloxUsername.textContent = order.robloxUsername || 'N/A';
 
-        // Send an automatic chat message with order details to the seller
-        await sendOrderDetailsToSeller(orderDocRef.id, auth.currentUser.email);
-
-    } catch (error) {
-        console.error("Error placing order:", error);
-        showAlert('Error placing order: ' + error.message);
+    detailItemsList.innerHTML = '';
+    if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'order-detail-item';
+            const imageUrl = `images/${item.image}`;
+            itemDiv.innerHTML = `
+                <span class="order-detail-item-name">${item.name}</span>
+                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ₱${(parseFloat(String(item.effectivePrice || item.price).replace('₱', '')) * item.quantity).toFixed(2)}</span>
+            `;
+            detailItemsList.appendChild(itemDiv);
+        });
+    } else {
+        detailItemsList.innerHTML = '<p>No items found for this order.</p>';
     }
 }
 
-// --- Order History Functionality (Firestore) ---
-async function loadOrderHistory() {
-    if (!userId) {
-        document.getElementById('order-history-list').innerHTML = '<p class="empty-message">Please log in to view your orders.</p>';
+// --- Product Display Functions (Main Store Page) ---
+const productListElement = document.getElementById("product-list"); // Rename for clarity
+
+// Function to format time for countdown (HH:MM:SS)
+function formatTime(seconds) {
+    if (seconds < 0) return "00:00:00";
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+// Function to start a flash sale timer for a specific product card
+function startFlashSaleTimer(product) {
+    const cardElement = document.querySelector(`.card[data-product-id="${product.id}"]`);
+    if (!cardElement) return;
+
+    const countdownSpan = cardElement.querySelector('.flash-sale-countdown');
+    const flashSaleBadge = cardElement.querySelector('.badge.flash-sale');
+    const priceElement = cardElement.querySelector('.price');
+    const addToCartBtn = cardElement.querySelector('.add-to-cart-btn');
+
+    // Add this line to get a reference to the flash sale label
+    const flashSaleLabel = cardElement.querySelector('.flash-sale-label'); // New: Get reference to the label span
+
+    if (!countdownSpan || !flashSaleBadge || !priceElement || !addToCartBtn || !flashSaleLabel) return; // Added flashSaleLabel to check
+
+    // Clear any existing timer for this product
+    if (flashSaleTimers[product.id]) {
+        clearInterval(flashSaleTimers[product.id]);
+    }
+
+    const updateCountdown = () => {
+        const now = new Date().getTime();
+        const endTime = new Date(product.flashSaleEndTime).getTime();
+        let timeLeft = Math.max(0, Math.floor((endTime - now) / 1000)); // Time left in seconds
+
+        if (timeLeft > 0) {
+            countdownSpan.textContent = formatTime(timeLeft);
+            flashSaleBadge.style.display = 'flex'; // Ensure badge is visible
+            flashSaleLabel.style.display = 'block'; // Ensure label is visible
+
+            // Update price display if not already updated
+            if (!priceElement.classList.contains('flash-sale-active')) {
+                priceElement.innerHTML = `
+                    <span class="original-price-strikethrough">${product.price}</span>
+                    <span class="flash-sale-price">${product.flashSalePrice}</span>
+                `;
+                priceElement.classList.add('flash-sale-active');
+            }
+            // Ensure effectivePrice in memory is correctly set for cart additions
+            product.effectivePrice = parseFloat(String(product.flashSalePrice).replace('₱', ''));
+
+        } else {
+            // Flash sale ended
+            clearInterval(flashSaleTimers[product.id]);
+            delete flashSaleTimers[product.id];
+            flashSaleBadge.style.display = 'none'; // Hide badge
+            flashSaleLabel.style.display = 'none'; // Hide label
+
+            // Revert price to original or regular sale price
+            if (product.sale && product.salePrice) {
+                priceElement.textContent = product.salePrice;
+                priceElement.classList.remove('flash-sale-active');
+                product.effectivePrice = parseFloat(String(product.salePrice).replace('₱', ''));
+            } else {
+                priceElement.textContent = product.price;
+                priceElement.classList.remove('flash-sale-active');
+                product.effectivePrice = parseFloat(String(product.price).replace('₱', ''));
+            }
+            
+            // Re-enable add to cart if not out of stock otherwise
+            if (product.stock > 0) {
+                addToCartBtn.disabled = false;
+                addToCartBtn.textContent = 'Add to Cart';
+            }
+            console.log(`Flash sale for ${product.name} has ended.`);
+            // This ensures that any item in the cart that was on flash sale
+            // will have its price correctly updated to the normal/sale price.
+            renderCart(); 
+        }
+    };
+
+    updateCountdown(); // Initial call to display immediately
+    flashSaleTimers[product.id] = setInterval(updateCountdown, 1000); // Update every second
+}
+
+// Function to stop all active flash sale timers
+function stopAllFlashSaleTimers() {
+    for (const productId in flashSaleTimers) {
+        if (flashSaleTimers.hasOwnProperty(productId)) {
+            clearInterval(flashSaleTimers[productId]);
+            delete flashSaleTimers[productId];
+        }
+    }
+    console.log("All flash sale timers stopped.");
+}
+
+
+function renderProducts(items) {
+    productListElement.innerHTML = ""; // Use the renamed element
+
+    // Clear existing timers before re-rendering products
+    stopAllFlashSaleTimers();
+
+    if (items.length === 0) {
+        productListElement.innerHTML = '<p class="empty-message" style="width: 100%;">No products available. Please add some from the Admin Panel!</p>';
         return;
     }
-    document.getElementById('order-history-list').innerHTML = '<p class="empty-message">Loading orders...</p>';
-    document.getElementById('order-history-title').textContent = 'My Orders';
-    document.getElementById('order-history-list').style.display = 'block';
-    document.getElementById('order-details-view').style.display = 'none';
 
-    try {
-        const ordersCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/orders`);
-        // Note: orderBy is commented out due to potential Firestore index issues in some environments.
-        // If sorting is critical, you can fetch all and sort in JS, or ensure indexes are set up in Firebase.
-        const q = query(ordersCollectionRef); // , orderBy('orderDate', 'desc'));
-        const querySnapshot = await getDocs(q);
+    items.forEach(product => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.productId = product.id; // Add product ID as data attribute
 
-        const ordersList = document.getElementById('order-history-list');
-        ordersList.innerHTML = '';
+        const isOutOfStock = !product.stock || product.stock <= 0;
+        if (isOutOfStock) card.classList.add("out-of-stock");
 
-        if (querySnapshot.empty) {
-            ordersList.innerHTML = '<p class="empty-message">You have no orders yet.</p>';
-            return;
+        const now = new Date();
+        const isFlashSaleActive = product.flashSale && product.flashSalePrice && product.flashSaleEndTime && new Date(product.flashSaleEndTime) > now;
+        
+        let displayPriceHtml = '';
+        let currentEffectivePrice; // Price to be used for cart calculations
+
+        if (isFlashSaleActive) {
+            displayPriceHtml = `<span class="original-price-strikethrough">${product.price}</span> <span class="price flash-sale-active">${product.flashSalePrice}</span>`;
+            currentEffectivePrice = product.flashSalePrice;
+        } else if (product.sale && product.salePrice) {
+            displayPriceHtml = `<span class="original-price-strikethrough">${product.price}</span> <span class="price">${product.salePrice}</span>`;
+            currentEffectivePrice = product.salePrice;
+        } else {
+            displayPriceHtml = `<span class="price">${product.price}</span>`;
+            currentEffectivePrice = product.price;
         }
 
-        querySnapshot.forEach(doc => {
-            const order = doc.data();
-            const orderId = doc.id;
-            const orderDate = order.orderDate ? new Date(order.orderDate.seconds * 1000).toLocaleDateString() : 'N/A';
+        // Ensure currentEffectivePrice is a number before storing.
+        currentEffectivePrice = parseFloat(String(currentEffectivePrice).replace('₱', ''));
 
-            const orderItemDiv = document.createElement('div');
-            orderItemDiv.className = 'order-item';
-            orderItemDiv.innerHTML = `
-                <div class="order-item-info">
-                    <strong>Order ID: ${orderId}</strong>
-                    <span>Date: ${orderDate}</span>
-                    <span>Total: ₱${order.total.toFixed(2)}</span>
-                    <span class="order-item-status status-${order.status.toLowerCase().replace(' ', '-')}">${order.status.replace('-', ' ')}</span>
+        // Store the determined effective price on the product object for cart functions
+        product.effectivePrice = currentEffectivePrice;
+
+        const imageUrl = `images/${product.image}`;
+        
+        // Construct badge HTML dynamically based on priority
+        let badgeHtml = '';
+        const badgesToDisplay = [];
+
+        if (isFlashSaleActive) {
+            // Added the 'flash-sale-label' span which your CSS uses for the text
+            badgesToDisplay.push(`
+                <div class="badge flash-sale">
+                    <span class="flash-sale-label">FLASH SALE!</span> 
+                    <span class="flash-sale-countdown"></span>
                 </div>
-                <button class="view-details-btn" data-order-id="${orderId}">View Details</button>
-            `;
-            ordersList.appendChild(orderItemDiv);
-        });
-
-        document.querySelectorAll('.view-details-btn').forEach(button => {
-            button.onclick = (e) => showOrderDetails(e.target.dataset.orderId);
-        });
-
-    } catch (error) {
-        console.error("Error loading order history:", error);
-        showAlert('Error loading order history: ' + error.message);
-    }
-}
-
-async function showOrderDetails(orderId) {
-    document.getElementById('order-history-list').style.display = 'none';
-    document.getElementById('order-details-view').style.display = 'block';
-
-    try {
-        const orderDocRef = doc(db, `artifacts/${appId}/users/${userId}/orders`, orderId);
-        const orderDoc = await getDoc(orderDocRef);
-
-        if (orderDoc.exists()) {
-            const order = orderDoc.data();
-            // Corrected IDs for order details
-            document.getElementById('order-details-id').textContent = orderId;
-            document.getElementById('order-details-date').textContent = order.orderDate ? new Date(order.orderDate.seconds * 1000).toLocaleDateString() : 'N/A';
-            document.getElementById('order-details-total').textContent = order.total.toFixed(2);
-            document.getElementById('order-details-status').textContent = order.status.replace('-', ' ');
-            document.getElementById('order-details-payment').textContent = order.paymentMethod;
-            document.getElementById('order-details-roblox-username').textContent = order.robloxUsername;
-
-            // Corrected ID for order items container
-            const itemsContainer = document.getElementById('order-details-items');
-            itemsContainer.innerHTML = '';
-            order.items.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'order-detail-item';
-                itemDiv.innerHTML = `
-                    <span class="order-detail-item-name">${item.name}</span>
-                    <span class="order-detail-item-qty-price">${item.quantity} x ₱${item.price.toFixed(2)}</span>
-                `;
-                itemsContainer.appendChild(itemDiv);
-            });
-        } else {
-            showAlert('Order not found.');
-            document.getElementById('back-to-orders-btn').click(); // Go back to list
-        }
-    } catch (error) {
-        console.error("Error fetching order details:", error);
-        showAlert('Error fetching order details: ' + error.message);
-    }
-}
-
-// --- Admin Panel Functionality ---
-function setupAdminPanel() {
-    // Corrected IDs for product form checkboxes
-    document.getElementById('product-new').checked = false;
-    document.getElementById('product-sale').checked = false;
-    document.getElementById('product-flash-sale').checked = false;
-    
-    // Event listener for flash sale checkbox
-    document.getElementById('product-flash-sale').onchange = (event) => {
-        document.querySelector('.flash-sale-details').style.display = event.target.checked ? 'block' : 'none';
-    };
-
-    document.getElementById('save-product-btn').onclick = async () => {
-        // Corrected ID for product ID input
-        const productId = document.getElementById('product-id').value;
-        const productName = document.getElementById('product-name').value;
-        const productDescription = document.getElementById('product-description').value; // Added
-        const productPrice = parseFloat(document.getElementById('product-price').value);
-        const productStock = parseInt(document.getElementById('product-stock').value);
-        const productCategory = document.getElementById('product-category').value;
-        const isNew = document.getElementById('product-new').checked; // Corrected ID
-        const isOnSale = document.getElementById('product-sale').checked; // Corrected ID
-        const isFlashSale = document.getElementById('product-flash-sale').checked; // Corrected ID
-        const flashSalePrice = isFlashSale ? parseFloat(document.getElementById('product-flash-sale-price').value) : null; // Get value from input
-        const flashSaleEnd = isFlashSale ? document.getElementById('product-flash-sale-end-time').value : null; // Get value from input
-        const imageUrl = document.getElementById('product-image').value; // Added
-
-        if (!productName || isNaN(productPrice) || isNaN(productStock) || !productDescription) {
-            showAlert('Please fill in all product fields correctly (Name, Description, Price, Stock).');
-            return;
-        }
-        if (isFlashSale && (isNaN(flashSalePrice) || !flashSaleEnd)) {
-            showAlert('Please enter valid Flash Sale Price and End Time if Flash Sale is enabled.');
-            return;
-        }
-
-
-        const productData = {
-            name: productName,
-            description: productDescription,
-            price: productPrice,
-            stock: productStock,
-            category: productCategory,
-            isNew: isNew,
-            isOnSale: isOnSale,
-            isFlashSale: isFlashSale,
-            flashSaleEnd: flashSaleEnd,
-            flashSalePrice: flashSalePrice,
-            imageUrl: imageUrl || `https://placehold.co/180x180/${Math.floor(Math.random()*16777215).toString(16)}/ffffff?text=${encodeURIComponent(productName.substring(0,2))}` // Use provided URL or fallback
-        };
-
-        if (productId) productData.id = productId; // Keep ID if editing
-
-        await saveProduct(productData);
-    };
-
-    document.getElementById('cancel-edit-product').onclick = resetProductForm;
-    loadAdminProducts();
-    loadAdminOrders();
-    loadSellerStatusToggle();
-}
-
-function resetProductForm() {
-    // Corrected ID for product ID input
-    document.getElementById('product-id').value = '';
-    document.getElementById('product-name').value = '';
-    document.getElementById('product-description').value = ''; // Added
-    document.getElementById('product-price').value = '0.00';
-    document.getElementById('product-stock').value = '0';
-    document.getElementById('product-category').value = 'pets'; // Default to 'pets'
-    document.getElementById('product-new').checked = false; // Corrected ID
-    document.getElementById('product-sale').checked = false; // Corrected ID
-    document.getElementById('product-flash-sale').checked = false; // Corrected ID
-    document.querySelector('.flash-sale-details').style.display = 'none'; // Hide flash sale details
-    document.getElementById('product-flash-sale-price').value = '0.00'; // Reset flash sale price
-    document.getElementById('product-flash-sale-end-time').value = ''; // Reset flash sale end time
-    document.getElementById('product-image').value = ''; // Added
-    document.getElementById('save-product-btn').textContent = 'Add Product'; // Changed text to "Add Product"
-    document.getElementById('cancel-edit-product').style.display = 'none';
-}
-
-async function loadAdminProducts() {
-    // Corrected ID for product list tbody
-    const productListBody = document.getElementById('admin-product-list');
-    productListBody.innerHTML = '<tr><td colspan="7">Loading products...</td></tr>';
-    try {
-        const productsSnapshot = await getDocs(productsCollectionRef(db));
-        const products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        productListBody.innerHTML = '';
-
-        if (products.length === 0) {
-            productListBody.innerHTML = '<tr><td colspan="7" class="empty-message">No products added yet.</td></tr>';
-            return;
-        }
-
-        products.forEach(product => {
-            const row = productListBody.insertRow();
-            const now = new Date();
-            let displayPrice = `₱${product.price.toFixed(2)}`;
-            if (product.isFlashSale && product.flashSaleEnd) {
-                const flashSaleEndTime = new Date(product.flashSaleEnd);
-                if (flashSaleEndTime > now) {
-                    displayPrice = `<span style="color:red;">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span> (was ₱${product.price.toFixed(2)})`;
-                }
+            `);
+        } else { // Only display NEW/SALE if no active flash sale
+            if (product.new) {
+                badgesToDisplay.push('<span class="badge new">NEW</span>');
             }
-            row.innerHTML = `
-                <td><img src="${product.imageUrl || 'https://placehold.co/70x70/e9ecef/495057?text=Product'}" alt="${product.name}" width="50"></td>
-                <td>${product.name}</td>
-                <td>${product.category}</td>
-                <td>${displayPrice}</td>
-                <td>${product.stock}</td>
-                <td>
-                    ${product.isNew ? '<span class="badge new" style="position:relative;top:auto;left:auto;margin-right:5px;padding:3px 6px;">NEW</span>' : ''}
-                    ${product.isOnSale ? '<span class="badge sale" style="position:relative;top:auto;left:auto;padding:3px 6px;">SALE</span>' : ''}
-                    ${product.isFlashSale && new Date(product.flashSaleEnd) > now ? '<span class="badge flash-sale" style="position:relative;top:auto;left:auto;padding:3px 6px;display:inline-flex;flex-direction:row;align-items:center;height:auto;min-width:unset;box-shadow:none;"><span class="flash-sale-label" style="font-size:0.9em; margin-bottom:0;"><!-- SVG from style.css --><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FFD700" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;flex-shrink:0;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>FLASH</span></span>' : ''}
-                </td>
-                <td class="admin-product-actions">
-                    <button class="edit" data-id="${product.id}">Edit</button>
-                    <button class="delete" data-id="${product.id}">Delete</button>
-                </td>
-            `;
-        });
-
-        document.querySelectorAll('#admin-product-list .edit').forEach(button => {
-            button.onclick = (e) => editProduct(e.target.dataset.id);
-        });
-        document.querySelectorAll('#admin-product-list .delete').forEach(button => {
-            button.onclick = (e) => deleteProduct(e.target.dataset.id);
-        });
-
-    } catch (error) {
-        console.error("Error loading admin products:", error);
-        showAlert('Error loading admin products: ' + error.message);
-    }
-}
-
-async function editProduct(productId) {
-    try {
-        const productDoc = await getDoc(doc(productsCollectionRef(db), productId));
-        if (productDoc.exists()) {
-            const product = productDoc.data();
-            document.getElementById('product-id').value = product.id; // Corrected ID
-            document.getElementById('product-name').value = product.name;
-            document.getElementById('product-description').value = product.description; // Added
-            document.getElementById('product-price').value = product.price;
-            document.getElementById('product-stock').value = product.stock;
-            document.getElementById('product-category').value = product.category;
-            document.getElementById('product-image').value = product.imageUrl || ''; // Added
-
-            // Corrected IDs for checkboxes
-            document.getElementById('product-new').checked = product.isNew || false;
-            document.getElementById('product-sale').checked = product.isOnSale || false;
-            document.getElementById('product-flash-sale').checked = product.isFlashSale || false;
-
-            if (product.isFlashSale) {
-                document.querySelector('.flash-sale-details').style.display = 'block';
-                document.getElementById('product-flash-sale-price').value = parseFloat(product.flashSalePrice).toFixed(2); // Set flash sale price
-                document.getElementById('product-flash-sale-end-time').value = product.flashSaleEnd ? new Date(product.flashSaleEnd).toISOString().slice(0, 16) : '';
-            } else {
-                document.querySelector('.flash-sale-details').style.display = 'none';
-                document.getElementById('product-flash-sale-price').value = '0.00'; // Clear on disable
-                document.getElementById('product-flash-sale-end-time').value = ''; // Clear on disable
-            }
-
-            document.getElementById('save-product-btn').textContent = 'Update Product';
-            document.getElementById('cancel-edit-product').style.display = 'inline-block';
-        } else {
-            showAlert('Product not found for editing.');
-        }
-    } catch (error) {
-        console.error("Error editing product:", error);
-        showAlert('Error loading product for edit: ' + error.message);
-    }
-}
-
-async function loadAdminOrders() {
-    const orderListBody = document.getElementById('admin-order-list');
-    orderListBody.innerHTML = '<tr><td colspan="6">Loading orders...</td></tr>'; // Corrected colspan
-    document.getElementById('admin-orders').style.display = 'block'; // Ensure correct tab content is visible
-    document.getElementById('admin-order-details-view').style.display = 'none';
-
-    try {
-        const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        const allOrders = [];
-
-        for (const userDoc of usersSnapshot.docs) {
-            const userId = userDoc.id;
-            const ordersCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/orders`);
-            const ordersSnapshot = await getDocs(ordersCollectionRef);
-            ordersSnapshot.forEach(doc => {
-                allOrders.push({ id: doc.id, ...doc.data() });
-            });
-        }
-
-        // Sort orders by date descending
-        allOrders.sort((a, b) => (b.orderDate?.seconds || 0) - (a.orderDate?.seconds || 0));
-
-        orderListBody.innerHTML = '';
-        if (allOrders.length === 0) {
-            orderListBody.innerHTML = '<tr><td colspan="6" class="empty-message">No orders placed yet.</td></tr>'; // Corrected colspan
-            return;
-        }
-
-        allOrders.forEach(order => {
-            const row = orderListBody.insertRow();
-            const orderDate = order.orderDate ? new Date(order.orderDate.seconds * 1000).toLocaleDateString() : 'N/A';
-            row.innerHTML = `
-                <td>${order.id}</td>
-                <td>${order.userId}</td>
-                <td>${orderDate}</td>
-                <td>₱${order.total.toFixed(2)}</td>
-                <td><span class="order-item-status status-${order.status.toLowerCase().replace(' ', '-')}">${order.status.replace('-', ' ')}</span></td>
-                <td class="admin-order-actions">
-                    <button class="view" data-order-id="${order.id}">View</button>
-                </td>
-            `;
-        });
-
-        document.querySelectorAll('#admin-order-list .view').forEach(button => {
-            button.onclick = (e) => showAdminOrderDetails(e.target.dataset.orderId);
-        });
-
-    } catch (error) {
-        console.error("Error loading admin orders:", error);
-        showAlert('Error loading admin orders: ' + error.message);
-    }
-}
-
-async function showAdminOrderDetails(orderId) {
-    document.getElementById('admin-orders').style.display = 'none'; // Hide list content
-    document.getElementById('admin-order-details-view').style.display = 'block';
-
-    try {
-        // Find the user ID associated with this order
-        const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        let orderData = null;
-        let customerId = null;
-
-        for (const userDoc of usersSnapshot.docs) {
-            const currentUserId = userDoc.id;
-            const orderDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/orders`, orderId);
-            const orderDoc = await getDoc(orderDocRef);
-            if (orderDoc.exists()) {
-                orderData = orderDoc.data();
-                customerId = currentUserId;
-                break;
+            if (product.sale && product.salePrice) { // Only add sale badge if it has a sale price
+                badgesToDisplay.push('<span class="badge sale">SALE</span>');
             }
         }
+        
+        // Position badges based on their order of appearance if multiple
+        // This is a simplified approach; for complex overlapping, specific CSS might be better.
+        // For now, if flash sale is active, it's the only one at top-left.
+        // If not flash sale, NEW and SALE can be positioned relative to each other.
+        // This relies on the CSS to handle the .badge.sale { left: 60px; } for adjacent NEW.
+        badgeHtml = badgesToDisplay.join('');
 
-        if (orderData) {
-            // Corrected IDs for admin order details
-            document.getElementById('admin-order-details-id').textContent = orderId;
-            document.getElementById('admin-order-customer-id').textContent = customerId;
-            document.getElementById('admin-order-roblox-username').textContent = orderData.robloxUsername || 'N/A';
-            document.getElementById('admin-order-details-date').textContent = orderData.orderDate ? new Date(orderData.orderDate.seconds * 1000).toLocaleDateString() : 'N/A';
-            document.getElementById('admin-order-details-total').textContent = orderData.total.toFixed(2);
-            document.getElementById('admin-order-details-payment').textContent = orderData.paymentMethod;
-            document.getElementById('admin-order-status-display').textContent = orderData.status.replace('-', ' '); // Display current status
-            document.getElementById('admin-order-status-select').value = orderData.status.toLowerCase(); // Set dropdown value
+        card.innerHTML = `
+            ${badgeHtml}
+            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/150x150/f0f0f0/888?text=Image%20N/A';" />
+            <h4>${product.name}</h4>
+            <div class="price-container">${displayPriceHtml}</div> <!-- Wrapper for price -->
+            <div class="stock-info ${isOutOfStock ? 'out-of-stock-text' : 'in-stock'}">
+                ${isOutOfStock ? 'Out of Stock' : `Stock: ${product.stock}`}
+            </div>
+            <button class="add-to-cart-btn" ${isOutOfStock ? 'disabled' : ''} data-product-id="${product.id}">
+                ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+            </button>
+        `;
+        productListElement.appendChild(card);
 
-            // Corrected ID for admin order items container
-            const itemsContainer = document.getElementById('admin-order-details-items');
-            itemsContainer.innerHTML = '';
-            orderData.items.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'admin-order-detail-item';
-                itemDiv.innerHTML = `
-                    <span class="admin-order-detail-item-name">${item.name}</span>
-                    <span class="admin-order-detail-item-qty-price">${item.quantity} x ₱${item.price.toFixed(2)}</span>
-                `;
-                itemsContainer.appendChild(itemDiv);
-            });
-
-            document.getElementById('update-order-status-btn').onclick = async () => {
-                const newStatus = document.getElementById('admin-order-status-select').value;
-                await updateOrderStatus(customerId, orderId, newStatus);
-            };
-
-        } else {
-            showAlert('Order details not found.');
-            document.getElementById('admin-back-to-orders-btn').click(); // Go back to list
-        }
-    } catch (error) {
-        console.error("Error fetching admin order details:", error);
-        showAlert('Error fetching admin order details: ' + error.message);
-    }
-}
-
-async function updateOrderStatus(customerId, orderId, newStatus) {
-    try {
-        const orderDocRef = doc(db, `artifacts/${appId}/users/${customerId}/orders`, orderId);
-        await updateDoc(orderDocRef, {
-            status: newStatus
-        });
-        showAlert('Order status updated successfully!');
-        await loadAdminOrders(); // Refresh admin orders list
-        document.getElementById('admin-orders').style.display = 'block'; // Show order list again
-        document.getElementById('admin-order-details-view').style.display = 'none';
-    } catch (error) {
-        console.error("Error updating order status:", error);
-        showAlert('Error updating order status: ' + error.message);
-    }
-}
-
-// --- Site Settings (Seller Status) ---
-const siteSettingsDocRef = (db) => doc(db, `artifacts/${appId}/public/settings/site`);
-
-async function loadSellerStatusToggle() {
-    try {
-        const docSnap = await getDoc(siteSettingsDocRef(db));
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            const isOnline = data.sellerOnlineStatus === true;
-            document.getElementById('seller-online-toggle').checked = isOnline;
-            document.getElementById('seller-status-text').textContent = isOnline ? 'Online' : 'Offline';
-            document.getElementById('seller-status-display').textContent = isOnline ? 'Seller Status: Online' : 'Seller Status: Offline';
-            document.getElementById('seller-status-display').className = isOnline ? 'status-online' : 'status-offline';
-        } else {
-            // If no setting exists, default to online and create it
-            await setDoc(siteSettingsDocRef(db), { sellerOnlineStatus: true });
-            document.getElementById('seller-online-toggle').checked = true;
-            document.getElementById('seller-status-text').textContent = 'Online';
-            document.getElementById('seller-status-display').textContent = 'Seller Status: Online';
-            document.getElementById('seller-status-display').className = 'status-online';
-        }
-    } catch (error) {
-        console.error("Error loading seller status:", error);
-    }
-}
-
-async function updateSellerStatus(isOnline) {
-    try {
-        await setDoc(siteSettingsDocRef(db), { sellerOnlineStatus: isOnline }, { merge: true });
-        document.getElementById('seller-status-text').textContent = isOnline ? 'Online' : 'Offline';
-        document.getElementById('seller-status-display').textContent = isOnline ? 'Seller Status: Online' : 'Seller Status: Offline';
-        document.getElementById('seller-status-display').className = isOnline ? 'status-online' : 'status-offline';
-        console.log("Seller status updated to:", isOnline);
-    } catch (error) {
-        console.error("Error updating seller status:", error);
-        showAlert('Error updating seller status: ' + error.message);
-    }
-}
-
-// --- Chat System Functions ---
-const chatsCollectionRef = (db) => collection(db, `artifacts/${appId}/public/chats`);
-
-async function createOrGetConversation(participant1Id, participant2Id) {
-    // Ensure consistent sorting of participant IDs to find existing conversation
-    const participants = [participant1Id, participant2Id].sort();
-    // Query for conversations where 'participants' array contains BOTH participant1Id and participant2Id
-    const q = query(chatsCollectionRef(db), 
-                    where('participants', 'array-contains', participants[0]),
-                    where('participants', 'array-contains', participants[1]));
-
-    const querySnapshot = await getDocs(q);
-
-    let conversationDoc = null;
-    querySnapshot.forEach(doc => {
-        const data = doc.data();
-        const docParticipants = data.participants.sort();
-        // Check if the participants array is exactly the same length and content
-        if (docParticipants.length === participants.length && docParticipants.every((value, index) => value === participants[index])) {
-            conversationDoc = doc;
+        // Start countdown for active flash sales
+        if (isFlashSaleActive) {
+            startFlashSaleTimer(product);
         }
     });
 
-    if (conversationDoc) {
-        return conversationDoc.id; // Return existing conversation ID
-    } else {
-        // Create new conversation
-        const newConversationRef = await addDoc(chatsCollectionRef(db), {
-            participants: participants,
-            lastMessage: { text: 'Conversation started.', senderId: 'system', timestamp: serverTimestamp() },
-            lastMessageTimestamp: serverTimestamp(),
-            unreadCounts: {
-                [participant1Id]: 0,
-                [participant2Id]: 0
+    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const productId = event.target.dataset.productId;
+            const productToAdd = allProducts.find(p => p.id === productId);
+            if (productToAdd) {
+                addToCart(productToAdd);
             }
         });
-        return newConversationRef.id;
-    }
+    });
 }
 
-async function sendMessage(conversationId, messageText, messageType = 'text', orderDetails = null) {
-    if (!auth.currentUser || !conversationId || !messageText.trim()) {
-        document.getElementById('chat-message').textContent = 'Cannot send empty message or not logged in.';
+
+function setFilter(category) {
+    currentCategory = category;
+
+    document.querySelectorAll(".filters button").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.cat === category);
+    });
+
+    applyFilters();
+}
+
+function applyFilters() {
+    const searchBox = document.getElementById("searchBox");
+    if (!searchBox) { // Added a check in case searchBox isn't available for some reason
+        console.error("Search box element not found.");
         return;
     }
+    const query = searchBox.value.toLowerCase();
 
-    const messagesCollectionRef = collection(db, `artifacts/${appId}/public/chats/${conversationId}/messages`);
-    const chatDocRef = doc(chatsCollectionRef(db), conversationId);
-
-    try {
-        const message = {
-            senderId: userId,
-            // Determine receiverId based on who the current user is chatting with
-            receiverId: (isAdmin && currentActiveConversationId === userId) ? sellerId : currentActiveConversationId, // Simplified for direct chat
-            text: messageText,
-            timestamp: serverTimestamp(),
-            type: messageType
-        };
-        if (orderDetails) {
-            message.orderDetails = orderDetails;
-        }
-
-        await addDoc(messagesCollectionRef, message);
-
-        // Update last message and unread counts in conversation document
-        const chatDoc = await getDoc(chatDocRef);
-        if (chatDoc.exists()) {
-            const data = chatDoc.data();
-            const updatedUnreadCounts = { ...data.unreadCounts };
-            data.participants.forEach(pId => {
-                if (pId !== userId) { // Increment unread count for the other participant
-                    updatedUnreadCounts[pId] = (updatedUnreadCounts[pId] || 0) + 1;
-                }
-            });
-
-            await updateDoc(chatDocRef, {
-                lastMessage: { text: messageText, senderId: userId, timestamp: serverTimestamp() },
-                lastMessageTimestamp: serverTimestamp(),
-                unreadCounts: updatedUnreadCounts
-            });
-        }
-        document.getElementById('chat-message-input').value = ''; // Clear input
-        document.getElementById('chat-message').textContent = ''; // Clear status message
-
-    } catch (error) {
-        console.error("Error sending message:", error);
-        document.getElementById('chat-message').textContent = 'Error sending message: ' + error.message;
-    }
-}
-
-async function loadConversations() {
-    if (!userId) return; // Cannot load conversations if not authenticated
-
-    const chatListElement = document.getElementById('chat-conversations-list');
-    chatListElement.innerHTML = '<p class="empty-message" style="margin: 20px;">Loading conversations...</p>';
-
-    // Unsubscribe from previous listener if exists
-    if (conversationsSnapshotUnsubscribe) {
-        conversationsSnapshotUnsubscribe();
-    }
-
-    const q = query(chatsCollectionRef(db), where('participants', 'array-contains', userId));
-
-    conversationsSnapshotUnsubscribe = onSnapshot(q, async (snapshot) => {
-        chatListElement.innerHTML = '';
-        let totalUnread = 0;
-        if (snapshot.empty) {
-            chatListElement.innerHTML = '<p class="empty-message" style="margin: 20px;">No conversations yet.</p>';
-            document.getElementById('unread-messages-badge').style.display = 'none';
-            return;
-        }
-
-        const conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        // Sort by last message timestamp (most recent first)
-        conversations.sort((a, b) => (b.lastMessageTimestamp?.seconds || 0) - (a.lastMessageTimestamp?.seconds || 0));
-
-        for (const convo of conversations) {
-            const otherParticipantId = convo.participants.find(pId => pId !== userId);
-            let contactName = 'Unknown User';
-            let contactEmail = '';
-            let avatarUrl = `https://placehold.co/45x45/cccccc/333333?text=${encodeURIComponent(otherParticipantId.charAt(0))}`; // Default to initial of ID
-
-            // Get user data for other participant
-            if (otherParticipantId === sellerId) { // If chatting with the seller/admin
-                contactName = 'Seller';
-                contactEmail = 'Seller'; // Or a designated seller email if available
-                avatarUrl = 'https://placehold.co/45x45/FFA500/FFFFFF?text=SHOP'; // Generic shop icon
-            } else { // If chatting with a buyer (from seller's perspective)
-                const userProfileRef = doc(db, `artifacts/${appId}/users/${otherParticipantId}/profile`);
-                const userDocSnap = await getDoc(userProfileRef);
-                if (userDocSnap.exists()) {
-                    contactEmail = userDocSnap.data().email || otherParticipantId;
-                    contactName = userDocSnap.data().displayName || contactEmail.split('@')[0]; // Use display name or email username
-                    avatarUrl = userDocSnap.data().avatarUrl || `https://placehold.co/45x45/cccccc/333333?text=${encodeURIComponent(contactName.charAt(0))}`;
-                } else {
-                    contactName = otherParticipantId; // Fallback to UID
-                    contactEmail = otherParticipantId;
-                }
-            }
-
-
-            const lastMessageText = convo.lastMessage?.text || '';
-            const unreadCount = convo.unreadCounts?.[userId] || 0;
-            totalUnread += unreadCount;
-
-            const conversationItem = document.createElement('li');
-            conversationItem.className = `chat-conversation-item ${currentActiveConversationId === convo.id ? 'active-chat' : ''}`;
-            conversationItem.dataset.conversationId = convo.id;
-            conversationItem.dataset.contactName = contactName;
-            conversationItem.dataset.contactEmail = contactEmail;
-            conversationItem.dataset.contactId = otherParticipantId; // Store contact ID for message sending
-
-            conversationItem.innerHTML = `
-                <img src="${avatarUrl}" alt="${contactName} Avatar">
-                <div class="chat-info">
-                    <span class="chat-contact-name-list">${contactName}</span>
-                    <span class="chat-last-message">${lastMessageText}</span>
-                </div>
-                ${unreadCount > 0 ? `<span class="chat-unread-badge">${unreadCount}</span>` : ''}
-            `;
-            chatListElement.appendChild(conversationItem);
-
-            conversationItem.onclick = () => openConversation(convo.id, contactName, contactEmail, otherParticipantId);
-        }
-
-        if (totalUnread > 0) {
-            document.getElementById('unread-messages-badge').textContent = totalUnread;
-            document.getElementById('unread-messages-badge').style.display = 'block';
-        } else {
-            document.getElementById('unread-messages-badge').style.display = 'none';
-        }
-    }, (error) => {
-        console.error("Error loading conversations:", error);
-        chatListElement.innerHTML = '<p class="empty-message" style="margin: 20px; color: red;">Failed to load conversations.</p>';
+    const filtered = allProducts.filter(product => {
+        const matchesCategory = currentCategory === "all" || product.category === currentCategory;
+        const matchesSearch = product.name.toLowerCase().includes(query);
+        return matchesCategory && matchesSearch;
     });
+
+    renderProducts(filtered);
 }
 
-function displaySellerStatusInChat(status) {
-    const chatSellerStatusSpan = document.getElementById('chat-seller-status');
-    if (chatSellerStatusSpan) { // Ensure element exists before manipulating
-        if (status === 'Online') {
-            chatSellerStatusSpan.textContent = 'Online';
-            chatSellerStatusSpan.className = 'chat-seller-status online';
-        } else {
-            chatSellerStatusSpan.textContent = 'Offline';
-            chatSellerStatusSpan.className = 'chat-seller-status offline';
-        }
-    }
-}
+window.addEventListener("DOMContentLoaded", () => {
+    updateCartCountBadge();
+    // Initial product rendering is now handled by setupProductsListener
+    // Initial auth state check is handled by onAuthStateChanged
 
-// Listener for real-time seller status in chat header
-let sellerStatusUnsubscribe = null;
-async function listenToSellerStatus() {
-    // Unsubscribe from previous listener if exists
-    if (sellerStatusUnsubscribe) {
-        sellerStatusUnsubscribe();
-    }
-    sellerStatusUnsubscribe = onSnapshot(siteSettingsDocRef(db), (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            const isOnline = data.sellerOnlineStatus === true;
-            displaySellerStatusInChat(isOnline ? 'Online' : 'Offline');
-        } else {
-            displaySellerStatusInChat('Offline'); // Default if doc doesn't exist
-        }
-    }, (error) => {
-        console.error("Error listening to seller status:", error);
-        displaySellerStatusInChat('Error');
-    });
-}
-
-
-async function openConversation(conversationId, contactName, contactEmail, contactId) {
-    currentActiveConversationId = conversationId;
-    document.getElementById('chat-contact-name').textContent = contactName;
-    document.getElementById('chat-contact-avatar').src = `https://placehold.co/40x40/cccccc/333333?text=${encodeURIComponent(contactName.charAt(0))}`; // Simple avatar placeholder
-    document.getElementById('chat-contact-avatar').alt = contactName;
-
-    // Highlight active chat in the sidebar
-    document.querySelectorAll('.chat-conversation-item').forEach(item => {
-        item.classList.remove('active-chat');
-    });
-    const activeConvoItem = document.querySelector(`.chat-conversation-item[data-conversation-id="${conversationId}"]`);
-    if (activeConvoItem) {
-        activeConvoItem.classList.add('active-chat');
-    }
-
-
-    // Show/hide buttons based on user role and contact
-    const sendProductBtn = document.getElementById('send-product-btn');
-    const visitStoreBtn = document.getElementById('visit-store-btn');
-    if (isAdmin && contactId !== sellerId) { // If admin chatting with a buyer
-        sendProductBtn.style.display = 'inline-flex';
-        visitStoreBtn.style.display = 'inline-flex';
-    } else {
-        sendProductBtn.style.display = 'none';
-        visitStoreBtn.style.display = 'none';
-    }
-
-    // Handle mobile view: hide list, show conversation
-    if (window.innerWidth <= 480) {
-        document.getElementById('chat-list-sidebar').style.display = 'none';
-        document.getElementById('chat-conversation-view').style.display = 'flex';
-        document.querySelector('.back-to-chats-btn').style.display = 'block'; // Show back button
-    }
-
-
-    const messagesContainer = document.getElementById('chat-messages-container');
-    messagesContainer.innerHTML = '<p class="empty-message" style="margin: 20px;">Loading messages...</p>';
-
-    // Unsubscribe from previous messages listener if exists
-    if (messagesSnapshotUnsubscribe) {
-        messagesSnapshotUnsubscribe();
-    }
-
-    const messagesQuery = query(collection(db, `artifacts/${appId}/public/chats/${conversationId}/messages`)); // Order by timestamp?
-    messagesSnapshotUnsubscribe = onSnapshot(messagesQuery, async (snapshot) => {
-        messagesContainer.innerHTML = '';
-        if (snapshot.empty) {
-            messagesContainer.innerHTML = '<p class="empty-message" style="margin: 20px;">Say hello!</p>';
-            return;
-        }
-
-        snapshot.docs.forEach(doc => {
-            const msg = doc.data();
-            const messageElement = document.createElement('div');
-            messageElement.className = `message-bubble ${msg.senderId === userId ? 'sent' : 'received'}`;
-
-            if (msg.type === 'order' && msg.orderDetails) {
-                messageElement.className = `order-message-bubble ${msg.senderId === userId ? 'sent' : 'received'}`; // Special styling for order messages
-                const orderId = msg.orderDetails.orderId;
-                messageElement.innerHTML = `
-                    <h4>Order Details</h4>
-                    <p>Order ID: <span class="order-id">${orderId}</span></p>
-                    <p>Items: ${msg.orderDetails.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}</p>
-                    <p>Total: ₱${parseFloat(msg.orderDetails.total).toFixed(2)}</p>
-                    <p>Status: <span class="order-status status-${msg.orderDetails.status.toLowerCase().replace(' ', '-')}">${msg.orderDetails.status.replace('-', ' ')}</span></p>
-                    <button class="view-order-details-btn" data-order-id="${orderId}">View</button>
-                    ${msg.text ? `<p class="order-message-text">${msg.text}</p>` : ''}
-                `;
-                const viewButton = messageElement.querySelector('.view-order-details-btn');
-                if (viewButton) {
-                    viewButton.onclick = () => {
-                        hideModal('chat-modal');
-                        showModal('order-history-modal');
-                        showOrderDetails(orderId); // Use existing order details function
-                    };
-                }
-            } else {
-                // Regular text message
-                messageElement.textContent = msg.text;
-                // Add timestamp if needed. Format example:
-                const timestamp = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                if (timestamp) {
-                    const timestampSpan = document.createElement('span');
-                    timestampSpan.className = 'message-timestamp';
-                    timestampSpan.textContent = timestamp;
-                    messageElement.appendChild(timestampSpan);
-                }
-            }
-            messagesContainer.appendChild(messageElement);
-        });
-        messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
-
-        // Mark messages as read for the current user in this conversation
-        await updateDoc(doc(chatsCollectionRef(db), conversationId), {
-            [`unreadCounts.${userId}`]: 0 // Set unread count for current user to 0
-        });
-        await loadConversations(); // Reload sidebar to update unread badge
-    }, (error) => {
-        console.error("Error loading messages:", error);
-        messagesContainer.innerHTML = '<p class="empty-message" style="margin: 20px; color: red;">Failed to load messages.</p>';
-    });
-}
-
-// Function to send order details from seller to buyer chat
-async function sendOrderDetailsToSeller(orderId, buyerEmail) {
-    // In a real system, the seller ID would be fixed, or the system sends it automatically
-    // For this example, let's assume the seller's UID is 'seller_uid' or identified as admin.
-    if (!sellerId || sellerId === 'placeholder_seller_id') {
-        console.error("Seller ID not defined or is placeholder. Cannot send order details to seller chat.");
-        return;
-    }
-
-    try {
-        // Need to get the actual order from the user's orders collection
-        const orderDocRef = doc(db, `artifacts/${appId}/users/${userId}/orders`, orderId);
-        const orderDoc = await getDoc(orderDocRef);
-
-        if (!orderDoc.exists()) {
-            console.error("Order not found for chat message:", orderId);
-            return;
-        }
-        const orderData = orderDoc.data();
-
-        // Ensure current user (buyer) has a conversation with seller
-        const conversationId = await createOrGetConversation(userId, sellerId);
-
-        // Prepare simplified order details for the chat message
-        const simplifiedOrderDetails = {
-            orderId: orderId,
-            items: orderData.items.map(item => ({ name: item.name, quantity: item.quantity })),
-            total: orderData.total,
-            status: orderData.status,
-            buyerId: userId,
-            buyerEmail: buyerEmail
-        };
-
-        // Send message with type 'order' and include orderDetails
-        await sendMessage(conversationId, `New order received from ${buyerEmail.split('@')[0]}`, 'order', simplifiedOrderDetails);
-        console.log("Order details message sent to seller.");
-
-    } catch (error) {
-        console.error("Error sending order details to seller chat:", error);
-        showAlert('Error sending order details to seller chat: ' + error.message);
-    }
-}
-
-// Payment method image update logic
-function updatePaymentPreviewImage() {
-    const paymentMethodRadios = document.querySelectorAll('input[name="payment-method"]');
-    const paymentPreviewImg = document.getElementById('payment-preview-img');
-
-    paymentMethodRadios.forEach(radio => {
-        radio.addEventListener('change', (event) => {
-            const selectedMethod = event.target.value;
-            // Update image source based on selected method
-            switch (selectedMethod) {
-                case 'GCash':
-                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=GCash';
-                    break;
-                case 'Maya':
-                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=Maya';
-                    break;
-                case 'Paypal':
-                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=PayPal';
-                    break;
-                default:
-                    paymentPreviewImg.src = 'https://placehold.co/200x200/e9ecef/495057?text=Payment';
-            }
+    // Attach event listeners for filter buttons
+    document.querySelectorAll(".filters button").forEach(button => {
+        button.addEventListener("click", (event) => {
+            const category = event.target.dataset.cat;
+            setFilter(category);
         });
     });
-}
 
-
-// Function to copy contact number
-function setupCopyContactNumber() {
-    const copyButton = document.getElementById('copy-contact-number-btn');
-    if (copyButton) {
-        copyButton.onclick = () => {
-            const contactNumber = document.getElementById('payment-contact-number').textContent;
-            // Use execCommand for clipboard due to iframe restrictions
-            const textarea = document.createElement('textarea');
-            textarea.value = contactNumber;
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                showAlert('Contact number copied to clipboard!');
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-                showAlert('Failed to copy contact number.');
-            }
-            document.body.removeChild(textarea);
-        };
-    }
-}
-
-
-// --- Event Listeners and Initial Load ---
-window.onload = async () => {
-    // Initialize Firebase
-    if (!app) {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
+    // Attach event listener for search box
+    const searchBox = document.getElementById("searchBox");
+    if (searchBox) {
+        searchBox.addEventListener("input", applyFilters);
     }
 
-    // Set sellerId on initial load/auth state change
-    // For demonstration, the first authenticated user to log in will be considered the admin/seller.
-    // In a production app, sellerId would likely be a hardcoded UID or fetched from a config.
-    const siteSettingsSnap = await getDoc(siteSettingsDocRef(db));
-    if (siteSettingsSnap.exists() && siteSettingsSnap.data().sellerUid) {
-        sellerId = siteSettingsSnap.data().sellerUid;
-    } else {
-        // If no seller UID is explicitly set, the first user to auth can become it (for testing)
-        // Or, keep 'placeholder_seller_id' and require manual Firebase setup.
-        // For this task, we will assume an admin can be designated.
-    }
-
-
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            userId = user.uid;
-            userEmail = user.email;
-            document.getElementById('user-display').textContent = `Welcome, ${userEmail.split('@')[0]}!`;
-            document.getElementById('user-display').style.display = 'inline-block';
-            document.getElementById('login-register-button').style.display = 'none';
-            document.getElementById('logout-button').style.display = 'inline-block';
-            document.getElementById('my-orders-button').style.display = 'inline-block';
-            document.getElementById('messages-button').style.display = 'inline-flex'; // Show messages button
-
-            // Check if current user is the designated seller/admin
-            const siteSettingsDoc = await getDoc(siteSettingsDocRef(db));
-            if (!siteSettingsDoc.exists() || !siteSettingsDoc.data().sellerUid || siteSettingsDoc.data().sellerUid === 'placeholder_seller_id') {
-                // If no sellerUid, make the first authenticated user the seller
-                await setDoc(siteSettingsDocRef(db), { sellerUid: userId }, { merge: true });
-                sellerId = userId; // Update sellerId for current session
-                isAdmin = true;
-                document.getElementById('admin-panel-button').style.display = 'inline-block';
-                console.log("Current user set as seller/admin.");
-            } else if (userId === siteSettingsDoc.data().sellerUid) {
-                sellerId = userId; // Confirm sellerId for current session
-                isAdmin = true;
-                document.getElementById('admin-panel-button').style.display = 'inline-block';
-            } else {
-                isAdmin = false;
-                document.getElementById('admin-panel-button').style.display = 'none';
-                sellerId = siteSettingsDoc.data().sellerUid; // Ensure sellerId is set for buyers too
-            }
-
-            // For non-admin users, if no profile exists, create one with email as display name
-            // Or if profile exists but displayName is missing, update it
-            const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/profile`);
-            const userProfileSnap = await getDoc(userProfileRef);
-            if (!userProfileSnap.exists()) {
-                await setDoc(userProfileRef, { email: userEmail, displayName: userEmail.split('@')[0], avatarUrl: `https://placehold.co/45x45/cccccc/333333?text=${encodeURIComponent(userEmail.charAt(0).toUpperCase())}` });
-            } else if (!userProfileSnap.data().displayName) {
-                 await updateDoc(userProfileRef, { displayName: userEmail.split('@')[0] });
-            }
-
-
-        } else {
-            // Anonymous user
-            userId = getAnonymousUserId(); // Use anonymous ID if not logged in
-            userEmail = 'Guest';
-            document.getElementById('user-display').style.display = 'none';
-            document.getElementById('login-register-button').style.display = 'inline-block';
-            document.getElementById('logout-button').style.display = 'none';
-            document.getElementById('my-orders-button').style.display = 'none';
-            document.getElementById('admin-panel-button').style.display = 'none';
-            document.getElementById('messages-button').style.display = 'none'; // Hide messages button for guests
-            isAdmin = false;
-            // Fetch sellerId even if anonymous, so anonymous users can start chats if needed
-            sellerId = (await getDoc(siteSettingsDocRef(db)))?.data()?.sellerUid || 'placeholder_seller_id';
-        }
-        // Load initial data after auth state is determined
-        await loadProducts();
-        await loadSellerStatusToggle();
-        // Only load chat for authenticated users or if the anonymous user has a conversation
-        // For simplicity, we'll enable chat for any non-guest user.
-        if (auth.currentUser || userId !== getAnonymousUserId()) { // Check if user is logged in or if an anonymous user has an established chat
-            loadConversations();
-            listenToSellerStatus(); // Start listening for seller status updates
-        }
+    // Payment method preview image change
+    document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const selected = document.querySelector('input[name="payment-method"]:checked').value.toLowerCase();
+            const img = document.getElementById('payment-preview-img');
+            // Ensure the image source matches your file names (e.g., "gcash.png", "maya.png", "paypal.png")
+            img.src = `images/${selected}.png`;
+        });
     });
+});
 
-    // Event Listeners for existing UI
-    document.getElementById('login-register-button').onclick = () => showModal('auth-modal');
-    document.getElementById('logout-button').onclick = async () => {
-        try {
-            await signOut(auth);
-            showAlert('Logged out successfully!');
-            // Revert UI to guest state (handled by onAuthStateChanged)
-            // Clear any user-specific data like cart, order history
-            cart = [];
-            updateCartUI();
-            document.getElementById('order-history-list').innerHTML = ''; // Clear order history
-            document.getElementById('chat-conversations-list').innerHTML = ''; // Clear chat list
-            if (conversationsSnapshotUnsubscribe) conversationsSnapshotUnsubscribe();
-            if (messagesSnapshotUnsubscribe) messagesSnapshotUnsubscribe();
-            if (sellerStatusUnsubscribe) sellerStatusUnsubscribe();
-            currentActiveConversationId = null;
-        } catch (error) {
-            console.error("Error logging out:", error);
-            showAlert('Error logging out: ' + error.message);
-        }
-    };
-
-    document.getElementById('register-button').onclick = async () => {
-        const email = document.getElementById('auth-email').value; // Corrected ID
-        const password = document.getElementById('auth-password').value; // Corrected ID
-        try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            showAlert('Registration successful!');
-            hideModal('auth-modal');
-        } catch (error) {
-            document.getElementById('auth-message').textContent = error.message;
-        }
-    };
-
-    document.getElementById('login-button').onclick = async () => {
-        const email = document.getElementById('auth-email').value; // Corrected ID
-        const password = document.getElementById('auth-password').value; // Corrected ID
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            showAlert('Login successful!');
-            hideModal('auth-modal');
-        } catch (error) {
-            document.getElementById('auth-message').textContent = error.message;
-        }
-    };
-
-    // Corrected ID for cart icon button
-    document.getElementById('cart-icon-btn').onclick = () => {
-        showModal('cart-modal');
-        updateCartUI();
-    };
-
-    document.getElementById('place-order-btn').onclick = placeOrder;
-    document.getElementById('my-orders-button').onclick = () => {
-        showModal('order-history-modal');
-        loadOrderHistory();
-    };
-    // Corrected ID for back to orders button
-    document.getElementById('back-to-orders-btn').onclick = () => {
-        document.getElementById('order-history-list').style.display = 'block';
-        document.getElementById('order-details-view').style.display = 'none';
-    };
-
-    // Admin Panel Listeners
-    document.getElementById('admin-panel-button').onclick = () => {
-        showModal('admin-panel-modal');
-        // Ensure correct tab content is visible when opening admin panel
-        document.getElementById('admin-products').style.display = 'block';
-        document.getElementById('admin-orders').style.display = 'none';
-        document.getElementById('admin-settings').style.display = 'none';
-        document.querySelector('.admin-tab-btn[data-tab="products"]').classList.add('active'); // Set products tab as active
-    };
-    document.querySelectorAll('.admin-tab-btn').forEach(button => {
-        button.onclick = (event) => {
-            document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.querySelectorAll('.admin-tab-content').forEach(content => content.style.display = 'none');
-            // Show the correct tab content based on data-tab attribute
-            document.getElementById(`admin-${event.target.dataset.tab}`).style.display = 'block';
-
-            // Load content based on tab
-            if (event.target.dataset.tab === 'products') {
-                loadAdminProducts();
-                resetProductForm(); // Reset form when switching to products tab
-            } else if (event.target.dataset.tab === 'orders') {
-                loadAdminOrders();
-            } else if (event.target.dataset.tab === 'settings') {
-                loadSellerStatusToggle(); // Reload seller status for the admin setting
-            }
-        };
-    });
-    // Corrected ID for admin back to orders button
-    document.getElementById('admin-back-to-orders-btn').onclick = () => {
-        document.getElementById('admin-orders').style.display = 'block'; // Show order list again
-        document.getElementById('admin-order-details-view').style.display = 'none';
-    };
-
-    document.getElementById('seller-online-toggle').onchange = (event) => {
-        updateSellerStatus(event.target.checked);
-    };
-
-    // Filter & Search listeners
-    document.querySelectorAll('.filter-btn').forEach(button => {
-        button.onclick = (e) => filterProducts(e.target.dataset.category);
-    });
-    // Corrected ID for search bar
-    document.getElementById('search-bar').oninput = (event) => {
-        searchProducts(event.target.value);
-    };
-
-    // Initialize admin panel specific listeners
-    setupAdminPanel();
-    setupCopyContactNumber(); // Setup copy button for payment number
-    updatePaymentPreviewImage(); // Setup payment image preview
-
-
-    // Close modal listeners
-    document.querySelectorAll('.modal-close-btn').forEach(button => {
-        button.onclick = (event) => {
-            const modalId = event.target.dataset.closeModal;
-            hideModal(modalId);
-            // On closing chat modal, if on mobile and not on chat list view, reset to chat list
-            if (modalId === 'chat-modal') {
-                if (window.innerWidth <= 480) {
-                    document.getElementById('chat-list-sidebar').style.display = 'flex';
-                    document.getElementById('chat-conversation-view').style.display = 'none';
-                    document.querySelector('.back-to-chats-btn').style.display = 'none';
-                }
-                currentActiveConversationId = null; // Clear active conversation
-                if (messagesSnapshotUnsubscribe) messagesSnapshotUnsubscribe(); // Unsubscribe messages
-                loadConversations(); // Reload conversations to update unread counts
-            }
-        };
-    });
-    document.querySelector('#custom-alert-modal .custom-modal-close-btn').onclick = () => hideModal('custom-alert-modal');
-    document.querySelector('#custom-confirm-modal .custom-modal-close-btn').onclick = () => hideModal('custom-confirm-modal');
-
-
-    // --- Chat System Specific Event Listeners ---
-    document.getElementById('messages-button').onclick = () => {
-        if (!userId || userId === 'placeholder_seller_id') {
-            showAlert('Please log in to use the chat system.');
-            return;
-        }
-        showModal('chat-modal');
-        loadConversations();
-        // If on desktop, ensure both views are visible
-        if (window.innerWidth > 480) {
-            document.getElementById('chat-list-sidebar').style.display = 'flex';
-            document.getElementById('chat-conversation-view').style.display = 'flex'; // Default to flex for desktop
-            document.querySelector('.back-to-chats-btn').style.display = 'none';
-        } else {
-            // On mobile, show list view initially
-            document.getElementById('chat-list-sidebar').style.display = 'flex';
-            document.getElementById('chat-conversation-view').style.display = 'none';
-            document.querySelector('.back-to-chats-btn').style.display = 'none';
-        }
-    };
-
-    document.getElementById('send-chat-message-btn').onclick = () => {
-        const messageInput = document.getElementById('chat-message-input');
-        const messageText = messageInput.value;
-        if (messageText.trim() && currentActiveConversationId) {
-            sendMessage(currentActiveConversationId, messageText);
-        } else if (!currentActiveConversationId) {
-            document.getElementById('chat-message').textContent = 'Please select a conversation first.';
-        }
-    };
-
-    document.getElementById('chat-message-input').addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            document.getElementById('send-chat-message-btn').click();
-        }
-    });
-
-    document.querySelector('.back-to-chats-btn').onclick = () => {
-        document.getElementById('chat-list-sidebar').style.display = 'flex';
-        document.getElementById('chat-conversation-view').style.display = 'none';
-        document.querySelector('.back-to-chats-btn').style.display = 'none';
-        currentActiveConversationId = null; // Clear active conversation
-        if (messagesSnapshotUnsubscribe) messagesSnapshotUnsubscribe(); // Unsubscribe messages
-        loadConversations(); // Reload conversations to update unread counts
-    };
-
-    // Placeholder actions for chat header buttons
-    document.getElementById('send-product-btn').onclick = async () => {
-        if (currentActiveConversationId) {
-            showAlert("Send Product functionality would be implemented here, e.g., prompt for product ID to send.");
-            // Example:
-            // const productIdToSend = prompt("Enter product ID to send:");
-            // if (productIdToSend) {
-            //     const product = allProducts.find(p => p.id === productIdToSend);
-            //     if (product) {
-            //         const orderDetailsPlaceholder = {
-            //             orderId: 'N/A', // Or generate a dummy ID
-            //             items: [{ name: product.name, quantity: 1, price: product.price }],
-            //             total: product.price,
-            //             status: 'sent', // Or a custom status like 'product-sent'
-            //             productId: productIdToSend // Include product ID for reference
-            //         };
-            //         await sendMessage(currentActiveConversationId, `Here's a product: ${product.name}`, 'order', orderDetailsPlaceholder);
-            //     } else {
-            //         showAlert("Product not found.");
-            //     }
-            // }
-        }
-    };
-
-    document.getElementById('visit-store-btn').onclick = () => {
-        showAlert("Visit Store functionality would redirect to user's public profile/store page.");
-        // Example: window.open(`yourstore.com/user/${contactId}`, '_blank');
-    };
-};
-
+// Stop all flash sale timers when the page is closed or navigated away from
+window.addEventListener('beforeunload', stopAllFlashSaleTimers);
