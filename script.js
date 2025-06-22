@@ -1,7 +1,8 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"; // Added writeBatch
+// UPDATED: Using Firebase SDK version 11.6.1 for better compatibility and features.
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Added writeBatch
 
 // Your web app's Firebase configuration
 // IMPORTANT: Ensure this configuration matches your Firebase project's config.
@@ -412,8 +413,11 @@ function setupSiteSettingsListener() {
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
-            setDoc(settingsDocRef, { sellerOnline: false });
-            sellerIsOnline = false;
+            // This is allowed by the new rules which allow anyone to read, and admin to write.
+            // If the document doesn't exist, a read will return !docSnap.exists(), and an admin can create it.
+            // For general read, it just means no status is set yet.
+            // No need to try creating it here in JS, just let the admin panel handle initial setup.
+            sellerIsOnline = false; // Default to offline if no settings doc
             updateSellerStatusDisplay();
         }
     }, (error) => {
