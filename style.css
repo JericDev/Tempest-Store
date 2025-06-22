@@ -257,8 +257,8 @@ main#product-list {
     box-shadow: 0 4px 12px rgba(0,0,0,0.4); /* More prominent shadow */
     font-size: 15px; /* Consistent font size */
     z-index: 7; /* Keep as 7, lower than NEW's 10 but higher than default 5 */
-    overflow: hidden; /* Ensures rounded corners apply correctly to children */
-    min-width: 130px; /* Ensure enough space for content */
+    overflow: visible; /* Changed to visible to ensure content isn't hidden */
+    min-width: 140px; /* Increased min-width for larger screens */
 }
 
 /* If NEW and FLASH SALE are on the same card, position FLASH SALE next to NEW */
@@ -1371,10 +1371,10 @@ main#product-list {
         left: 53px; /* Adjusted to be closer: original 60px - 7px */
     }
     .badge.flash-sale { /* Adjusted for mobile */
-        min-width: 105px; /* Adjusted min-width to accommodate text and icon */
+        min-width: 110px; /* Increased min-width further for the text to appear */
         top: 10px;
         left: 10px; /* Default position for single badge */
-        font-size: 12px; /* Adjusted font size */
+        font-size: 12px; /* Consistent font size */
         padding: 6px 8px; /* Adjusted padding for the entire badge on mobile */
     }
     /* If NEW and FLASH SALE are on the same card (mobile) */
@@ -1383,19 +1383,19 @@ main#product-list {
     }
     .badge.flash-sale .flash-sale-label {
         margin-bottom: 4px; /* Slightly reduced margin for mobile */
-        font-size: 0.85em; /* Further reduced font size for mobile label */
+        font-size: 0.9em; /* Adjusted font size for mobile label */
     }
     .badge.flash-sale .flash-sale-label::before {
-        width: 12px; /* Even smaller icon */
-        height: 12px;
-        margin-right: 3px; /* Reduced margin */
+        width: 14px; /* Slightly increased icon size */
+        height: 14px;
+        margin-right: 4px; /* Adjusted margin */
     }
     .badge.flash-sale .flash-sale-countdown {
-        padding: 3px 6px; /* Further reduced padding for mobile */
-        min-width: 50px; /* Adjusted min-width */
-        font-size: 0.7em; /* Further reduced font size for mobile countdown */
-        border-radius: 5px; /* Slightly less rounded on mobile */
-        width: calc(100% - 12px); /* Adjusted width for mobile padding */
+        padding: 4px 8px; /* Adjusted padding for mobile */
+        min-width: 55px; /* Adjusted min-width */
+        font-size: 0.8em; /* Adjusted font size for mobile countdown */
+        border-radius: 6px; /* Slightly less rounded on mobile */
+        width: calc(100% - 16px); /* Adjusted width for mobile padding */
     }
     .price {
         font-size: 1.2em; /* Adjusted font size */
