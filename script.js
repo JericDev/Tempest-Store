@@ -1,5 +1,5 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"; // Added writeBatch
 
@@ -44,8 +44,7 @@ let flashSaleTimers = {}; // Object to store setInterval IDs for flash sale coun
 let initAdminPanelModule = null;
 let adminCleanupFunction = null;
 
-// New: Variable to hold the interval for refreshing the cart when modal is open
-let cartRefreshInterval = null;
+// Removed: cartRefreshInterval variable, as periodic refresh is being removed
 
 
 // --- DOM elements for Authentication ---
@@ -69,7 +68,7 @@ const forgotPasswordButton = document.getElementById("forgot-password-button"); 
 const cartIconBtn = document.getElementById("cart-icon-btn");
 const cartCountBadge = document.getElementById("cart-count");
 const cartModal = document.getElementById("cart-modal");
-const closeCartModalBtn = document.getElementById("close-cart-modal");
+const closeCartModalBtn = document.getElementById("close-cart-modal"); // FIX: Corrected line 1337
 const cartItemsContainer = document.getElementById("cart-items-container");
 const cartSubtotalSpan = document.getElementById("cart-subtotal");
 const cartTotalSpan = document.getElementById("cart-total");
@@ -816,30 +815,18 @@ cartIconBtn.addEventListener('click', () => {
     renderCart(); // Call renderCart to ensure stock checks are done before showing
     robloxUsernameInput.style.display = currentUserId ? 'block' : 'none';
     updateCartCountBadge();
-    // Start cart refresh interval when cart modal is opened
-    if (cartRefreshInterval) { // Clear any existing interval just in case
-        clearInterval(cartRefreshInterval);
-    }
-    cartRefreshInterval = setInterval(renderCart, 1000); // Refresh cart every 1 second
+    // Removed: Starting cart refresh interval here
 });
 
 closeCartModalBtn.addEventListener('click', () => {
     cartModal.classList.remove('show');
-    // Clear cart refresh interval when cart modal is closed
-    if (cartRefreshInterval) {
-        clearInterval(cartRefreshInterval);
-        cartRefreshInterval = null;
-    }
+    // Removed: Clearing cart refresh interval here
 });
 
 cartModal.addEventListener('click', (event) => {
     if (event.target === cartModal) {
         cartModal.classList.remove('show');
-        // Clear cart refresh interval if modal is closed by clicking outside
-        if (cartRefreshInterval) {
-            clearInterval(cartRefreshInterval);
-            cartRefreshInterval = null;
-        }
+        // Removed: Clearing cart refresh interval here
     }
 });
 
@@ -866,7 +853,7 @@ copyContactNumberBtn.addEventListener('click', () => {
 
 // Handles the process of placing an order.
 placeOrderBtn.addEventListener('click', async () => {
-    // *** REMOVED: if (!isAdmin) check here to allow all authenticated users to buy ***
+    // Reinstated: No admin-only check here. All authenticated users can buy.
 
     if (cart.length === 0) {
         showCustomAlert("Your cart is empty. Please add items before placing an order.");
