@@ -1017,240 +1017,6 @@ main#product-list {
     text-align: left;
     flex-basis: 100%;
 }
-.back-to-orders-btn {
-    padding: 14px 20px;
-    font-size: 1.15em;
-    margin-top: 30px;
-    border-radius: 12px;
-    background-color: #6c757d; /* Consistent grey */
-    color: white;
-}
-.back-to-orders-btn:hover {
-    background-color: #5a6268;
-}
-
-/* Admin Panel Styles */
-#admin-panel-modal .modal-box {
-    max-width: 950px; /* Slightly wider admin modal */
-    padding: 30px;
-}
-.admin-tabs {
-    margin-bottom: 30px;
-    padding-bottom: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 2px solid #e9ecef;
-}
-.admin-tab-btn {
-    padding: 14px 28px;
-    margin: 6px;
-    font-size: 1.2em;
-    border-radius: 12px 12px 0 0;
-    white-space: nowrap;
-    background-color: #f8f9fa;
-    color: #6c757d;
-    border-bottom: none;
-}
-.admin-tab-btn.active {
-    background-color: white;
-    color: #333;
-    box-shadow: 0 -5px 15px rgba(0,0,0,0.15);
-    border-bottom: none;
-    z-index: 1;
-    position: relative;
-}
-.admin-tab-btn:not(.active):hover {
-    background-color: #e2e6ea;
-}
-
-.admin-tab-content {
-    padding: 30px 0;
-    background-color: white;
-    border-radius: 0 0 15px 15px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-    margin-top: -15px;
-    position: relative;
-    z-index: 0;
-}
-.admin-section h3 {
-    font-size: 2.2em;
-    margin-bottom: 25px;
-}
-
-/* Product Management Form */
-#product-form-container {
-    padding: 30px;
-    border-radius: 15px;
-    margin-bottom: 40px;
-    border: 1px solid #f0f2f5;
-    background-color: #fdfdfd;
-}
-#product-form-container h3 {
-    text-align: center;
-    color: #333;
-    margin-bottom: 30px;
-}
-#product-form-container label {
-    display: block;
-    margin-bottom: 10px;
-    font-size: 1.1em;
-    font-weight: bold;
-    color: #495057;
-}
-#product-form-container input[type="text"],
-#product-form-container input[type="number"],
-#product-form-container input[type="datetime-local"], /* Added for flash sale end time */
-#product-form-container select {
-    width: calc(100% - 28px);
-    padding: 14px;
-    margin-bottom: 20px;
-    border: 1px solid #ced4da;
-    border-radius: 12px;
-    font-size: 1.1em;
-    background-color: white;
-}
-#product-form-container input[type="checkbox"] {
-    margin-right: 15px;
-    transform: scale(1.4); /* Slightly larger checkbox */
-}
-#product-form-container .checkbox-group {
-    display: flex;
-    align-items: center;
-    margin-bottom: 20px;
-}
-#product-form-container button {
-    padding: 16px 25px;
-    font-size: 1.1em;
-    border-radius: 12px;
-    min-width: 140px;
-    margin-right: 15px;
-}
-#save-product-btn { background-color: #1a5dab; color: white; }
-#save-product-btn:hover { background-color: #154c8e; }
-#cancel-edit-product { background-color: #6c757d; color: white; }
-#cancel-edit-product:hover { background-color: #5a6268; }
-
-/* Product List in Admin Panel */
-.admin-product-table, .admin-order-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin-top: 30px;
-    background-color: white;
-    border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-.admin-product-table th, .admin-product-table td,
-.admin-order-table th, .admin-order-table td {
-    border-bottom: 1px solid #e9ecef;
-    padding: 15px;
-    text-align: left;
-    vertical-align: middle;
-    font-size: 1.05em;
-}
-.admin-product-table th:first-child, .admin-order-table th:first-child { border-top-left-radius: 15px; }
-.admin-product-table th:last-child, .admin-order-table th:last-child { border-top-right-radius: 15px; }
-.admin-product-table tr:last-child td, .admin-order-table tr:last-child td { border-bottom: none; }
-
-
-.admin-product-table th, .admin-order-table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-    color: #495057;
-}
-.admin-product-table td img {
-    width: 70px; /* Slightly larger images */
-    height: 70px;
-    object-fit: contain;
-    border-radius: 10px;
-}
-.admin-product-actions, .admin-order-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px; /* Increased gap */
-    justify-content: flex-end;
-}
-.admin-product-actions button, .admin-order-actions button {
-    padding: 10px 15px; /* Larger padding */
-    font-size: 1em;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-.admin-product-actions button.edit, .admin-order-actions button.view {
-    background-color: #28a745;
-    color: white;
-}
-.admin-product-actions button.edit:hover, .admin-order-actions button.view:hover {
-    background-color: #218838;
-}
-.admin-product-actions button.delete {
-    background-color: #dc3545;
-    color: white;
-}
-.admin-product-actions button.delete:hover {
-    background-color: #a71d2a;
-}
-
-/* Admin Order Details View */
-#admin-order-details-view {
-    display: none;
-    padding: 30px;
-    border-top: 1px solid #e9ecef;
-    background-color: #fdfdfd;
-    border-radius: 15px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-    margin-top: 30px;
-}
-#admin-order-details-view h3 {
-    margin-top: 0;
-    color: #333;
-    font-size: 2em;
-    margin-bottom: 25px;
-    text-align: center;
-}
-#admin-order-details-info p {
-    margin: 12px 0;
-    color: #555;
-    font-size: 1.1em;
-}
-#admin-order-details-info strong {
-    color: #333;
-    margin-right: 8px;
-}
-#admin-order-details-items {
-    margin-top: 30px;
-    border-top: 1px dashed #ced4da;
-    padding-top: 25px;
-}
-#admin-order-details-items h4 {
-    margin-bottom: 15px;
-    font-size: 1.5em;
-}
-.admin-order-detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px dotted #ced4da;
-    flex-wrap: wrap;
-}
-.admin-order-detail-item:last-child {
-    border-bottom: none;
-}
-.admin-order-detail-item-name {
-    font-weight: bold;
-    color: #444;
-    flex-basis: 100%;
-    margin-bottom: 8px;
-    font-size: 1.1em;
-}
-.admin-order-detail-item-qty-price {
-    font-size: 1em;
-    color: #6c757d;
-    text-align: left;
-    flex-basis: 100%;
-}
 .order-status-update-section {
     display: flex;
     flex-direction: column;
@@ -1529,8 +1295,8 @@ main#product-list {
         border-radius: 10px;
     }
     .seller-status-container #seller-status-display {
-        font-size: 0.9em; /* Adjusted font size */
         padding: 4px 8px; /* Adjusted padding */
+        font-size: 0.9em; /* Adjusted font size */
     }
     .social-links-group { /* Target the new group for side-by-side */
         flex-direction: row; /* Ensure side-by-side */
@@ -1605,31 +1371,31 @@ main#product-list {
         left: 53px; /* Adjusted to be closer: original 60px - 7px */
     }
     .badge.flash-sale { /* Adjusted for mobile */
-        min-width: unset; /* Allow it to shrink */
+        min-width: 105px; /* Adjusted min-width to accommodate text and icon */
         top: 10px;
         left: 10px; /* Default position for single badge */
         font-size: 12px; /* Adjusted font size */
-        padding: 6px 12px; /* Adjusted padding for the entire badge on mobile */
+        padding: 6px 8px; /* Adjusted padding for the entire badge on mobile */
     }
     /* If NEW and FLASH SALE are on the same card (mobile) */
     .card .badge.new + .badge.flash-sale {
         left: 53px; /* Adjusted to be closer: original 60px - 7px */
     }
     .badge.flash-sale .flash-sale-label {
-        margin-bottom: 5px; /* Smaller margin for mobile */
-        font-size: 0.9em; /* Adjusted font size */
+        margin-bottom: 4px; /* Slightly reduced margin for mobile */
+        font-size: 0.85em; /* Further reduced font size for mobile label */
     }
     .badge.flash-sale .flash-sale-label::before {
-        width: 14px; /* Smaller icon */
-        height: 14px;
-        margin-right: 4px;
+        width: 12px; /* Even smaller icon */
+        height: 12px;
+        margin-right: 3px; /* Reduced margin */
     }
     .badge.flash-sale .flash-sale-countdown {
-        padding: 4px 8px; /* Reduced padding for mobile */
-        min-width: 55px; /* Adjust min-width */
-        font-size: 0.75em; /* Adjusted font size */
-        border-radius: 6px; /* Slightly less rounded on mobile */
-        width: calc(100% - 16px); /* Adjusted width for mobile padding */
+        padding: 3px 6px; /* Further reduced padding for mobile */
+        min-width: 50px; /* Adjusted min-width */
+        font-size: 0.7em; /* Further reduced font size for mobile countdown */
+        border-radius: 5px; /* Slightly less rounded on mobile */
+        width: calc(100% - 12px); /* Adjusted width for mobile padding */
     }
     .price {
         font-size: 1.2em; /* Adjusted font size */
