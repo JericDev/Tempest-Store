@@ -239,7 +239,7 @@ main#product-list {
 
 /* If NEW and SALE are on the same card, position SALE next to NEW */
 .card .badge.new + .badge.sale {
-    left: 95px; /* Calculated based on NEW badge width + desired spacing */
+    left: 88px; /* Adjusted to be closer: original 95px - 7px */
 }
 
 
@@ -249,10 +249,11 @@ main#product-list {
     color: white; /* Text color for "Flash Sale" */
     top: 18px; /* Prioritized top-left position on the product card */
     left: 18px; /* Default position for single badge */
-    padding: 0; /* Remove padding from the container itself, handled by children */
+    padding: 10px 15px; /* Padding for the entire badge */
     border-radius: 12px;
-    display: flex; /* Use flexbox to lay out inner elements (text and countdown) */
-    align-items: center;
+    display: flex; /* Use flexbox to lay out inner elements */
+    flex-direction: column; /* Stack label and countdown vertically */
+    align-items: center; /* Center content horizontally */
     box-shadow: 0 4px 12px rgba(0,0,0,0.4); /* More prominent shadow */
     font-size: 15px; /* Consistent font size */
     z-index: 7; /* Keep as 7, lower than NEW's 10 but higher than default 5 */
@@ -262,16 +263,19 @@ main#product-list {
 
 /* If NEW and FLASH SALE are on the same card, position FLASH SALE next to NEW */
 .card .badge.new + .badge.flash-sale {
-    left: 95px; /* Calculated based on NEW badge width + desired spacing */
+    left: 88px; /* Adjusted to be closer: original 95px - 7px */
 }
 
 
 .badge.flash-sale .flash-sale-label {
     white-space: nowrap;
-    padding-left: 15px; /* Padding for the text part */
-    padding-right: 8px; /* Space before the lightning bolt */
+    padding: 0; /* Remove padding here, handled by parent */
     display: flex;
     align-items: center;
+    justify-content: center; /* Center the text and icon horizontally */
+    margin-bottom: 8px; /* Space between label and countdown */
+    font-size: 1.1em; /* Make "Flash Sale" text a bit larger */
+    font-weight: bold;
 }
 
 .badge.flash-sale .flash-sale-label::before {
@@ -290,22 +294,22 @@ main#product-list {
 }
 
 .badge.flash-sale .flash-sale-countdown {
-    background-color: #ffd700; /* Gold background for countdown area */
-    color: #333; /* Darker text for countdown numbers */
-    padding: 7px 12px; /* Padding for the countdown numbers */
-    border-radius: 0 12px 12px 0; /* Rounded only on the right */
-    font-size: 0.95em;
+    background-color: rgba(255, 255, 255, 0.2); /* Lighter red/transparent white for countdown area */
+    color: white; /* Text color for countdown numbers */
+    padding: 5px 10px; /* Padding for the countdown numbers */
+    border-radius: 8px; /* Fully rounded corners for the timer part */
+    font-size: 0.9em;
     font-weight: bold;
     white-space: nowrap;
     min-width: 70px; /* Ensure enough space for HH:MM:SS */
     text-align: center;
-    border-left: 1px solid rgba(0,0,0,0.15); /* Subtle separator line */
-    height: 100%; /* Make it fill the height of the badge */
-    display: flex; /* Use flex to vertically center content */
+    border-left: none; /* Removed as it's stacked, not side-by-side */
+    width: calc(100% - 20px); /* Fill parent width, accounting for padding */
+    display: flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box; /* Include padding and border in element's total width and height */
-    margin-left: auto; /* Pushes countdown to the right */
+    /* Removed margin-left: auto; as it's no longer pushing to right, now centered */
 }
 
 
@@ -1364,22 +1368,22 @@ main#product-list {
     }
     /* If NEW and SALE are on the same card (mobile) */
     .card .badge.new + .badge.sale {
-        left: 60px; /* Adjusted for mobile */
+        left: 53px; /* Adjusted to be closer: original 60px - 7px */
     }
     .badge.flash-sale { /* Adjusted for mobile */
         min-width: unset; /* Allow it to shrink */
         top: 10px;
         left: 10px; /* Default position for single badge */
         font-size: 12px; /* Adjusted font size */
-        padding: 0; /* Parent padding handled by children */
+        padding: 8px 12px; /* Adjusted padding for the entire badge on mobile */
     }
     /* If NEW and FLASH SALE are on the same card (mobile) */
     .card .badge.new + .badge.flash-sale {
-        left: 60px; /* Adjusted for mobile */
+        left: 53px; /* Adjusted to be closer: original 60px - 7px */
     }
     .badge.flash-sale .flash-sale-label {
-        padding-left: 10px; /* Reduced padding for mobile */
-        padding-right: 4px;
+        margin-bottom: 5px; /* Smaller margin for mobile */
+        font-size: 1em; /* Adjusted font size */
     }
     .badge.flash-sale .flash-sale-label::before {
         width: 16px; /* Smaller icon */
@@ -1387,9 +1391,11 @@ main#product-list {
         margin-right: 4px;
     }
     .badge.flash-sale .flash-sale-countdown {
-        padding: 5px 9px; /* Reduced padding for mobile */
+        padding: 4px 8px; /* Reduced padding for mobile */
         min-width: 55px; /* Adjust min-width */
-        font-size: 0.85em; /* Adjusted font size */
+        font-size: 0.8em; /* Adjusted font size */
+        border-radius: 6px; /* Slightly less rounded on mobile */
+        width: calc(100% - 16px); /* Adjusted width for mobile padding */
     }
     .price {
         font-size: 1.2em; /* Adjusted font size */
@@ -1770,21 +1776,21 @@ main#product-list {
     }
     /* If NEW and SALE are on the same card (medium) */
     .card .badge.new + .badge.sale {
-        left: 75px; /* Adjusted for medium screens */
+        left: 68px; /* Adjusted to be closer: original 75px - 7px */
     }
     .badge.flash-sale { /* Adjusted for medium screens */
         top: 15px;
         left: 15px; /* Default position for single badge */
         font-size: 14px;
-        padding: 0; /* Parent padding handled by children */
+        padding: 8px 12px; /* Adjusted padding for the entire badge on medium */
     }
     /* If NEW and FLASH SALE are on the same card (medium) */
     .card .badge.new + .badge.flash-sale {
-        left: 75px; /* Adjusted for medium screens */
+        left: 68px; /* Adjusted to be closer: original 75px - 7px */
     }
     .badge.flash-sale .flash-sale-label {
-        padding-left: 12px;
-        padding-right: 5px;
+        margin-bottom: 6px; /* Adjusted margin for medium */
+        font-size: 1.05em; /* Adjusted font size */
     }
     .badge.flash-sale .flash-sale-label::before {
         width: 18px;
@@ -1792,9 +1798,11 @@ main#product-list {
         margin-right: 5px;
     }
     .badge.flash-sale .flash-sale-countdown {
-        font-size: 0.9em;
-        padding: 6px 10px;
+        font-size: 0.85em;
+        padding: 5px 9px;
         min-width: 65px;
+        border-radius: 7px; /* Slightly less rounded on medium */
+        width: calc(100% - 18px); /* Adjusted width for medium padding */
     }
 
     .modal-box {
@@ -1905,3 +1913,4 @@ main#product-list {
         max-width: 1000px; /* Adjusted max-width */
     }
 }
+
