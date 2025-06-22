@@ -240,6 +240,9 @@ main#product-list {
 /* If NEW and SALE are on the same card, position SALE next to NEW */
 .card .badge.new + .badge.sale {
     left: 88px; /* Adjusted to be closer: original 95px - 7px */
+    /* NEW: Make the left side of the SALE badge straight when it follows NEW */
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
 }
 
 
@@ -588,8 +591,6 @@ main#product-list {
     font-size: 0.95em;
     margin-top: 8px;
 }
-
-
 .cart-item-quantity-control {
     display: flex;
     align-items: center;
@@ -1097,7 +1098,6 @@ main#product-list {
     font-size: 1.15em;
     flex-shrink: 0;
 }
-
 /* Toggle Switch Container */
 .toggle-switch {
     position: relative;
@@ -1361,6 +1361,7 @@ main#product-list {
     .card img {
         width: 120px; /* Adjusted image size */
         height: 120px;
+        object-fit: contain;
         margin: 0 auto 15px; /* Adjusted margin */
     }
     .badge { /* Adjusted for mobile */
@@ -1375,7 +1376,10 @@ main#product-list {
     }
     /* If NEW and SALE are on the same card (mobile) */
     .card .badge.new + .badge.sale {
-        left: 53px; /* Adjusted to be closer: original 60px - 7px */
+        left: 55px; /* Adjusted for cleaner overlap */
+        /* NEW: Make the left side of the SALE badge straight */
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
     }
     .badge.flash-sale { /* Adjusted for mobile */
         min-width: 100px; /* Slightly reduced min-width to prevent overflow */
@@ -1568,7 +1572,6 @@ main#product-list {
         padding: 12px 18px;
         font-size: 1.05em;
     }
-
     /* Admin Panel Mobile Adjustments */
     #admin-panel-modal .modal-box {
         max-width: 95%;
@@ -1785,7 +1788,10 @@ main#product-list {
     }
     /* If NEW and SALE are on the same card (medium) */
     .card .badge.new + .badge.sale {
-        left: 68px; /* Adjusted to be closer: original 75px - 7px */
+        left: 70px; /* Adjusted for cleaner overlap */
+        /* NEW: Make the left side of the SALE badge straight */
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
     }
     .badge.flash-sale { /* Adjusted for medium screens */
         top: 15px;
