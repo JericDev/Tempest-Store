@@ -1378,7 +1378,7 @@ main#product-list {
     }
     .badge.sale {
         z-index: 9; /* Position "SALE" below "NEW" if overlapping */
-        left: 70px; /* Position "SALE" to the right of NEW */
+        left: 55px; /* Adjusted for closer positioning */
         right: auto; /* Reset right */
         top: 10px; /* Keep consistent top */
     }
