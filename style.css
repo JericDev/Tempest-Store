@@ -249,7 +249,7 @@ main#product-list {
     color: white; /* Text color for "Flash Sale" */
     top: 18px; /* Prioritized top-left position on the product card */
     left: 18px; /* Default position for single badge */
-    padding: 10px 15px; /* Padding for the entire badge */
+    padding: 8px 15px; /* Adjusted padding for the entire badge */
     border-radius: 12px;
     display: flex; /* Use flexbox to lay out inner elements */
     flex-direction: column; /* Stack label and countdown vertically */
@@ -259,7 +259,7 @@ main#product-list {
     z-index: 7; /* Keep as 7, lower than NEW's 10 but higher than default 5 */
     overflow: visible; /* Changed to visible to ensure content isn't hidden */
     min-width: 140px; /* Increased min-width for larger screens */
-    height: 65px; /* Explicit height to ensure space for both elements, increased */
+    height: 70px; /* Increased explicit height to ensure space for both elements */
     box-sizing: border-box; /* Include padding in height calculation */
 }
 
@@ -272,12 +272,14 @@ main#product-list {
 .badge.flash-sale .flash-sale-label {
     white-space: nowrap;
     padding: 0; /* Remove padding here, handled by parent */
-    display: flex;
-    align-items: center;
+    display: block; /* Ensure it takes up its own line */
+    align-items: center; /* Center the text and icon horizontally */
     justify-content: center; /* Center the text and icon horizontally */
     margin-bottom: 3px; /* Reduced margin-bottom to make space more compact */
-    font-size: 1.05em; /* Slightly increased font size for better visibility */
+    font-size: 1em; /* Adjusted font size for better visibility */
     font-weight: bold;
+    line-height: 1.2; /* Ensure consistent line spacing */
+    text-align: center; /* Center the text within the block */
 }
 
 .badge.flash-sale .flash-sale-label::before {
@@ -290,7 +292,7 @@ main#product-list {
     background-repeat: no-repeat;
     background-size: contain;
     background-position: center;
-    margin-right: 4px; /* Reduced margin between lightning bolt and text */
+    margin-right: 6px; /* Increased margin between lightning bolt and text */
     vertical-align: middle; /* Align with text */
     flex-shrink: 0; /* Prevent from shrinking */
 }
@@ -298,9 +300,9 @@ main#product-list {
 .badge.flash-sale .flash-sale-countdown {
     background-color: rgba(255, 255, 255, 0.2); /* Lighter red/transparent white for countdown area */
     color: white; /* Text color for countdown numbers */
-    padding: 4px 8px; /* Reduced padding for the countdown numbers */
+    padding: 5px 8px; /* Adjusted padding for the countdown numbers */
     border-radius: 8px; /* Fully rounded corners for the timer part */
-    font-size: 0.9em; /* Slightly increased font size for countdown */
+    font-size: 0.95em; /* Adjusted font size for countdown */
     font-weight: bold;
     white-space: nowrap;
     min-width: 60px; /* Reduced min-width slightly */
@@ -311,7 +313,7 @@ main#product-list {
     align-items: center;
     justify-content: center;
     box-sizing: border-box; /* Include padding and border in element's total width and height */
-    /* Removed margin-left: auto; as it's no longer pushing to right, now centered */
+    margin-top: auto; /* Push to the bottom within the flex container */
 }
 
 
