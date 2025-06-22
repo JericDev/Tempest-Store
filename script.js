@@ -2,9 +2,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"; // Added writeBatch
-// If you implement Cloud Functions, uncomment the next line and import getFunctions, httpsCallable
-// import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-functions.js";
-
 
 // Your web app's Firebase configuration
 // IMPORTANT: Ensure this configuration matches your Firebase project's config.
@@ -22,9 +19,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
-// If you implement Cloud Functions, initialize functions here:
-// const functions = getFunctions(app);
-
 
 let currentUserId = null; // To store the current authenticated user's ID
 let isAdmin = false; // Flag to check if the current user is an admin
@@ -44,7 +38,7 @@ let currentCategory = 'all'; // Initialize with 'all' category
 let unsubscribeUserOrders = null;
 let unsubscribeProducts = null;
 let unsubscribeSiteSettings = null; // New: Unsubscribe for site settings listener
-const flashSaleTimers = {}; // Object to store setInterval IDs for flash sale countdowns (Moved to const and top-level)
+let flashSaleTimers = {}; // Object to store setInterval IDs for flash sale countdowns
 
 // Reference to the admin panel initialization function from admin.js
 let initAdminPanelModule = null;
@@ -418,10 +412,7 @@ function setupSiteSettingsListener() {
         } else {
             console.log("No 'global' settings document found. Initializing with default status.");
             // If document doesn't exist, create it with default status
-            // This will fail if not admin, but the UI will default to offline anyway.
-            setDoc(settingsDocRef, { sellerOnline: false })
-                .then(() => console.log("Initialized global settings."))
-                .catch((e) => console.error("Error initializing global settings (might be a security rule preventing it for non-admin):", e));
+            setDoc(settingsDocRef, { sellerOnline: false });
             sellerIsOnline = false;
             updateSellerStatusDisplay();
         }
@@ -509,7 +500,7 @@ async function syncCartOnLogin(userId) {
         localCart.forEach(localItem => {
             const existingItemIndex = firestoreCart.findIndex(item => item.id === localItem.id);
             const productDetails = allProducts.find(p => p.id === localItem.id);
-
+            
             // Determine the current effective price for the product from allProducts
             let currentEffectivePrice = productDetails ? (
                 productDetails.flashSale && productDetails.flashSalePrice && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > new Date()
@@ -663,6 +654,8 @@ function updateCartCountBadge() {
         placeOrderBtn.title = "Cannot place order: Some items in your cart are out of stock.";
     } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
         placeOrderBtn.title = "Please enter your Roblox Username.";
+    } else if (totalItemsInCart === 0) {
+        placeOrderBtn.title = "Your cart is empty.";
     } else {
         placeOrderBtn.title = ""; // Clear tooltip
     }
@@ -670,7 +663,7 @@ function updateCartCountBadge() {
 
 function renderCart() {
     cartItemsContainer.innerHTML = '';
-
+    
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-message">Your cart is empty.</p>';
     } else {
@@ -906,7 +899,7 @@ placeOrderBtn.addEventListener('click', async () => {
 
         const productRef = doc(db, PRODUCTS_COLLECTION_PATH, item.id);
         const productSnap = await getDoc(productRef); // Get latest product data
-
+        
         if (!productSnap.exists()) {
             orderCanProceed = false;
             outOfStockProductNames.push(`${item.name} (Product Not Found)`);
@@ -960,7 +953,7 @@ placeOrderBtn.addEventListener('click', async () => {
             robloxUsername: robloxUsername
         };
 
-        console.log("Attempting to Place Order:", orderDetails);
+        console.log("Placing Order:", orderDetails);
 
         const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
         // Add to user-specific collection
@@ -983,12 +976,7 @@ placeOrderBtn.addEventListener('click', async () => {
 
     } catch (e) {
         console.error("Error placing order and deducting stock:", e);
-        // --- IMPROVED ERROR MESSAGE FOR PERMISSIONS ---
-        if (e.code === 'permission-denied' || (e.message && e.message.includes('Missing or insufficient permissions'))) {
-             showCustomAlert("Order failed: You do not have permission to complete this action. This often happens if stock updates or allOrders creation is restricted. Please contact support if the issue persists.");
-        } else {
-             showCustomAlert("There was an error placing your order or deducting stock. Please try again. Error: " + e.message);
-        }
+        showCustomAlert("There was an error placing your order or deducting stock. Please try again. Error: " + e.message);
     } finally {
         placeOrderBtn.disabled = false; // Re-enable button
     }
@@ -1076,10 +1064,10 @@ function showOrderDetails(order) {
         order.items.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'order-detail-item';
-            // const imageUrl = `images/${item.image}`; // Image might not be in order details
+            const imageUrl = `images/${item.image}`;
             itemDiv.innerHTML = `
                 <span class="order-detail-item-name">${item.name}</span>
-                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ₱${(item.effectivePrice || item.price).toFixed(2)}</span>
+                <span class="order-detail-item-qty-price">Qty: ${item.quantity} - ${item.effectivePrice || item.price}</span>
             `;
             detailItemsList.appendChild(itemDiv);
         });
@@ -1088,9 +1076,8 @@ function showOrderDetails(order) {
     }
 }
 
-
 // --- Product Display Functions (Main Store Page) ---
-const productListElement = document.getElementById("product-list");
+const productListElement = document.getElementById("product-list"); // Rename for clarity
 
 // Function to format time for countdown (HH:MM:SS)
 function formatTime(seconds) {
@@ -1110,9 +1097,11 @@ function startFlashSaleTimer(product) {
     const flashSaleBadge = cardElement.querySelector('.badge.flash-sale');
     const priceElement = cardElement.querySelector('.price');
     const addToCartBtn = cardElement.querySelector('.add-to-cart-btn');
-    const flashSaleLabel = cardElement.querySelector('.flash-sale-label');
 
-    if (!countdownSpan || !flashSaleBadge || !priceElement || !addToCartBtn || !flashSaleLabel) return;
+    // Add this line to get a reference to the flash sale label
+    const flashSaleLabel = cardElement.querySelector('.flash-sale-label'); // New: Get reference to the label span
+
+    if (!countdownSpan || !flashSaleBadge || !priceElement || !addToCartBtn || !flashSaleLabel) return; // Added flashSaleLabel to check
 
     // Clear any existing timer for this product
     if (flashSaleTimers[product.id]) {
@@ -1132,48 +1121,41 @@ function startFlashSaleTimer(product) {
             // Update price display if not already updated
             if (!priceElement.classList.contains('flash-sale-active')) {
                 priceElement.innerHTML = `
-                    <span class="original-price-strikethrough">₱${parseFloat(product.price).toFixed(2)}</span>
-                    <span class="flash-sale-price">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span>
+                    <span class="original-price-strikethrough">${product.price}</span>
+                    <span class="flash-sale-price">${product.flashSalePrice}</span>
                 `;
                 priceElement.classList.add('flash-sale-active');
             }
             // Ensure effectivePrice in memory is correctly set for cart additions
-            product.effectivePrice = parseFloat(product.flashSalePrice);
+            product.effectivePrice = product.flashSalePrice;
 
         } else {
             // Flash sale ended
             clearInterval(flashSaleTimers[product.id]);
             delete flashSaleTimers[product.id];
+            flashSaleBadge.style.display = 'none'; // Hide badge
+            flashSaleLabel.style.display = 'none'; // Hide label
 
-            console.log(`Flash sale for ${product.name} has ended.`);
-
-            // --- NEW LOGIC TO REVERT PRICE AND UPDATE PRODUCT LIST IMMEDIATELY ---
-            // 1. Find the product in the global allProducts array
-            const productInAllProducts = allProducts.find(p => p.id === product.id);
-            if (productInAllProducts) {
-                // 2. Update its properties to reflect the end of the flash sale
-                productInAllProducts.flashSale = false;
-                // It's good practice to clear these if they're no longer active
-                productInAllProducts.flashSalePrice = null;
-                productInAllProducts.flashSaleEndTime = null;
-
-                // 3. Re-determine its effective price based on current status (sale or normal)
-                if (productInAllProducts.sale && productInAllProducts.salePrice) {
-                    productInAllProducts.effectivePrice = parseFloat(productInAllProducts.salePrice);
-                } else {
-                    productInAllProducts.effectivePrice = parseFloat(productInAllProducts.price);
-                }
+            // Revert price to original or regular sale price
+            if (product.sale && product.salePrice) {
+                priceElement.textContent = product.salePrice;
+                priceElement.classList.remove('flash-sale-active');
+                product.effectivePrice = product.salePrice;
+            } else {
+                priceElement.textContent = product.price;
+                priceElement.classList.remove('flash-sale-active');
+                product.effectivePrice = product.price;
             }
-
-            // 4. Trigger a full re-render of the product list.
-            // This will ensure the product card's display is updated correctly (badges, price)
-            // and its 'Add to Cart' button re-evaluated if stock allows.
-            applyFilters(); // applyFilters calls renderProducts internally
-
+            
+            // Re-enable add to cart if not out of stock otherwise
+            if (product.stock > 0) {
+                addToCartBtn.disabled = false;
+                addToCartBtn.textContent = 'Add to Cart';
+            }
+            console.log(`Flash sale for ${product.name} has ended.`);
             // This ensures that any item in the cart that was on flash sale
             // will have its price correctly updated to the normal/sale price.
-            renderCart();
-            // --- END NEW LOGIC ---
+            renderCart(); 
         }
     };
 
@@ -1214,35 +1196,35 @@ function renderProducts(items) {
 
         const now = new Date();
         const isFlashSaleActive = product.flashSale && product.flashSalePrice && product.flashSaleEndTime && new Date(product.flashSaleEndTime) > now;
-
+        
         let displayPriceHtml = '';
         let currentEffectivePrice; // Price to be used for cart calculations
 
-        // Re-evaluate current effective price for display and for storing on product object
         if (isFlashSaleActive) {
-            displayPriceHtml = `<span class="original-price-strikethrough">₱${parseFloat(product.price).toFixed(2)}</span> <span class="price flash-sale-active">₱${parseFloat(product.flashSalePrice).toFixed(2)}</span>`;
-            currentEffectivePrice = parseFloat(product.flashSalePrice);
+            displayPriceHtml = `<span class="original-price-strikethrough">${product.price}</span> <span class="price flash-sale-active">${product.flashSalePrice}</span>`;
+            currentEffectivePrice = product.flashSalePrice;
         } else if (product.sale && product.salePrice) {
-            displayPriceHtml = `<span class="original-price-strikethrough">₱${parseFloat(product.price).toFixed(2)}</span> <span class="price">₱${parseFloat(product.salePrice).toFixed(2)}</span>`;
-            currentEffectivePrice = parseFloat(product.salePrice);
+            displayPriceHtml = `<span class="original-price-strikethrough">${product.price}</span> <span class="price">${product.salePrice}</span>`;
+            currentEffectivePrice = product.salePrice;
         } else {
-            displayPriceHtml = `<span class="price">₱${parseFloat(product.price).toFixed(2)}</span>`;
-            currentEffectivePrice = parseFloat(product.price);
+            displayPriceHtml = `<span class="price">${product.price}</span>`;
+            currentEffectivePrice = product.price;
         }
 
         // Store the determined effective price on the product object for cart functions
         product.effectivePrice = currentEffectivePrice;
 
         const imageUrl = `images/${product.image}`;
-
+        
         // Construct badge HTML dynamically based on priority
         let badgeHtml = '';
         const badgesToDisplay = [];
 
         if (isFlashSaleActive) {
+            // Added the 'flash-sale-label' span which your CSS uses for the text
             badgesToDisplay.push(`
                 <div class="badge flash-sale">
-                    <span class="flash-sale-label">FLASH SALE!</span>
+                    <span class="flash-sale-label">FLASH SALE!</span> 
                     <span class="flash-sale-countdown"></span>
                 </div>
             `);
@@ -1254,7 +1236,12 @@ function renderProducts(items) {
                 badgesToDisplay.push('<span class="badge sale">SALE</span>');
             }
         }
-
+        
+        // Position badges based on their order of appearance if multiple
+        // This is a simplified approach; for complex overlapping, specific CSS might be better.
+        // For now, if flash sale is active, it's the only one at top-left.
+        // If not flash sale, NEW and SALE can be positioned relative to each other.
+        // This relies on the CSS to handle the .badge.sale { left: 60px; } for adjacent NEW.
         badgeHtml = badgesToDisplay.join('');
 
         card.innerHTML = `
