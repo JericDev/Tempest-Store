@@ -27,7 +27,7 @@ let currentUserId = null; // To store the current authenticated user's ID
 let isAdmin = false; // Flag to check if the current user is an admin
 // IMPORTANT: Replace "YOUR_ACTUAL_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
-const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Placeholder for Admin UID
+const ADMIN_UID = "YOUR_ACTUAL_ADMIN_UID_HERE"; // Placeholder for Admin UID
 
 let cart = []; // Global cart array
 let userOrders = []; // Global array to store user's orders (for user history)
@@ -824,7 +824,7 @@ cartIconBtn.addEventListener('click', () => {
     if (cartRefreshInterval) { // Clear any existing interval just in case
         clearInterval(cartRefreshInterval);
     }
-    cartRefreshInterval = setInterval(renderCart, 5000); // Refresh cart every 5 seconds
+    cartRefreshInterval = setInterval(renderCart, 1000); // Refresh cart every 1 second (was 5000ms)
 });
 
 closeCartModalBtn.addEventListener('click', () => {
@@ -971,7 +971,7 @@ placeOrderBtn.addEventListener('click', async () => {
 
         const userOrdersColRef = collection(db, USER_ORDERS_COLLECTION_PATH(currentUserId));
         // Add to user-specific collection
-        const newUserOrderRef = doc(userOrdersColRef); // Create a new document reference with an auto-generated ID
+        const newUserOrderRef = doc(userOrdersColRef); // Create a new document reference with an-generated ID
         batch.set(newUserOrderRef, orderDetails); // Use set for new document
 
         const allOrdersColRef = collection(db, ALL_ORDERS_COLLECTION_PATH);
