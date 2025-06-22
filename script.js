@@ -500,7 +500,7 @@ async function syncCartOnLogin(userId) {
             
             // Determine the current effective price for the product from allProducts
             let currentEffectivePrice = productDetails ? (
-                productDetails.flashSale && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > new Date()
+                productDetails.flashSale && productDetails.flashSalePrice && productDetails.flashSaleEndTime && new Date(productDetails.flashSaleEndTime) > new Date()
                 ? productDetails.flashSalePrice :
                 (productDetails.sale && productDetails.salePrice ? productDetails.salePrice : productDetails.price)
             ) : localItem.effectivePrice || localItem.price; // Fallback to item's price if productDetails not found
@@ -1080,7 +1080,10 @@ function startFlashSaleTimer(product) {
     const priceElement = cardElement.querySelector('.price');
     const addToCartBtn = cardElement.querySelector('.add-to-cart-btn');
 
-    if (!countdownSpan || !flashSaleBadge || !priceElement || !addToCartBtn) return;
+    // Add this line to get a reference to the flash sale label
+    const flashSaleLabel = cardElement.querySelector('.flash-sale-label'); // New: Get reference to the label span
+
+    if (!countdownSpan || !flashSaleBadge || !priceElement || !addToCartBtn || !flashSaleLabel) return; // Added flashSaleLabel to check
 
     // Clear any existing timer for this product
     if (flashSaleTimers[product.id]) {
@@ -1095,6 +1098,7 @@ function startFlashSaleTimer(product) {
         if (timeLeft > 0) {
             countdownSpan.textContent = formatTime(timeLeft);
             flashSaleBadge.style.display = 'flex'; // Ensure badge is visible
+            flashSaleLabel.style.display = 'block'; // Ensure label is visible
 
             // Update price display if not already updated
             if (!priceElement.classList.contains('flash-sale-active')) {
@@ -1112,6 +1116,7 @@ function startFlashSaleTimer(product) {
             clearInterval(flashSaleTimers[product.id]);
             delete flashSaleTimers[product.id];
             flashSaleBadge.style.display = 'none'; // Hide badge
+            flashSaleLabel.style.display = 'none'; // Hide label
 
             // Revert price to original or regular sale price
             if (product.sale && product.salePrice) {
@@ -1130,8 +1135,10 @@ function startFlashSaleTimer(product) {
                 addToCartBtn.textContent = 'Add to Cart';
             }
             console.log(`Flash sale for ${product.name} has ended.`);
-            // Trigger a re-render of products to ensure all products are updated
-            // applyFilters(); // This might cause too many re-renders, better to update specific card or re-filter
+            // *** IMPORTANT FIX: Call renderCart() when a flash sale ends ***
+            // This ensures that any item in the cart that was on flash sale
+            // will have its price correctly updated to the normal/sale price.
+            renderCart(); 
         }
     };
 
@@ -1197,7 +1204,7 @@ function renderProducts(items) {
         const badgesToDisplay = [];
 
         if (isFlashSaleActive) {
-            // *** IMPORTANT CHANGE HERE: Added the 'flash-sale-label' span ***
+            // Added the 'flash-sale-label' span which your CSS uses for the text
             badgesToDisplay.push(`
                 <div class="badge flash-sale">
                     <span class="flash-sale-label">FLASH SALE!</span> 
