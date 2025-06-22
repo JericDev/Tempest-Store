@@ -980,7 +980,7 @@ placeOrderBtn.addEventListener('click', async () => {
 
         await batch.commit(); // Commit all batch operations atomically
 
-        showCustomAlert("Successfully Placed Order! Your stock has been deducted.");
+        showCustomAlert("Successfully Placed Order!");
         console.log("Order saved to Firestore and stock deducted!");
 
         cart = []; // Clear cart after successful order
