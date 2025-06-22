@@ -20,12 +20,6 @@
             <button id="logout-button" style="display: none;">Logout</button>
             <button id="my-orders-button" style="display: none;">My Orders</button>
             <button id="admin-panel-button" style="display: none;">Admin Panel</button>
-            
-            <!-- Messages button -->
-            <button id="messages-button" style="display: none;">
-                <i class="fas fa-comments"></i> Messages <span id="unread-messages-badge" class="cart-count-badge" style="display: none;">0</span>
-            </button>
-
             <div class="cart-icon-container" id="cart-icon-btn">
                 🛒 <span class="cart-count-badge" id="cart-count">0</span>
             </div>
@@ -37,7 +31,7 @@
         <div class="seller-status-container">
             <span id="seller-status-display" class="status-offline">Seller Status: Offline</span>
         </div>
-        <!-- Wrapper for Facebook and Discord to keep them side-by-side -->
+        <!-- NEW: Wrapper for Facebook and Discord to keep them side-by-side -->
         <div class="social-links-group">
             <a href="https://www.facebook.com/jerictt" target="_blank">Facebook</a>
             <a href="https://discord.com/users/938483476670337195" target="_blank">Discord</a>
@@ -47,7 +41,7 @@
     <!-- Login/Register Modal -->
     <div class="modal" id="auth-modal">
         <div class="modal-box">
-            <button class="modal-close-btn" data-close-modal="auth-modal">&times;</button>
+            <button class="modal-close-btn" id="close-auth-modal">&times;</button>
             <h3>Register or Login</h3>
             <input type="email" id="auth-email" placeholder="Email" />
             <input type="password" id="auth-password" placeholder="Password" />
@@ -59,11 +53,11 @@
     </div>
 
     <div class="filters">
-        <button data-category="all" class="filter-btn active">All</button>
-        <button data-category="pets" class="filter-btn">Pets</button>
-        <button data-category="gears" class="filter-btn">Gears</button>
-        <button data-category="sheckles" class="filter-btn">Sheckles</button>
-        <input type="text" id="search-bar" placeholder="Search..." />
+        <button data-cat="all" class="active">All</button>
+        <button data-cat="pets">Pets</button>
+        <button data-cat="gears">Gears</button>
+        <button data-cat="sheckles">Sheckles</button>
+        <input type="text" id="searchBox" placeholder="Search..." />
     </div>
 
     <main id="product-list">
@@ -73,34 +67,33 @@
     <!-- Cart/Checkout Modal -->
     <div class="modal" id="cart-modal">
         <div class="modal-box">
-            <button class="modal-close-btn" data-close-modal="cart-modal">&times;</button>
+            <button class="modal-close-btn" id="close-cart-modal">&times;</button>
             <h2>Your Cart</h2>
             <div id="cart-items-container">
                 <!-- Cart items will be rendered here by JavaScript -->
-                <!-- <p class="empty-message">Your cart is empty.</p> This will be added by JS -->
+                <p class="empty-message">Your cart is empty.</p>
             </div>
 
             <div class="cart-summary">
-                <div><span>Subtotal:</span> ₱<span id="cart-subtotal">0.00</span></div>
-                <div><span>Tax (10%):</span> ₱<span id="cart-tax">0.00</span></div>
-                <div class="total"><span>Total:</span> ₱<span id="cart-total">0.00</span></div>
+                <div><span>Subtotal:</span> <span id="cart-subtotal">₱0.00</span></div>
+                <div class="total"><span>Total:</span> <span id="cart-total">₱0.00</span></div>
             </div>
 
             <div class="payment-methods">
                 <h3>Payment Method</h3>
                 <label class="payment-option">
                     <input type="radio" name="payment-method" value="GCash" checked>
-                    <img src="https://placehold.co/30x30/e9ecef/495057?text=GC" alt="GCash" style="width: 30px; height: 30px; margin-left: 10px;">
+                    <img src="images/gcash.png" alt="GCash" style="width: 30px; height: 30px; margin-left: 10px;">
                     <span>GCash</span>
                 </label>
                 <label class="payment-option">
                     <input type="radio" name="payment-method" value="Maya">
-                    <img src="https://placehold.co/30x30/e9ecef/495057?text=MY" alt="Maya" style="width: 30px; height: 30px; margin-left: 10px;">
+                    <img src="images/maya.png" alt="Maya" style="width: 30px; height: 30px; margin-left: 10px;">
                     <span>Maya</span>
                 </label>
                 <label class="payment-option">
                     <input type="radio" name="payment-method" value="Paypal">
-                    <img src="https://placehold.co/30x30/e9ecef/495057?text=PP" alt="Paypal" style="width: 30px; height: 30px; margin-left: 10px;">
+                    <img src="images/paypal.png" alt="Paypal" style="width: 30px; height: 30px; margin-left: 10px;">
                     <span>Paypal</span>
                 </label>
             </div>
@@ -109,11 +102,11 @@
             <div class="payment-preview" style="text-align: center; margin-top: 10px;">
                 <img
                     id="payment-preview-img"
-                    src="https://placehold.co/200x200/e9ecef/495057?text=Payment"
+                    src="images/gcash.png"
                     alt="Payment Preview"
                     style="max-width: 200px; border-radius: 10px;"
                 />
-                <!-- Payment contact details and copy button -->
+                <!-- NEW: Payment contact details and copy button -->
                 <div style="margin-top: 15px; font-size: 1.1em; color: #333;">
                     <p style="margin: 5px 0;">JE..C.L</p>
                     <p style="margin: 5px 0; font-weight: bold;">
@@ -123,8 +116,8 @@
                 </div>
             </div>
 
-            <!-- Roblox Username Input -->
-            <input type="text" id="roblox-username" class="roblox-username-input" placeholder="Enter Roblox Username (Required)" />
+            <!-- New Roblox Username Input -->
+            <input type="text" id="roblox-username-input" class="roblox-username-input" placeholder="Enter Roblox Username (Required)" style="display: none;" />
 
             <button class="place-order-btn" id="place-order-btn">Place Order (0 items) ₱0.00</button>
         </div>
@@ -133,30 +126,32 @@
     <!-- Order History Modal -->
     <div class="modal" id="order-history-modal">
         <div class="modal-box">
-            <button class="modal-close-btn" data-close-modal="order-history-modal">&times;</button>
+            <button class="modal-close-btn" id="close-order-history-modal">&times;</button>
             <div id="order-history-content">
                 <h2 id="order-history-title">My Orders</h2>
                 <div id="order-history-list">
                     <!-- Order items will be rendered here -->
-                    <!-- <p class="empty-message">No orders found.</p> This will be added by JS -->
+                    <p class="empty-message">No orders found.</p>
                 </div>
 
                 <!-- Order Details View (Initially hidden) -->
-                <div id="order-details-view" style="display: none;">
+                <div id="order-details-view">
                     <h3>Order Details</h3>
                     <div id="order-details-info">
-                        <p><strong>Order ID:</strong> <span id="order-details-id"></span></p>
-                        <p><strong>Date:</strong> <span id="order-details-date"></span></p>
-                        <p><strong>Status:</strong> <span id="order-details-status"></span></p>
-                        <p><strong>Total Price:</strong> ₱<span id="order-details-total"></span></p>
-                        <p><strong>Payment Method:</strong> <span id="order-details-payment"></span></p>
-                        <p><strong>Roblox Username:</strong> <span id="order-details-roblox-username"></span></p>
+                        <p><strong>Order ID:</strong> <span id="detail-order-id"></span></p>
+                        <p><strong>Date:</strong> <span id="detail-order-date"></span></p>
+                        <p><strong>Status:</strong> <span id="detail-order-status"></span></p>
+                        <p><strong>Total Price:</strong> <span id="detail-order-price"></span></p>
+                        <p><strong>Payment Method:</strong> <span id="detail-payment-method"></span></p>
+                        <p><strong>Roblox Username:</strong> <span id="detail-roblox-username"></span></p>
                     </div>
                     <div id="order-details-items">
                         <h4>Items:</h4>
-                        <!-- Detailed ordered items will be rendered here -->
+                        <div id="detail-items-list">
+                            <!-- Detailed ordered items will be rendered here -->
+                        </div>
                     </div>
-                    <button class="back-to-orders-btn" id="back-to-orders-btn">Back to Orders</button>
+                    <button class="back-to-orders-btn" id="back-to-order-list">Back to Orders</button>
                 </div>
             </div>
         </div>
@@ -165,24 +160,22 @@
     <!-- Admin Panel Modal -->
     <div class="modal" id="admin-panel-modal">
         <div class="modal-box">
-            <button class="modal-close-btn" data-close-modal="admin-panel-modal">&times;</button>
+            <button class="modal-close-btn" id="close-admin-panel-modal">&times;</button>
             <h2>Admin Panel</h2>
 
             <div class="admin-tabs">
                 <button class="admin-tab-btn active" data-tab="products">Product Management</button>
                 <button class="admin-tab-btn" data-tab="orders">Order Management</button>
-                <!-- Admin Tab for Store Settings -->
+                <!-- New Admin Tab for Store Settings - Updated Here -->
                 <button class="admin-tab-btn" data-tab="settings">Store Settings</button>
             </div>
 
-            <div id="admin-products" class="admin-tab-content">
+            <div id="admin-product-management" class="admin-tab-content">
                 <div id="product-form-container">
                     <h3><span id="product-form-title">Add New Product</span></h3>
-                    <input type="hidden" id="product-id" /> <!-- Corrected ID from product-id-input -->
+                    <input type="hidden" id="product-id-input" />
                     <label for="product-name">Name:</label>
                     <input type="text" id="product-name" placeholder="Product Name" required />
-                    <label for="product-description">Description:</label> <!-- Added missing description input -->
-                    <textarea id="product-description" placeholder="Product Description" rows="3"></textarea>
                     <label for="product-category">Category:</label>
                     <select id="product-category">
                         <option value="pets">Pets</option>
@@ -191,10 +184,12 @@
                     </select>
                     <label for="product-price">Price (₱):</label>
                     <input type="number" id="product-price" placeholder="e.g., 100" min="0" required />
-                    
+                    <!-- New Sale Price input -->
+                    <label for="product-sale-price">Sale Price (₱):</label>
+                    <input type="number" id="product-sale-price" placeholder="e.g., 80 (optional)" min="0" />
                     <label for="product-stock">Stock:</label>
                     <input type="number" id="product-stock" placeholder="e.g., 100" min="0" required />
-                    <label for="product-image">Product Image Filename (e.g., queenbee.png):</label> <!-- Added missing image input -->
+                    <label for="product-image">Product Image Filename:</label>
                     <input type="text" id="product-image" placeholder="e.g., queenbee.png" />
                     <div class="checkbox-group">
                         <input type="checkbox" id="product-new" />
@@ -204,19 +199,16 @@
                         <input type="checkbox" id="product-sale" />
                         <label for="product-sale">On Sale</label>
                     </div>
-                    <!-- Flash Sale Checkbox and Inputs -->
+                    <!-- NEW: Flash Sale Checkbox and Inputs -->
                     <div class="checkbox-group">
                         <input type="checkbox" id="product-flash-sale" />
                         <label for="product-flash-sale">On Flash Sale</label>
                     </div>
-                    <!-- Wrapped flash sale details in a div for easier show/hide with JS -->
-                    <div class="flash-sale-details" style="display: none;">
-                        <label for="product-flash-sale-price">Flash Sale Price (₱):</label>
-                        <input type="number" id="product-flash-sale-price" placeholder="e.g., 50" min="0" /> <!-- Removed disabled -->
-                        <label for="product-flash-sale-end-time">Flash Sale End Time:</label>
-                        <!-- Use datetime-local for easy date/time input -->
-                        <input type="datetime-local" id="product-flash-sale-end-time" /> <!-- Removed disabled -->
-                    </div>
+                    <label for="product-flash-sale-price">Flash Sale Price (₱):</label>
+                    <input type="number" id="product-flash-sale-price" placeholder="e.g., 50" min="0" disabled />
+                    <label for="product-flash-sale-end-time">Flash Sale End Time:</label>
+                    <!-- Use datetime-local for easy date/time input -->
+                    <input type="datetime-local" id="product-flash-sale-end-time" disabled />
 
                     <button id="save-product-btn">Add Product</button>
                     <button id="cancel-edit-product" style="display: none;">Cancel Edit</button>
@@ -232,17 +224,18 @@
                             <th>Price</th>
                             <th>Stock</th>
                             <th>Status</th>
+                            <th>Flash Sale End</th> <!-- New column -->
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="admin-product-list"> <!-- Corrected ID from admin-products-list -->
+                    <tbody id="admin-products-list">
                         <!-- Products will be rendered here -->
-                        <!-- <tr><td colspan="7" class="empty-message">No products found.</td></tr> This will be added by JS -->
+                        <tr><td colspan="8" class="empty-message">No products found.</td></tr> <!-- Adjusted colspan -->
                     </tbody>
                 </table>
             </div>
 
-            <div id="admin-orders" class="admin-tab-content" style="display: none;">
+            <div id="admin-order-management" class="admin-tab-content" style="display: none;">
                 <h3>All Orders</h3>
                 <table class="admin-order-table">
                     <thead>
@@ -255,44 +248,46 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="admin-order-list">
+                    <tbody id="admin-orders-list">
                         <!-- Orders will be rendered here -->
-                        <!-- <tr><td colspan="6" class="empty-message">No orders found.</td></tr> This will be added by JS -->
+                        <tr><td colspan="6" class="empty-message">No orders found.</td></tr>
                     </tbody>
                 </table>
 
                 <!-- Admin Order Details View (Initially hidden) -->
-                <div id="admin-order-details-view" style="display: none;">
+                <div id="admin-order-details-view">
                     <h3>Order Details</h3>
                     <div id="admin-order-details-info">
-                        <p><strong>Order ID:</strong> <span id="admin-order-details-id"></span></p>
-                        <p><strong>User ID:</strong> <span id="admin-order-customer-id"></span></p>
-                        <p><strong>Roblox Username:</strong> <span id="admin-order-roblox-username"></span></p>
-                        <p><strong>Date:</strong> <span id="admin-order-details-date"></span></p>
-                        <p><strong>Total Price:</strong> ₱<span id="admin-order-details-total"></span></p>
-                        <p><strong>Payment Method:</strong> <span id="admin-order-details-payment"></span></p>
-                        <p><strong>Current Status:</strong> <span id="admin-order-status-display"></span></p>
+                        <p><strong>Order ID:</strong> <span id="admin-detail-order-id"></span></p>
+                        <p><strong>User ID:</strong> <span id="admin-detail-user-id"></span></p>
+                        <p><strong>Roblox Username:</strong> <span id="admin-detail-roblox-username"></span></p>
+                        <p><strong>Date:</strong> <span id="admin-detail-order-date"></span></p>
+                        <p><strong>Total Price:</strong> <span id="admin-detail-order-price"></span></p>
+                        <p><strong>Payment Method:</strong> <span id="admin-detail-payment-method"></span></p>
+                        <p><strong>Current Status:</strong> <span id="admin-detail-order-status"></span></p>
                     </div>
                     <div id="admin-order-details-items">
                         <h4>Items:</h4>
-                        <!-- Detailed ordered items will be rendered here -->
+                        <div id="admin-detail-items-list">
+                            <!-- Detailed ordered items will be rendered here -->
+                        </div>
                     </div>
                     <div class="order-status-update-section">
-                        <label for="admin-order-status-select">Change Status:</label>
-                        <select id="admin-order-status-select">
-                            <option value="pending">Pending</option>
-                            <option value="in-process">In Process</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="rejected">Rejected</option>
+                        <label for="order-status-select">Change Status:</label>
+                        <select id="order-status-select">
+                            <option value="Pending">Pending</option>
+                            <option value="In Process">In Process</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Rejected">Rejected</option>
                         </select>
                         <button id="update-order-status-btn">Update Order Status</button>
                     </div>
-                    <button class="admin-back-to-orders-btn" id="admin-back-to-orders-btn">Back to All Orders</button>
+                    <button class="admin-back-to-orders-btn" id="admin-back-to-order-list">Back to All Orders</button>
                 </div>
             </div>
 
-            <!-- Admin Tab Content for Store Settings -->
-            <div id="admin-settings" class="admin-tab-content" style="display: none;">
+            <!-- New Admin Tab Content for Store Settings - Updated Here -->
+            <div id="admin-site-settings" class="admin-tab-content" style="display: none;">
                 <h3>Store Settings</h3>
                 <div class="settings-group">
                     <label for="seller-online-toggle">Seller Status:</label>
@@ -310,7 +305,7 @@
     <!-- Custom Alert Modal -->
     <div id="custom-alert-modal" class="custom-modal">
         <div class="custom-modal-content">
-            <button class="custom-modal-close-btn" data-close-modal="custom-alert-modal">&times;</button>
+            <button class="custom-modal-close-btn">&times;</button>
             <p id="custom-alert-message"></p>
             <div class="custom-modal-buttons">
                 <button class="custom-modal-ok-btn">OK</button>
@@ -321,46 +316,11 @@
     <!-- Custom Confirm Modal -->
     <div id="custom-confirm-modal" class="custom-modal">
         <div class="custom-modal-content">
-            <button class="custom-modal-close-btn" data-close-modal="custom-confirm-modal">&times;</button>
+            <button class="custom-modal-close-btn">&times;</button>
             <p id="custom-confirm-message"></p>
             <div class="custom-modal-buttons">
                 <button class="custom-modal-confirm-btn">Confirm</button>
                 <button class="custom-modal-cancel-btn">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Chat Modal -->
-    <div id="chat-modal" class="modal">
-        <div class="modal-box">
-            <button class="modal-close-btn" data-close-modal="chat-modal">&times;</button>
-            <div class="chat-main-view">
-                <div class="chat-list-sidebar" id="chat-list-sidebar">
-                    <h2>Messages</h2>
-                    <ul id="chat-conversations-list">
-                        <!-- Chat conversations will be loaded here -->
-                    </ul>
-                </div>
-                <div class="chat-conversation-view" id="chat-conversation-view">
-                    <div class="chat-header">
-                        <i class="fas fa-arrow-left back-to-chats-btn" style="display: none;"></i>
-                        <img id="chat-contact-avatar" src="https://placehold.co/40x40/cccccc/333333?text=?" alt="User Avatar" class="chat-contact-avatar">
-                        <h3 id="chat-contact-name">Select a Chat</h3>
-                        <div class="chat-header-actions">
-                             <span id="chat-seller-status" class="chat-seller-status"></span>
-                            <button class="chat-header-btn" id="send-product-btn" style="display:none;"><i class="fas fa-box"></i> Send Product</button>
-                            <button class="chat-header-btn" id="visit-store-btn" style="display:none;"><i class="fas fa-store"></i> Visit Store</button>
-                        </div>
-                    </div>
-                    <div class="chat-messages-container" id="chat-messages-container">
-                        <!-- Chat messages will be loaded here -->
-                    </div>
-                    <div class="chat-input-area">
-                        <input type="text" id="chat-message-input" placeholder="Send message...">
-                        <button id="send-chat-message-btn"><i class="fas fa-paper-plane"></i></button>
-                    </div>
-                    <div id="chat-message"></div>
-                </div>
             </div>
         </div>
     </div>
