@@ -663,8 +663,6 @@ function updateCartCountBadge() {
         placeOrderBtn.title = "Cannot place order: Some items in your cart are out of stock.";
     } else if (robloxUsernameInput.value.trim() === '' && currentUserId) {
         placeOrderBtn.title = "Please enter your Roblox Username.";
-    } else if (totalItemsInCart === 0) {
-        placeOrderBtn.title = "Your cart is empty.";
     } else {
         placeOrderBtn.title = ""; // Clear tooltip
     }
