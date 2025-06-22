@@ -6,6 +6,10 @@
     <title>Tempest Store</title>
     <!-- Link to external stylesheet -->
     <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
@@ -48,17 +52,17 @@
         </div>
     </div>
 
-        <div class="filters">
-            <!-- Removed onclick attributes here, listeners will be added in script.js -->
-            <button data-cat="all" class="active">All</button>
-            <button data-cat="pets">Pets</button>
-            <button data-cat="gears">Gears</button>
-            <button data-cat="sheckles">Sheckles</button>
-            <!-- Removed oninput attribute here, listener will be added in script.js -->
-            <input type="text" id="searchBox" placeholder="Search..." />
-       </div>
+    <div class="filters">
+        <button data-cat="all" class="active">All</button>
+        <button data-cat="pets">Pets</button>
+        <button data-cat="gears">Gears</button>
+        <button data-cat="sheckles">Sheckles</button>
+        <input type="text" id="searchBox" placeholder="Search..." />
+    </div>
 
-    <main id="product-list"></main>
+    <main id="product-list">
+        <!-- Product cards will be loaded here by JavaScript -->
+    </main>
 
     <!-- Cart/Checkout Modal -->
     <div class="modal" id="cart-modal">
@@ -76,48 +80,46 @@
             </div>
 
             <div class="payment-methods">
-    <h3>Payment Method</h3>
-    <label class="payment-option">
-        <input type="radio" name="payment-method" value="GCash" checked>
-        <img src="images/gcash.png" alt="GCash" style="width: 30px; height: 30px; margin-left: 10px;">
-        <span>GCash</span>
-    </label>
-    <label class="payment-option">
-        <input type="radio" name="payment-method" value="Maya">
-        <img src="images/maya.png" alt="Maya" style="width: 30px; height: 30px; margin-left: 10px;">
-        <span>Maya</span>
-    </label>
-    <label class="payment-option">
-        <input type="radio" name="payment-method" value="Paypal">
-        <img src="images/paypal.png" alt="Paypal" style="width: 30px; height: 30px; margin-left: 10px;">
-        <span>Paypal</span>
-    </label>
-</div>
+                <h3>Payment Method</h3>
+                <label class="payment-option">
+                    <input type="radio" name="payment-method" value="GCash" checked>
+                    <img src="images/gcash.png" alt="GCash" style="width: 30px; height: 30px; margin-left: 10px;">
+                    <span>GCash</span>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="payment-method" value="Maya">
+                    <img src="images/maya.png" alt="Maya" style="width: 30px; height: 30px; margin-left: 10px;">
+                    <span>Maya</span>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="payment-method" value="Paypal">
+                    <img src="images/paypal.png" alt="Paypal" style="width: 30px; height: 30px; margin-left: 10px;">
+                    <span>Paypal</span>
+                </label>
+            </div>
 
             <!-- Payment Preview Image -->
             <div class="payment-preview" style="text-align: center; margin-top: 10px;">
-                    <img
+                <img
                     id="payment-preview-img"
                     src="images/gcash.png"
                     alt="Payment Preview"
                     style="max-width: 200px; border-radius: 10px;"
-                    />
-                    <!-- NEW: Payment contact details and copy button -->
-                    <div style="margin-top: 15px; font-size: 1.1em; color: #333;">
-                        <p style="margin: 5px 0;">JE..C.L</p>
-                        <p style="margin: 5px 0; font-weight: bold;">
-                            <span id="payment-contact-number">09947455450</span>
-                            <button id="copy-contact-number-btn" class="add-to-cart-btn" style="padding: 6px 12px; font-size: 0.9em; margin-left: 10px; width: auto;">Copy</button>
-                        </p>
-                    </div>
+                />
+                <!-- NEW: Payment contact details and copy button -->
+                <div style="margin-top: 15px; font-size: 1.1em; color: #333;">
+                    <p style="margin: 5px 0;">JE..C.L</p>
+                    <p style="margin: 5px 0; font-weight: bold;">
+                        <span id="payment-contact-number">09947455450</span>
+                        <button id="copy-contact-number-btn" class="add-to-cart-btn" style="padding: 6px 12px; font-size: 0.9em; margin-left: 10px; width: auto;">Copy</button>
+                    </p>
+                </div>
             </div>
-
 
             <!-- New Roblox Username Input -->
             <input type="text" id="roblox-username-input" class="roblox-username-input" placeholder="Enter Roblox Username (Required)" style="display: none;" />
 
             <button class="place-order-btn" id="place-order-btn">Place Order (0 items) ₱0.00</button>
-            
         </div>
     </div>
 
@@ -297,7 +299,29 @@
                 </div>
                 <!-- Add other site settings here if needed in the future -->
             </div>
+        </div>
+    </div>
 
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert-modal" class="custom-modal">
+        <div class="custom-modal-content">
+            <button class="custom-modal-close-btn">&times;</button>
+            <p id="custom-alert-message"></p>
+            <div class="custom-modal-buttons">
+                <button class="custom-modal-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="custom-confirm-modal" class="custom-modal">
+        <div class="custom-modal-content">
+            <button class="custom-modal-close-btn">&times;</button>
+            <p id="custom-confirm-message"></p>
+            <div class="custom-modal-buttons">
+                <button class="custom-modal-confirm-btn">Confirm</button>
+                <button class="custom-modal-cancel-btn">Cancel</button>
+            </div>
         </div>
     </div>
 
