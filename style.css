@@ -259,7 +259,7 @@ main#product-list {
     z-index: 7; /* Keep as 7, lower than NEW's 10 but higher than default 5 */
     overflow: visible; /* Changed to visible to ensure content isn't hidden */
     min-width: 140px; /* Increased min-width for larger screens */
-    height: 55px; /* Explicit height to ensure space for both elements */
+    height: 65px; /* Explicit height to ensure space for both elements, increased */
     box-sizing: border-box; /* Include padding in height calculation */
 }
 
@@ -275,8 +275,8 @@ main#product-list {
     display: flex;
     align-items: center;
     justify-content: center; /* Center the text and icon horizontally */
-    margin-bottom: 5px; /* Reduced margin-bottom to make space more compact */
-    font-size: 1em; /* Reduced font size slightly for better fit */
+    margin-bottom: 3px; /* Reduced margin-bottom to make space more compact */
+    font-size: 1.05em; /* Slightly increased font size for better visibility */
     font-weight: bold;
 }
 
@@ -300,7 +300,7 @@ main#product-list {
     color: white; /* Text color for countdown numbers */
     padding: 4px 8px; /* Reduced padding for the countdown numbers */
     border-radius: 8px; /* Fully rounded corners for the timer part */
-    font-size: 0.85em; /* Reduced font size for countdown */
+    font-size: 0.9em; /* Slightly increased font size for countdown */
     font-weight: bold;
     white-space: nowrap;
     min-width: 60px; /* Reduced min-width slightly */
