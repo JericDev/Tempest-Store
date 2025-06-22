@@ -27,7 +27,7 @@ let currentUserId = null; // To store the current authenticated user's ID
 let isAdmin = false; // Flag to check if the current user is an admin
 // IMPORTANT: Replace "YOUR_ACTUAL_ADMIN_UID_HERE" with the actual UID of your admin user from Firebase Authentication.
 // You can find your UID in the Firebase Console -> Authentication -> Users tab.
-const ADMIN_UID = "YOUR_ACTUAL_ADMIN_UID_HERE"; // Placeholder for Admin UID
+const ADMIN_UID = "LigBezoWV9eVo8lglsijoWinKmA2"; // Placeholder for Admin UID
 
 let cart = []; // Global cart array
 let userOrders = []; // Global array to store user's orders (for user history)
