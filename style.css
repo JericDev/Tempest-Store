@@ -233,7 +233,7 @@ main#product-list {
     background: #e74c3c; /* Red for Sale */
     color: white;
     top: 18px;
-    left: 18px; /* Default position for single badge */
+    left: 80px; /* Adjusted position to prevent overlap with NEW badge */
 }
 
 /* Flash Sale Badge - Designed to match the provided image */
