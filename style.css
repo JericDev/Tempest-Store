@@ -1378,7 +1378,7 @@ main#product-list {
     }
     /* Specific positioning for SALE badge when it follows NEW on mobile */
     .card .badge.new + .badge.sale {
-        top: 10px; /* Keep consistent with NEW tag's top position */
+        top: 12px; /* Adjusted value to move it down slightly */
         left: 63px; /* Adjusted value for closer, non-overlapping positioning */
         right: auto; /* Ensure no right positioning interferes */
     }
@@ -1694,8 +1694,6 @@ main#product-list {
     }
     .logo {
         font-size: 28px; /* Adjusted font size */
-        margin-bottom: 0;
-        gap: 10px;
     }
     .auth-section {
         width: auto;
