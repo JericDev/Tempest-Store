@@ -207,40 +207,9 @@ main#product-list {
     border: 1px solid #f0f2f5; /* Subtler border */
 }
 
-/* New container for seamlessly joined NEW and SALE badges */
-.combined-badges {
-    position: absolute;
-    top: 18px;
-    left: 18px;
-    display: inline-flex; /* Use flexbox to align badges side-by-side */
-    border-radius: 12px; /* Apply overall border-radius to the group */
-    overflow: hidden; /* Ensures inner badges respect the container's border-radius */
-    z-index: 10; /* Keep it on top */
-    box-shadow: 0 3px 10px rgba(0,0,0,0.2); /* Apply shadow to the group */
-}
+/* --- Updated Tags (NEW, SALE, FLASH SALE) --- */
 
-/* Adjustments for badges within the combined container */
-.combined-badges .badge.new {
-    position: relative; /* Override absolute positioning from base .badge */
-    top: auto;
-    left: auto;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-    margin-right: -2px; /* Small negative margin to ensure perfect overlap/join */
-    box-shadow: none; /* Remove individual shadow, handled by .combined-badges */
-}
-
-.combined-badges .badge.sale {
-    position: relative; /* Override absolute positioning from base .badge */
-    top: auto;
-    left: auto;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    box-shadow: none; /* Remove individual shadow, handled by .combined-badges */
-}
-
-
-/* General badge styles (for single badges or other types) */
+/* Base badge styles remain the same */
 .badge {
     position: absolute;
     padding: 7px 14px; /* Larger padding for all badges */
@@ -256,18 +225,21 @@ main#product-list {
 .badge.new {
     background: #ffc107; /* Orange for NEW */
     color: #333;
-    /* Default positioning for when it's NOT in a combined-badges group */
     top: 18px;
     left: 18px;
-    z-index: 10;
+    z-index: 10; /* Ensure NEW is always on top, higher than flash-sale (7) and default (5) */
 }
 
 .badge.sale {
     background: #e74c3c; /* Red for Sale */
     color: white;
-    /* Default positioning for when it's NOT in a combined-badges group */
     top: 18px;
-    left: 18px;
+    left: 18px; /* Default position for single badge */
+}
+
+/* If NEW and SALE are on the same card, position SALE next to NEW */
+.card .badge.new + .badge.sale {
+    left: 88px; /* Adjusted to be closer: original 95px - 7px */
 }
 
 
@@ -292,7 +264,6 @@ main#product-list {
 }
 
 /* If NEW and FLASH SALE are on the same card, position FLASH SALE next to NEW */
-/* This assumes NEW is *not* in a .combined-badges group when Flash Sale is present */
 .card .badge.new + .badge.flash-sale {
     left: 88px; /* Adjusted to be closer: original 95px - 7px */
 }
@@ -617,6 +588,8 @@ main#product-list {
     font-size: 0.95em;
     margin-top: 8px;
 }
+
+
 .cart-item-quantity-control {
     display: flex;
     align-items: center;
@@ -1124,6 +1097,7 @@ main#product-list {
     font-size: 1.15em;
     flex-shrink: 0;
 }
+
 /* Toggle Switch Container */
 .toggle-switch {
     position: relative;
@@ -1387,27 +1361,21 @@ main#product-list {
     .card img {
         width: 120px; /* Adjusted image size */
         height: 120px;
-        object-fit: contain;
         margin: 0 auto 15px; /* Adjusted margin */
     }
-    /* Adjusted styles for badges within combined container for mobile */
-    .combined-badges {
+    .badge { /* Adjusted for mobile */
         top: 10px; /* Adjusted position */
         left: 10px; /* Adjusted position */
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-    .combined-badges .badge.new,
-    .combined-badges .badge.sale {
         font-size: 12px; /* Adjusted font size */
         padding: 5px 10px; /* Adjusted padding */
+        border-radius: 10px;
+    }
+    .badge.sale {
+        left: 10px; /* Default position for single badge */
     }
     /* If NEW and SALE are on the same card (mobile) */
-    /* This rule is now largely superseded by .combined-badges, but kept for standalone SALE badges */
     .card .badge.new + .badge.sale {
-        left: 55px; /* Adjusted for cleaner overlap */
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
+        left: 53px; /* Adjusted to be closer: original 60px - 7px */
     }
     .badge.flash-sale { /* Adjusted for mobile */
         min-width: 100px; /* Slightly reduced min-width to prevent overflow */
@@ -1600,6 +1568,7 @@ main#product-list {
         padding: 12px 18px;
         font-size: 1.05em;
     }
+
     /* Admin Panel Mobile Adjustments */
     #admin-panel-modal .modal-box {
         max-width: 95%;
@@ -1804,24 +1773,19 @@ main#product-list {
         font-size: 16px;
     }
     /* Tags for medium screens */
-    /* Adjusted styles for badges within combined container for medium screens */
-    .combined-badges {
+    .badge { /* Adjusted for medium screens */
         top: 15px;
         left: 15px;
-        border-radius: 10px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-    }
-    .combined-badges .badge.new,
-    .combined-badges .badge.sale {
-        font-size: 14px; /* Adjusted font size */
+        font-size: 14px;
         padding: 6px 12px; /* Adjusted padding */
+        border-radius: 10px;
+    }
+    .badge.sale {
+        left: 15px; /* Default position for single badge */
     }
     /* If NEW and SALE are on the same card (medium) */
-    /* This rule is now largely superseded by .combined-badges, but kept for standalone SALE badges */
     .card .badge.new + .badge.sale {
-        left: 70px; /* Adjusted for cleaner overlap */
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
+        left: 68px; /* Adjusted to be closer: original 75px - 7px */
     }
     .badge.flash-sale { /* Adjusted for medium screens */
         top: 15px;
